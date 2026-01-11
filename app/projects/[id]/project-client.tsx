@@ -37,6 +37,7 @@ export default function ProjectClient({ projectId }: ProjectClientProps) {
     tasks,
     loading,
     error,
+    fetchTasks,
     handleCreateTask: createTask,
     handleSaveTask: saveTask,
     handleConfirmDelete: deleteTask,
@@ -50,10 +51,16 @@ export default function ProjectClient({ projectId }: ProjectClientProps) {
   const {
     executionStatus,
     loading: executionLoading,
-    handleRunAll,
+    handleRunAll: baseHandleRunAll,
     handlePause,
     handleResume,
   } = useProjectExecution(projectId);
+
+  // Wrap handleRunAll to refetch tasks after execution starts
+  const handleRunAll = async () => {
+    await baseHandleRunAll();
+    await fetchTasks();
+  };
 
   // Expose refetchAttempts for tests
   useEffect(() => {

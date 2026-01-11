@@ -162,3 +162,22 @@ export async function clearProcessedWebhooks(
     throw new Error(`Failed to clear processed webhooks: ${response.status()} ${await response.text()}`);
   }
 }
+
+/**
+ * Reset project execution state for clean test runs
+ * - Sets project execution status to idle
+ * - Marks all in_progress tasks as todo
+ * - Marks all running attempts as completed
+ */
+export async function resetProjectExecution(
+  request: APIRequestContext,
+  projectId: string
+): Promise<void> {
+  const response = await request.post('http://localhost:8000/api/test/fixtures/reset-project', {
+    data: { projectId },
+  });
+
+  if (!response.ok()) {
+    throw new Error(`Failed to reset project: ${response.status()} ${await response.text()}`);
+  }
+}

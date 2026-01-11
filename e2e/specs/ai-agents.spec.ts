@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test';
-import { createTask, createFixtureAttempt, clearProcessedWebhooks } from '../helpers/api';
+import { createTask, createFixtureAttempt, clearProcessedWebhooks, resetProjectExecution } from '../helpers/api';
 
 test.describe('AI Agents Runtime', () => {
   test.beforeEach(async ({ page, request }) => {
     await clearProcessedWebhooks(request);
+    await resetProjectExecution(request, '1');
     await page.goto('/projects/1');
     await page.waitForSelector('[data-testid="kanban-board"]', { timeout: 10000 });
   });
@@ -18,17 +19,26 @@ test.describe('AI Agents Runtime', () => {
 
       const runAllButton = page.locator('[data-testid="run-all-button"]');
       await expect(runAllButton).toBeVisible();
-      await runAllButton.click();
-      await page.waitForTimeout(1000);
+      await expect(runAllButton).toBeEnabled();
 
+      // Click and wait for run-all API to complete
+      const [runAllResponse] = await Promise.all([
+        page.waitForResponse(resp => resp.url().includes('/run-all') && resp.status() === 200),
+        runAllButton.click(),
+      ]);
+
+      // Wait for tasks API refetch to complete (triggered after run-all)
+      await page.waitForResponse(resp => resp.url().includes('/projects/1/tasks') && resp.status() === 200, { timeout: 10000 });
+
+      // Now wait for task to appear in in_progress column
       const inProgressColumn = page.locator('[data-testid="column-in_progress"]');
-      await expect(inProgressColumn.locator(`[data-testid="task-card-${apiTask.id}"]`)).toBeVisible();
+      await expect(inProgressColumn.locator(`[data-testid="task-card-${apiTask.id}"]`)).toBeVisible({ timeout: 10000 });
 
       await page.locator(`[data-testid="task-card-${apiTask.id}"]`).click();
       await page.waitForSelector('[data-testid="task-details-panel"]', { timeout: 5000 });
 
       const agentRole = page.locator('[data-testid="agent-role"]');
-      await expect(agentRole).toBeVisible();
+      await expect(agentRole).toBeVisible({ timeout: 10000 });
       await expect(agentRole).toContainText('Backend');
 
       const attemptsHistory = page.locator('[data-testid="attempts-history"]');
