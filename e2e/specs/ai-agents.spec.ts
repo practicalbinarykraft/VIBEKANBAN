@@ -18,23 +18,32 @@ test.describe('AI Agents Runtime', () => {
 
       const runAllButton = page.locator('[data-testid="run-all-button"]');
       await expect(runAllButton).toBeVisible();
-      await runAllButton.click();
-      await page.waitForTimeout(1000);
 
+      // Click Run All and wait for API response
+      const runAllPromise = page.waitForResponse(
+        (res) => res.url().includes('/api/projects/1/run-all') && res.status() === 200
+      );
+      await runAllButton.click();
+      await runAllPromise;
+
+      // Wait for execution status to change to RUNNING
+      await expect(page.locator('[data-testid="execution-status"]')).toContainText('RUNNING', { timeout: 5000 });
+
+      // Wait for task to appear in in_progress column
       const inProgressColumn = page.locator('[data-testid="column-in_progress"]');
-      await expect(inProgressColumn.locator(`[data-testid="task-card-${apiTask.id}"]`)).toBeVisible();
+      await expect(inProgressColumn.locator(`[data-testid="task-card-${apiTask.id}"]`)).toBeVisible({ timeout: 5000 });
 
       await page.locator(`[data-testid="task-card-${apiTask.id}"]`).click();
       await page.waitForSelector('[data-testid="task-details-panel"]', { timeout: 5000 });
 
       const agentRole = page.locator('[data-testid="agent-role"]');
-      await expect(agentRole).toBeVisible();
+      await expect(agentRole).toBeVisible({ timeout: 5000 });
       await expect(agentRole).toContainText('Backend');
 
       const attemptsHistory = page.locator('[data-testid="attempts-history"]');
-      await expect(attemptsHistory).toBeVisible();
+      await expect(attemptsHistory).toBeVisible({ timeout: 5000 });
       const attemptItems = attemptsHistory.locator('[data-testid^="attempt-item-"]');
-      expect(await attemptItems.count()).toBeGreaterThanOrEqual(1);
+      await expect(attemptItems.first()).toBeVisible({ timeout: 5000 });
     } finally {
       await request.delete(`http://localhost:8000/api/tasks/${apiTask.id}`);
       await request.delete(`http://localhost:8000/api/tasks/${uiTask.id}`);
@@ -49,19 +58,24 @@ test.describe('AI Agents Runtime', () => {
       await page.waitForSelector('[data-testid="kanban-board"]', { timeout: 10000 });
 
       const runAllButton = page.locator('[data-testid="run-all-button"]');
+      const runAllPromise = page.waitForResponse(
+        (res) => res.url().includes('/api/projects/1/run-all') && res.status() === 200
+      );
       await runAllButton.click();
-      await page.waitForTimeout(1000);
+      await runAllPromise;
 
       const inProgressColumn = page.locator('[data-testid="column-in_progress"]');
-      await expect(inProgressColumn.locator(`[data-testid="task-card-${task.id}"]`)).toBeVisible();
+      await expect(inProgressColumn.locator(`[data-testid="task-card-${task.id}"]`)).toBeVisible({ timeout: 5000 });
 
       const attemptsResponse = await request.get(`http://localhost:8000/api/tasks/${task.id}/attempts`);
       const attempts = await attemptsResponse.json();
       const attemptId = attempts[0]?.id;
 
       if (attemptId) {
+        // Finish attempt and wait for task to move to in_review
         await request.post(`http://localhost:8000/api/test/fixtures/attempt/${attemptId}/finish`);
-        await page.waitForTimeout(1500);
+        const inReviewColumn = page.locator('[data-testid="column-in_review"]');
+        await expect(inReviewColumn.locator(`[data-testid="task-card-${task.id}"]`)).toBeVisible({ timeout: 5000 });
 
         await page.locator(`[data-testid="task-card-${task.id}"]`).click();
         await page.waitForSelector('[data-testid="task-details-panel"]', { timeout: 5000 });
@@ -70,7 +84,7 @@ test.describe('AI Agents Runtime', () => {
         await expect(prLink).toBeVisible({ timeout: 5000 });
 
         const prBadge = page.locator('[data-testid="pr-status"]');
-        await expect(prBadge).toBeVisible();
+        await expect(prBadge).toBeVisible({ timeout: 5000 });
       }
     } finally {
       await request.delete(`http://localhost:8000/api/tasks/${task.id}`);
@@ -87,11 +101,14 @@ test.describe('AI Agents Runtime', () => {
       await page.waitForSelector('[data-testid="kanban-board"]', { timeout: 10000 });
 
       const runAllButton = page.locator('[data-testid="run-all-button"]');
+      const runAllPromise = page.waitForResponse(
+        (res) => res.url().includes('/api/projects/1/run-all') && res.status() === 200
+      );
       await runAllButton.click();
-      await page.waitForTimeout(1000);
+      await runAllPromise;
 
       const inProgressColumn = page.locator('[data-testid="column-in_progress"]');
-      await expect(inProgressColumn.locator(`[data-testid="task-card-${task1.id}"]`)).toBeVisible();
+      await expect(inProgressColumn.locator(`[data-testid="task-card-${task1.id}"]`)).toBeVisible({ timeout: 5000 });
 
       const attempts1Response = await request.get(`http://localhost:8000/api/tasks/${task1.id}/attempts`);
       const attempts1 = await attempts1Response.json();
@@ -99,12 +116,13 @@ test.describe('AI Agents Runtime', () => {
 
       if (attempt1Id) {
         await request.post(`http://localhost:8000/api/test/fixtures/attempt/${attempt1Id}/finish`);
-        await page.waitForTimeout(1500);
 
-        await expect(inProgressColumn.locator(`[data-testid="task-card-${task2.id}"]`)).toBeVisible();
+        // Wait for task2 to move to in_progress (next task starts)
+        await expect(inProgressColumn.locator(`[data-testid="task-card-${task2.id}"]`)).toBeVisible({ timeout: 5000 });
 
+        // Wait for task1 to move to in_review
         const inReviewColumn = page.locator('[data-testid="column-in_review"]');
-        await expect(inReviewColumn.locator(`[data-testid="task-card-${task1.id}"]`)).toBeVisible();
+        await expect(inReviewColumn.locator(`[data-testid="task-card-${task1.id}"]`)).toBeVisible({ timeout: 5000 });
       }
     } finally {
       await request.delete(`http://localhost:8000/api/tasks/${task1.id}`);
@@ -122,8 +140,15 @@ test.describe('AI Agents Runtime', () => {
       await page.waitForSelector('[data-testid="kanban-board"]', { timeout: 10000 });
 
       const runAllButton = page.locator('[data-testid="run-all-button"]');
+      const runAllPromise = page.waitForResponse(
+        (res) => res.url().includes('/api/projects/1/run-all') && res.status() === 200
+      );
       await runAllButton.click();
-      await page.waitForTimeout(1000);
+      await runAllPromise;
+
+      // Wait for task1 to be in progress
+      const inProgressColumn = page.locator('[data-testid="column-in_progress"]');
+      await expect(inProgressColumn.locator(`[data-testid="task-card-${task1.id}"]`)).toBeVisible({ timeout: 5000 });
 
       const attempts1Response = await request.get(`http://localhost:8000/api/tasks/${task1.id}/attempts`);
       const attempts1 = await attempts1Response.json();
@@ -131,7 +156,9 @@ test.describe('AI Agents Runtime', () => {
 
       if (attempt1?.id) {
         await request.post(`http://localhost:8000/api/test/fixtures/attempt/${attempt1.id}/finish`);
-        await page.waitForTimeout(1500);
+        // Wait for task1 to move to in_review
+        const inReviewColumn = page.locator('[data-testid="column-in_review"]');
+        await expect(inReviewColumn.locator(`[data-testid="task-card-${task1.id}"]`)).toBeVisible({ timeout: 5000 });
       }
 
       const attempts2Response = await request.get(`http://localhost:8000/api/tasks/${task2.id}/attempts`);
@@ -144,6 +171,7 @@ test.describe('AI Agents Runtime', () => {
       await page.waitForSelector('[data-testid="task-details-panel"]', { timeout: 5000 });
 
       const pr1Link = page.locator('[data-testid="pr-link"]');
+      await expect(pr1Link).toBeVisible({ timeout: 5000 });
       const pr1Text = await pr1Link.textContent();
 
       await page.locator('[data-testid="close-details"]').click();
@@ -151,6 +179,7 @@ test.describe('AI Agents Runtime', () => {
       await page.waitForSelector('[data-testid="task-details-panel"]', { timeout: 5000 });
 
       const pr2Link = page.locator('[data-testid="pr-link"]');
+      await expect(pr2Link).toBeVisible({ timeout: 5000 });
       const pr2Text = await pr2Link.textContent();
 
       expect(pr1Text).toBeTruthy();
