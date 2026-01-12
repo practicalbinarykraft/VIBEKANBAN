@@ -29,7 +29,8 @@ jobs:
       - name: Run E2E tests (deterministic)
         env:
           PLAYWRIGHT: "1"
-        run: npx playwright test --reporter=line
+          DEBUG: "pw:webserver,pw:api"
+        run: npx playwright test --trace on-first-retry --reporter html --max-failures=1 --workers=1
 
       - name: Upload Playwright report
         if: always()
