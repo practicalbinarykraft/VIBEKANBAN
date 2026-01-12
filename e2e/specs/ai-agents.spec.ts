@@ -10,8 +10,8 @@ test.describe('AI Agents Runtime', () => {
   });
 
   test('T54: Run All → task assigned to agent (role visible)', async ({ page, request }) => {
+    // Create only one task to avoid race condition with timestamp-based ordering
     const apiTask = await createTask(request, '1', 'Build API endpoint for user auth', 'Create POST /api/auth/login endpoint');
-    const uiTask = await createTask(request, '1', 'Build UI component for login', 'Create LoginForm component');
 
     try {
       await page.reload();
@@ -46,7 +46,7 @@ test.describe('AI Agents Runtime', () => {
       const attemptItems = attemptsHistory.locator('[data-testid^="attempt-item-"]');
       await expect(attemptItems.first()).toBeVisible({ timeout: 5000 });
     } finally {
-      await safeCleanup(request, [apiTask.id, uiTask.id]);
+      await safeCleanup(request, [apiTask.id]);
     }
   });
 

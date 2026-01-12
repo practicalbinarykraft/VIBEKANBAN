@@ -69,13 +69,15 @@ export async function tickProjectExecution(projectId: string) {
     return;
   }
 
-  // Find next task to run (first 'todo' task by createdAt)
+  // Find next task to run (first 'todo' task by createdAt, then by id for determinism)
   const nextTask = projectTasks
     .filter(t => t.status === 'todo')
     .sort((a, b) => {
       const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return aTime - bTime;
+      if (aTime !== bTime) return aTime - bTime;
+      // Secondary sort by id for deterministic ordering when timestamps match
+      return a.id.localeCompare(b.id);
     })[0];
 
   if (!nextTask) {
