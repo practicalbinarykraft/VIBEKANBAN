@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/server/db";
-import { projects } from "@/server/db/schema";
-import { eq } from "drizzle-orm";
+import { projects, tasks } from "@/server/db/schema";
+import { eq, and } from "drizzle-orm";
 
 /**
  * POST /api/test/fixtures/project/reset-status
  *
- * Test fixture: Reset project executionStatus to idle
- * Used in beforeEach to ensure clean state between test runs/retries
+ * Test fixture: Reset project to clean state for tests
+ * - Sets executionStatus to idle
+ * - Moves all todo tasks to 'done' so they don't interfere with test tasks
  */
 export async function POST(request: NextRequest) {
   try {
@@ -17,6 +18,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "projectId required" }, { status: 400 });
     }
 
+    // Reset project execution status
     await db
       .update(projects)
       .set({
@@ -25,6 +27,12 @@ export async function POST(request: NextRequest) {
         executionFinishedAt: null,
       })
       .where(eq(projects.id, projectId));
+
+    // Move all seeded todo tasks to done so they don't get picked before test tasks
+    await db
+      .update(tasks)
+      .set({ status: "done" })
+      .where(and(eq(tasks.projectId, projectId), eq(tasks.status, "todo")));
 
     return NextResponse.json({ success: true, projectId });
   } catch (error: any) {
