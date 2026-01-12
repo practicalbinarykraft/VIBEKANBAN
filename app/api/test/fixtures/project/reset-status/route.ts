@@ -28,11 +28,22 @@ export async function POST(request: NextRequest) {
       })
       .where(eq(projects.id, projectId));
 
-    // Move all seeded todo tasks to done so they don't get picked before test tasks
+    // Move all non-done tasks to done so they don't interfere with test tasks
+    // This includes: todo (seeded), in_progress (from failed retries), in_review
     await db
       .update(tasks)
       .set({ status: "done" })
       .where(and(eq(tasks.projectId, projectId), eq(tasks.status, "todo")));
+
+    await db
+      .update(tasks)
+      .set({ status: "done" })
+      .where(and(eq(tasks.projectId, projectId), eq(tasks.status, "in_progress")));
+
+    await db
+      .update(tasks)
+      .set({ status: "done" })
+      .where(and(eq(tasks.projectId, projectId), eq(tasks.status, "in_review")));
 
     return NextResponse.json({ success: true, projectId });
   } catch (error: any) {
