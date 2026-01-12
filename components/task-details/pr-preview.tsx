@@ -68,7 +68,7 @@ export function PRPreview({
           {attempt.prStatus && (
             <div
               className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${statusStyle}`}
-              data-testid="pr-status"
+              data-testid="pr-status-badge"
             >
               {attempt.prStatus.charAt(0).toUpperCase() + attempt.prStatus.slice(1)}
             </div>
