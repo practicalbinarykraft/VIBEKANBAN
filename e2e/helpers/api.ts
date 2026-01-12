@@ -179,3 +179,20 @@ export async function clearProcessedWebhooks(
     throw new Error(`Failed to clear processed webhooks: ${response.status()} ${await response.text()}`);
   }
 }
+
+/**
+ * Reset project execution status to idle
+ * Use in beforeEach to ensure clean state between test runs/retries
+ */
+export async function resetProjectStatus(
+  request: APIRequestContext,
+  projectId: string
+): Promise<void> {
+  const response = await request.post('http://localhost:8000/api/test/fixtures/project/reset-status', {
+    data: { projectId },
+  });
+
+  if (!response.ok()) {
+    throw new Error(`Failed to reset project status: ${response.status()} ${await response.text()}`);
+  }
+}

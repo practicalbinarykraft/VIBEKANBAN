@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test';
-import { createTask, clearProcessedWebhooks, safeCleanup } from '../helpers/api';
+import { createTask, clearProcessedWebhooks, safeCleanup, resetProjectStatus } from '../helpers/api';
 
 test.describe('AI Agents Runtime', () => {
   test.beforeEach(async ({ page, request }) => {
     await clearProcessedWebhooks(request);
+    await resetProjectStatus(request, '1');
     await page.goto('/projects/1');
     await page.waitForSelector('[data-testid="kanban-board"]', { timeout: 10000 });
   });
@@ -25,11 +26,11 @@ test.describe('AI Agents Runtime', () => {
       );
       await runAllButton.click();
       await runAllPromise;
-
-      // Wait for execution status to change to RUNNING
       await expect(page.locator('[data-testid="execution-status"]')).toContainText('RUNNING', { timeout: 5000 });
 
-      // Wait for task to appear in in_progress column
+      // Reload to get fresh task state (UI doesn't auto-refresh task list)
+      await page.reload();
+      await page.waitForSelector('[data-testid="kanban-board"]', { timeout: 10000 });
       const inProgressColumn = page.locator('[data-testid="column-in_progress"]');
       await expect(inProgressColumn.locator(`[data-testid="task-card-${apiTask.id}"]`)).toBeVisible({ timeout: 5000 });
 
@@ -51,7 +52,6 @@ test.describe('AI Agents Runtime', () => {
 
   test('T55: Agent creates PR automatically', async ({ page, request }) => {
     const task = await createTask(request, '1', 'Add API endpoint for user profile', 'Create GET /api/user/profile endpoint');
-
     try {
       await page.reload();
       await page.waitForSelector('[data-testid="kanban-board"]', { timeout: 10000 });
@@ -62,6 +62,10 @@ test.describe('AI Agents Runtime', () => {
       );
       await runAllButton.click();
       await runAllPromise;
+
+      // Reload to get fresh task state
+      await page.reload();
+      await page.waitForSelector('[data-testid="kanban-board"]', { timeout: 10000 });
 
       const inProgressColumn = page.locator('[data-testid="column-in_progress"]');
       await expect(inProgressColumn.locator(`[data-testid="task-card-${task.id}"]`)).toBeVisible({ timeout: 5000 });
@@ -106,6 +110,10 @@ test.describe('AI Agents Runtime', () => {
       await runAllButton.click();
       await runAllPromise;
 
+      // Reload to get fresh task state
+      await page.reload();
+      await page.waitForSelector('[data-testid="kanban-board"]', { timeout: 10000 });
+
       const inProgressColumn = page.locator('[data-testid="column-in_progress"]');
       await expect(inProgressColumn.locator(`[data-testid="task-card-${task1.id}"]`)).toBeVisible({ timeout: 5000 });
 
@@ -142,6 +150,10 @@ test.describe('AI Agents Runtime', () => {
       );
       await runAllButton.click();
       await runAllPromise;
+
+      // Reload to get fresh task state
+      await page.reload();
+      await page.waitForSelector('[data-testid="kanban-board"]', { timeout: 10000 });
 
       // Wait for task1 to be in progress
       const inProgressColumn = page.locator('[data-testid="column-in_progress"]');
