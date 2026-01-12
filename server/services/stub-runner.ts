@@ -7,11 +7,13 @@ export interface LogEntry {
   message: string;
 }
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 /**
  * StubRunner - Simulates DockerRunner for E2E tests
  *
  * Used when PLAYWRIGHT=1 to avoid Docker dependency.
- * Emits deterministic logs and completes immediately.
+ * Emits logs with delays to simulate realistic execution time.
  */
 export class StubRunner extends EventEmitter {
   private containerId: string | null = null;
@@ -27,12 +29,14 @@ export class StubRunner extends EventEmitter {
       "Task completed successfully!",
     ];
 
+    // Emit logs with delays to allow tests to observe in_progress state
     for (const message of logs) {
       this.emit("log", {
         timestamp: new Date(),
         level: "info",
         message,
       } as LogEntry);
+      await sleep(500); // 500ms between logs = ~2.5s total
     }
 
     return { exitCode: 0, containerId: this.containerId };
