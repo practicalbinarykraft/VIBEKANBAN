@@ -101,6 +101,23 @@ export async function deleteTask(
 }
 
 /**
+ * Safe cleanup for tasks - won't throw if browser/context is closed
+ * Use in finally blocks to avoid masking test failures
+ */
+export async function safeCleanup(
+  request: APIRequestContext,
+  taskIds: string[]
+): Promise<void> {
+  for (const taskId of taskIds) {
+    try {
+      await request.delete(`http://localhost:8000/api/tasks/${taskId}`);
+    } catch {
+      // Ignore - context may be closed
+    }
+  }
+}
+
+/**
  * Creates a test fixture attempt with logs and artifacts (no Docker needed)
  *
  * @param request - Playwright API request context

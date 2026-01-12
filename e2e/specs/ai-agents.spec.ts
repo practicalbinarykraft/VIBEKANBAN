@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { createTask, createFixtureAttempt, clearProcessedWebhooks } from '../helpers/api';
+import { createTask, clearProcessedWebhooks, safeCleanup } from '../helpers/api';
 
 test.describe('AI Agents Runtime', () => {
   test.beforeEach(async ({ page, request }) => {
@@ -45,8 +45,7 @@ test.describe('AI Agents Runtime', () => {
       const attemptItems = attemptsHistory.locator('[data-testid^="attempt-item-"]');
       await expect(attemptItems.first()).toBeVisible({ timeout: 5000 });
     } finally {
-      await request.delete(`http://localhost:8000/api/tasks/${apiTask.id}`);
-      await request.delete(`http://localhost:8000/api/tasks/${uiTask.id}`);
+      await safeCleanup(request, [apiTask.id, uiTask.id]);
     }
   });
 
@@ -87,7 +86,7 @@ test.describe('AI Agents Runtime', () => {
         await expect(prBadge).toBeVisible({ timeout: 5000 });
       }
     } finally {
-      await request.delete(`http://localhost:8000/api/tasks/${task.id}`);
+      await safeCleanup(request, [task.id]);
     }
   });
 
@@ -125,9 +124,7 @@ test.describe('AI Agents Runtime', () => {
         await expect(inReviewColumn.locator(`[data-testid="task-card-${task1.id}"]`)).toBeVisible({ timeout: 5000 });
       }
     } finally {
-      await request.delete(`http://localhost:8000/api/tasks/${task1.id}`);
-      await request.delete(`http://localhost:8000/api/tasks/${task2.id}`);
-      await request.delete(`http://localhost:8000/api/tasks/${task3.id}`);
+      await safeCleanup(request, [task1.id, task2.id, task3.id]);
     }
   });
 
@@ -185,8 +182,7 @@ test.describe('AI Agents Runtime', () => {
       expect(pr1Text).toBeTruthy();
       expect(pr2Text).toBeTruthy();
     } finally {
-      await request.delete(`http://localhost:8000/api/tasks/${task1.id}`);
-      await request.delete(`http://localhost:8000/api/tasks/${task2.id}`);
+      await safeCleanup(request, [task1.id, task2.id]);
     }
   });
 });

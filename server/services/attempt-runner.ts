@@ -2,6 +2,7 @@ import { db } from "@/server/db";
 import { tasks, attempts, logs, artifacts } from "@/server/db/schema";
 import { eq } from "drizzle-orm";
 import { DockerRunner } from "@/server/services/docker-runner";
+import { StubRunner } from "@/server/services/stub-runner";
 import { emitAttemptLog, emitAttemptStatus } from "@/server/services/events-hub";
 import { registerRunner, unregisterRunner } from "@/server/services/runners-store";
 import { scheduleProject } from "@/server/services/attempt-queue";
@@ -9,6 +10,8 @@ import { randomUUID } from "crypto";
 import { parseUnifiedDiff } from "@/lib/diff-parser";
 import { existsSync } from "fs";
 import { execSync } from "child_process";
+
+const isTestMode = process.env.PLAYWRIGHT === "1";
 
 interface RunAttemptOptions {
   attemptId: string;
@@ -41,12 +44,13 @@ export async function runAttempt(options: RunAttemptOptions): Promise<void> {
     agentName,
   } = options;
 
-  console.log(`[Runner] Starting attempt ${attemptId} for task ${taskId}`);
+  console.log(`[Runner] Starting attempt ${attemptId} for task ${taskId}${isTestMode ? " (stub mode)" : ""}`);
 
   const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
-  const useClaude = !!anthropicApiKey;
+  const useClaude = !!anthropicApiKey && !isTestMode;
 
-  const runner = new DockerRunner();
+  // Use StubRunner in test mode to avoid Docker dependency
+  const runner = isTestMode ? new StubRunner() : new DockerRunner();
   registerRunner(attemptId, runner);
 
   // Listen to logs
@@ -92,13 +96,17 @@ export async function runAttempt(options: RunAttemptOptions): Promise<void> {
     ];
   }
 
-  // Run in background
-  runner.run({
-    command,
-    env,
-    enableNetwork: useClaude,
-    binds: [`${workspacePath}:/workspace:rw`],
-  }).then(async ({ exitCode, containerId }) => {
+  // Run in background - StubRunner ignores options, DockerRunner uses them
+  const runPromise = isTestMode
+    ? runner.run()
+    : (runner as DockerRunner).run({
+        command,
+        env,
+        enableNetwork: useClaude,
+        binds: [`${workspacePath}:/workspace:rw`],
+      });
+
+  runPromise.then(async ({ exitCode, containerId }) => {
     const finalStatus = exitCode === 0 ? "completed" : "failed";
 
     let diffContent = "";
