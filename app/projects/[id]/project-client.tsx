@@ -10,12 +10,13 @@ import { useProjectExecution } from "@/hooks/useProjectExecution";
 import { ChatPage } from "@/components/chat/chat-page";
 import { ProjectTabs } from "@/components/project/project-tabs";
 import { TasksView } from "@/components/project/tasks-view";
+import { PlanningTab } from "@/components/planning/planning-tab";
 
 interface ProjectClientProps {
   projectId: string;
 }
 
-type TabType = "tasks" | "chat";
+type TabType = "tasks" | "chat" | "planning";
 
 export default function ProjectClient({ projectId }: ProjectClientProps) {
   const searchParams = useSearchParams();
@@ -181,6 +182,19 @@ export default function ProjectClient({ projectId }: ProjectClientProps) {
       {activeTab === "chat" && (
         <div className="h-[calc(100vh-7rem)]">
           <ChatPage projectId={projectId} />
+        </div>
+      )}
+
+      {/* Planning View */}
+      {activeTab === "planning" && (
+        <div className="h-[calc(100vh-7rem)]">
+          <PlanningTab
+            projectId={projectId}
+            onApplyComplete={() => {
+              setActiveTab("tasks");
+              refreshTasks();
+            }}
+          />
         </div>
       )}
 

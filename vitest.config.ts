@@ -7,7 +7,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./test/setup.ts'],
-    include: ['hooks/__tests__/**/*.test.{ts,tsx}'],
+    include: ['hooks/__tests__/**/*.test.{ts,tsx}', 'lib/__tests__/**/*.test.{ts,tsx}'],
     exclude: ['server/**', 'node_modules/**'],
     globals: true,
   },
