@@ -95,8 +95,9 @@ test.describe('Project Execution Orchestrator', () => {
         data: { success: true },
       });
 
-      // Wait for orchestrator to tick and start next task
-      await page.waitForTimeout(2000);
+      // Reload to see updated task state
+      await page.reload();
+      await page.waitForSelector('[data-testid="kanban-board"]', { timeout: 10000 });
 
       // Verify task1 moved to "In Review" or "Done"
       const inReviewColumn = page.locator('[data-testid="column-in_review"]');
@@ -106,7 +107,8 @@ test.describe('Project Execution Orchestrator', () => {
       expect(task1InReview + task1InDone).toBeGreaterThan(0);
 
       // Verify task2 started (in progress)
-      await expect(inProgressColumn.locator(`[data-testid="task-card-${task2.id}"]`)).toBeVisible({ timeout: 5000 });
+      const inProgressCol = page.locator('[data-testid="column-in_progress"]');
+      await expect(inProgressCol.locator(`[data-testid="task-card-${task2.id}"]`)).toBeVisible({ timeout: 5000 });
     } finally {
       await request.delete(`http://localhost:8000/api/tasks/${task1.id}`);
       await request.delete(`http://localhost:8000/api/tasks/${task2.id}`);
