@@ -73,3 +73,16 @@ export async function waitForBoardAndTaskInColumn(
   await waitForBoardReady(page, timeout);
   await waitForTaskInColumn(page, taskId, columnStatus, timeout);
 }
+
+/**
+ * Wait for execution status badge to show specific state
+ * @param status Expected status: 'RUNNING' | 'IDLE' | 'PAUSED' | 'COMPLETED'
+ */
+export async function waitForExecutionStatus(
+  page: Page,
+  status: 'RUNNING' | 'IDLE' | 'PAUSED' | 'COMPLETED',
+  timeout = 10000
+) {
+  const statusBadge = page.locator('[data-testid="execution-status"]');
+  await expect(statusBadge).toContainText(new RegExp(status, 'i'), { timeout });
+}
