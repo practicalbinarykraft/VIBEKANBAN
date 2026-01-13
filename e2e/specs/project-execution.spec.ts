@@ -69,9 +69,16 @@ test.describe('Project Execution Orchestrator', () => {
       await page.reload();
       await page.waitForSelector('[data-testid="kanban-board"]', { timeout: 10000 });
 
-      // Start execution
+      // Start execution and wait for API response
+      const runAllPromise = page.waitForResponse(
+        (res) => res.url().includes('/api/projects/1/run-all') && res.status() === 200
+      );
       await page.click('[data-testid="run-all-button"]');
-      await page.waitForTimeout(1000);
+      await runAllPromise;
+
+      // Reload to get fresh task state
+      await page.reload();
+      await page.waitForSelector('[data-testid="kanban-board"]', { timeout: 10000 });
 
       // Wait for first task to be in progress
       const inProgressColumn = page.locator('[data-testid="column-in_progress"]');
@@ -115,9 +122,16 @@ test.describe('Project Execution Orchestrator', () => {
       await page.reload();
       await page.waitForSelector('[data-testid="kanban-board"]', { timeout: 10000 });
 
-      // Start execution
+      // Start execution and wait for API response
+      const runAllPromise = page.waitForResponse(
+        (res) => res.url().includes('/api/projects/1/run-all') && res.status() === 200
+      );
       await page.click('[data-testid="run-all-button"]');
-      await page.waitForTimeout(1000);
+      await runAllPromise;
+
+      // Reload to get fresh task state
+      await page.reload();
+      await page.waitForSelector('[data-testid="kanban-board"]', { timeout: 10000 });
 
       // Wait for first task to be in progress
       const inProgressColumn = page.locator('[data-testid="column-in_progress"]');
@@ -158,9 +172,12 @@ test.describe('Project Execution Orchestrator', () => {
       await page.reload();
       await page.waitForSelector('[data-testid="kanban-board"]', { timeout: 10000 });
 
-      // Start execution
+      // Start execution and wait for API response
+      const runAllPromise = page.waitForResponse(
+        (res) => res.url().includes('/api/projects/1/run-all') && res.status() === 200
+      );
       await page.click('[data-testid="run-all-button"]');
-      await page.waitForTimeout(1000);
+      await runAllPromise;
 
       // Pause immediately
       await page.click('[data-testid="pause-button"]');
