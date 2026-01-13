@@ -127,6 +127,10 @@ npm start
    - Merge функциональность
    - Статус проверок
 
+## Testing
+
+UI использует **explicit refresh contract** — после мутаций UI обновляется через `refreshTasks()`, не через page reload. E2E тесты используют `waitForBoardReady()` / `waitForTaskInColumn()` вместо таймаутов. Подробнее: [docs/testing.md](docs/testing.md).
+
 ## Drag-and-Drop
 
 @dnd-kit уже установлен, но drag-and-drop функциональность пока не активирована. Для включения необходимо обернуть KanbanBoard в DndContext и добавить сортируемые элементы.
