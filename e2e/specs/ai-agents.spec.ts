@@ -69,7 +69,7 @@ test.describe('AI Agents Runtime', () => {
         await page.waitForSelector('[data-testid="task-details-panel"]', { timeout: 5000 });
         const prLink = page.locator('[data-testid="pr-link"]');
         await expect(prLink).toBeVisible({ timeout: 5000 });
-        const prBadge = page.locator('[data-testid="pr-status"]');
+        const prBadge = page.locator('[data-testid="pr-status-badge"]');
         await expect(prBadge).toBeVisible({ timeout: 5000 });
       }
     } finally {
