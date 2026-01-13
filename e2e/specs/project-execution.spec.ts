@@ -199,13 +199,20 @@ test.describe('Project Execution Orchestrator', () => {
       const todoColumn = page.locator('[data-testid="column-todo"]');
       await expect(todoColumn.locator(`[data-testid="task-card-${task2.id}"]`)).toBeVisible();
 
-      // Resume execution
+      // Resume execution and wait for response
+      const resumePromise = page.waitForResponse(
+        (res) => res.url().includes('/api/projects/1/resume') && res.status() === 200
+      );
       await page.click('[data-testid="resume-button"]');
-      await page.waitForTimeout(2000);
+      await resumePromise;
+
+      // Reload to see updated state
+      await page.reload();
+      await page.waitForSelector('[data-testid="kanban-board"]', { timeout: 10000 });
 
       // Verify status is "Running"
       const executionStatus = page.locator('[data-testid="execution-status"]');
-      await expect(executionStatus).toContainText(/running/i);
+      await expect(executionStatus).toContainText(/running/i, { timeout: 5000 });
 
       // Verify task2 started
       const inProgressColumn = page.locator('[data-testid="column-in_progress"]');
