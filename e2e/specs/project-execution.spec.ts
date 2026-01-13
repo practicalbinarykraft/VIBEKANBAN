@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test';
-import { createTask, createFixtureAttempt, clearProcessedWebhooks } from '../helpers/api';
+import { createTask, createFixtureAttempt, clearProcessedWebhooks, resetProjectStatus } from '../helpers/api';
 
 test.describe('Project Execution Orchestrator', () => {
   test.beforeEach(async ({ page, request }) => {
     await clearProcessedWebhooks(request);
+    await resetProjectStatus(request, '1');
     await page.goto('/projects/1');
     await page.waitForSelector('[data-testid="kanban-board"]', { timeout: 10000 });
   });
