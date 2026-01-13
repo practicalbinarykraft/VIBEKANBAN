@@ -3,9 +3,14 @@
  *
  * Responsibility: Handle fetching, creating, updating, and deleting tasks
  * Returns tasks list, loading state, error, and action handlers
+ *
+ * Refresh contract:
+ * - refreshTasks() with deduplication via AbortController
+ * - isRefreshing for UI overlay
+ * - requestId tracking to prevent stale responses
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Task } from "@/types";
 
@@ -13,9 +18,14 @@ export function useProjectTasks(projectId: string) {
   const router = useRouter();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch tasks from API
+  // Deduplication: abort previous request, track request ID
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const requestIdRef = useRef(0);
+
+  // Fetch tasks from API (initial load)
   const fetchTasks = async () => {
     try {
       setError(null);
@@ -34,9 +44,61 @@ export function useProjectTasks(projectId: string) {
     }
   };
 
+  // Refresh tasks with deduplication (for mutations/polling)
+  const refreshTasks = useCallback(async () => {
+    // Abort previous in-flight request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const currentRequestId = ++requestIdRef.current;
+
+    setIsRefreshing(true);
+
+    try {
+      const response = await fetch(`/api/projects/${projectId}/tasks`, {
+        signal: controller.signal,
+      });
+
+      // Check if this is still the latest request
+      if (currentRequestId !== requestIdRef.current) {
+        return; // Stale response, ignore
+      }
+
+      if (response.ok) {
+        const data = await response.json();
+        setTasks(data);
+        setError(null);
+      } else {
+        setError("Failed to refresh tasks");
+      }
+    } catch (err: any) {
+      if (err.name === "AbortError") {
+        return; // Request was aborted, ignore
+      }
+      console.error("Failed to refresh tasks:", err);
+      setError("Failed to refresh tasks");
+    } finally {
+      if (currentRequestId === requestIdRef.current) {
+        setIsRefreshing(false);
+      }
+    }
+  }, [projectId]);
+
   useEffect(() => {
     fetchTasks();
   }, [projectId]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   const handleCreateTask = async (
     title: string,
@@ -135,8 +197,9 @@ export function useProjectTasks(projectId: string) {
   return {
     tasks,
     loading,
+    isRefreshing,
     error,
-    fetchTasks,
+    refreshTasks,
     handleCreateTask,
     handleSaveTask,
     handleConfirmDelete,

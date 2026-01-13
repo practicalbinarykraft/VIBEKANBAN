@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { createTask, createFixtureAttempt, clearProcessedWebhooks, resetProjectStatus } from '../helpers/api';
+import { waitForBoardReady, waitForTaskInColumn } from '../helpers/board';
 
 test.describe('Project Execution Orchestrator', () => {
   test.beforeEach(async ({ page, request }) => {
@@ -16,7 +17,7 @@ test.describe('Project Execution Orchestrator', () => {
     const task3 = await createTask(request, '1', 'Task 3 for orchestration', 'Third task');
 
     try {
-      // Reload to see new tasks
+      // Reload to see new tasks (created via API, not UI)
       await page.reload();
       await page.waitForSelector('[data-testid="kanban-board"]', { timeout: 10000 });
 
@@ -33,16 +34,15 @@ test.describe('Project Execution Orchestrator', () => {
       const executionStatus = page.locator('[data-testid="execution-status"]');
       await expect(executionStatus).toContainText(/running/i, { timeout: 5000 });
 
-      // Reload to get fresh task state (UI doesn't auto-refresh)
-      await page.reload();
-      await page.waitForSelector('[data-testid="kanban-board"]', { timeout: 10000 });
+      // Wait for board auto-refresh (no reload needed)
+      await waitForBoardReady(page);
 
       // Check if task is in "In Progress" column
-      const inProgressColumn = page.locator('[data-testid="column-in_progress"]');
-      const task1Card = inProgressColumn.locator(`[data-testid="task-card-${task1.id}"]`);
-      await expect(task1Card).toBeVisible({ timeout: 5000 });
+      await waitForTaskInColumn(page, task1.id, 'in_progress');
 
       // Open first task to verify attempt was created
+      const inProgressColumn = page.locator('[data-testid="column-in_progress"]');
+      const task1Card = inProgressColumn.locator(`[data-testid="task-card-${task1.id}"]`);
       await task1Card.click();
       await page.waitForSelector('[data-testid="task-details-panel"]', { timeout: 5000 });
 
@@ -76,13 +76,11 @@ test.describe('Project Execution Orchestrator', () => {
       await page.click('[data-testid="run-all-button"]');
       await runAllPromise;
 
-      // Reload to get fresh task state
-      await page.reload();
-      await page.waitForSelector('[data-testid="kanban-board"]', { timeout: 10000 });
+      // Wait for board auto-refresh
+      await waitForBoardReady(page);
 
       // Wait for first task to be in progress
-      const inProgressColumn = page.locator('[data-testid="column-in_progress"]');
-      await expect(inProgressColumn.locator(`[data-testid="task-card-${task1.id}"]`)).toBeVisible({ timeout: 5000 });
+      await waitForTaskInColumn(page, task1.id, 'in_progress');
 
       // Get the attempt ID for task1
       const task1Attempts = await request.get(`http://localhost:8000/api/tasks/${task1.id}/attempts`);
@@ -95,9 +93,9 @@ test.describe('Project Execution Orchestrator', () => {
         data: { success: true },
       });
 
-      // Reload to see updated task state
-      await page.reload();
-      await page.waitForSelector('[data-testid="kanban-board"]', { timeout: 10000 });
+      // Trigger UI refresh after external API call
+      await page.evaluate(() => (window as any).__VIBE__?.refreshTasks?.());
+      await waitForBoardReady(page);
 
       // Verify task1 moved to "In Review" or "Done"
       const inReviewColumn = page.locator('[data-testid="column-in_review"]');
@@ -107,8 +105,7 @@ test.describe('Project Execution Orchestrator', () => {
       expect(task1InReview + task1InDone).toBeGreaterThan(0);
 
       // Verify task2 started (in progress)
-      const inProgressCol = page.locator('[data-testid="column-in_progress"]');
-      await expect(inProgressCol.locator(`[data-testid="task-card-${task2.id}"]`)).toBeVisible({ timeout: 5000 });
+      await waitForTaskInColumn(page, task2.id, 'in_progress');
     } finally {
       await request.delete(`http://localhost:8000/api/tasks/${task1.id}`);
       await request.delete(`http://localhost:8000/api/tasks/${task2.id}`);
@@ -131,17 +128,18 @@ test.describe('Project Execution Orchestrator', () => {
       await page.click('[data-testid="run-all-button"]');
       await runAllPromise;
 
-      // Reload to get fresh task state
-      await page.reload();
-      await page.waitForSelector('[data-testid="kanban-board"]', { timeout: 10000 });
+      // Wait for board auto-refresh
+      await waitForBoardReady(page);
 
       // Wait for first task to be in progress
-      const inProgressColumn = page.locator('[data-testid="column-in_progress"]');
-      await expect(inProgressColumn.locator(`[data-testid="task-card-${task1.id}"]`)).toBeVisible({ timeout: 5000 });
+      await waitForTaskInColumn(page, task1.id, 'in_progress');
 
-      // Click Pause
+      // Click Pause and wait for response
+      const pausePromise = page.waitForResponse(
+        (res) => res.url().includes('/api/projects/1/pause') && res.status() === 200
+      );
       await page.click('[data-testid="pause-button"]');
-      await page.waitForTimeout(500);
+      await pausePromise;
 
       // Verify status is "Paused"
       const executionStatus = page.locator('[data-testid="execution-status"]');
@@ -155,11 +153,12 @@ test.describe('Project Execution Orchestrator', () => {
         data: { success: true },
       });
 
-      await page.waitForTimeout(2000);
+      // Trigger UI refresh and wait
+      await page.evaluate(() => (window as any).__VIBE__?.refreshTasks?.());
+      await waitForBoardReady(page);
 
       // Verify task2 did NOT start (still in todo)
-      const todoColumn = page.locator('[data-testid="column-todo"]');
-      await expect(todoColumn.locator(`[data-testid="task-card-${task2.id}"]`)).toBeVisible();
+      await waitForTaskInColumn(page, task2.id, 'todo');
     } finally {
       await request.delete(`http://localhost:8000/api/tasks/${task1.id}`);
       await request.delete(`http://localhost:8000/api/tasks/${task2.id}`);
@@ -181,9 +180,12 @@ test.describe('Project Execution Orchestrator', () => {
       await page.click('[data-testid="run-all-button"]');
       await runAllPromise;
 
-      // Pause immediately
+      // Pause immediately and wait for response
+      const pausePromise = page.waitForResponse(
+        (res) => res.url().includes('/api/projects/1/pause') && res.status() === 200
+      );
       await page.click('[data-testid="pause-button"]');
-      await page.waitForTimeout(500);
+      await pausePromise;
 
       // Complete first attempt while paused
       const task1Attempts = await request.get(`http://localhost:8000/api/tasks/${task1.id}/attempts`);
@@ -193,11 +195,10 @@ test.describe('Project Execution Orchestrator', () => {
         data: { success: true },
       });
 
-      await page.waitForTimeout(1000);
-
-      // Verify task2 NOT started yet
-      const todoColumn = page.locator('[data-testid="column-todo"]');
-      await expect(todoColumn.locator(`[data-testid="task-card-${task2.id}"]`)).toBeVisible();
+      // Trigger UI refresh and verify task2 NOT started yet
+      await page.evaluate(() => (window as any).__VIBE__?.refreshTasks?.());
+      await waitForBoardReady(page);
+      await waitForTaskInColumn(page, task2.id, 'todo');
 
       // Resume execution and wait for response
       const resumePromise = page.waitForResponse(
@@ -206,17 +207,15 @@ test.describe('Project Execution Orchestrator', () => {
       await page.click('[data-testid="resume-button"]');
       await resumePromise;
 
-      // Reload to see updated state
-      await page.reload();
-      await page.waitForSelector('[data-testid="kanban-board"]', { timeout: 10000 });
+      // Wait for board auto-refresh (no reload needed)
+      await waitForBoardReady(page);
 
       // Verify status is "Running"
       const executionStatus = page.locator('[data-testid="execution-status"]');
       await expect(executionStatus).toContainText(/running/i, { timeout: 5000 });
 
       // Verify task2 started
-      const inProgressColumn = page.locator('[data-testid="column-in_progress"]');
-      await expect(inProgressColumn.locator(`[data-testid="task-card-${task2.id}"]`)).toBeVisible({ timeout: 5000 });
+      await waitForTaskInColumn(page, task2.id, 'in_progress');
     } finally {
       await request.delete(`http://localhost:8000/api/tasks/${task1.id}`);
       await request.delete(`http://localhost:8000/api/tasks/${task2.id}`);

@@ -3,6 +3,10 @@
  *
  * Responsibility: Handle Run All, Pause, Resume actions and execution status
  * Polls execution status and provides action handlers
+ *
+ * Refresh contract:
+ * - Accepts onTasksChanged callback to notify parent when tasks might have changed
+ * - Calls onTasksChanged after run-all/pause/resume and during polling when running
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -13,7 +17,15 @@ interface ProjectExecutionData {
   executionFinishedAt: string | null;
 }
 
-export function useProjectExecution(projectId: string) {
+interface UseProjectExecutionOptions {
+  onTasksChanged?: () => void;
+}
+
+export function useProjectExecution(
+  projectId: string,
+  options: UseProjectExecutionOptions = {}
+) {
+  const { onTasksChanged } = options;
   const [executionData, setExecutionData] = useState<ProjectExecutionData>({
     executionStatus: "idle",
     executionStartedAt: null,
@@ -55,11 +67,13 @@ export function useProjectExecution(projectId: string) {
     if (executionData.executionStatus === "running") {
       const interval = setInterval(() => {
         fetchExecutionStatus();
+        // Also refresh tasks during polling (tasks may change status)
+        onTasksChanged?.();
       }, 2000); // Poll every 2 seconds
 
       return () => clearInterval(interval);
     }
-  }, [executionData.executionStatus, fetchExecutionStatus]);
+  }, [executionData.executionStatus, fetchExecutionStatus, onTasksChanged]);
 
   const handleRunAll = async () => {
     try {
@@ -73,8 +87,9 @@ export function useProjectExecution(projectId: string) {
         throw new Error(errorData.error || "Failed to start execution");
       }
 
-      // Refresh status
+      // Refresh status and tasks
       await fetchExecutionStatus();
+      onTasksChanged?.();
     } catch (error: any) {
       console.error("Error starting execution:", error);
       setError(error.message || "Failed to start execution");
@@ -94,8 +109,9 @@ export function useProjectExecution(projectId: string) {
         throw new Error(errorData.error || "Failed to pause execution");
       }
 
-      // Refresh status
+      // Refresh status and tasks
       await fetchExecutionStatus();
+      onTasksChanged?.();
     } catch (error: any) {
       console.error("Error pausing execution:", error);
       setError(error.message || "Failed to pause execution");
@@ -115,8 +131,9 @@ export function useProjectExecution(projectId: string) {
         throw new Error(errorData.error || "Failed to resume execution");
       }
 
-      // Refresh status
+      // Refresh status and tasks
       await fetchExecutionStatus();
+      onTasksChanged?.();
     } catch (error: any) {
       console.error("Error resuming execution:", error);
       setError(error.message || "Failed to resume execution");

@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { clearProcessedWebhooks, resetProjectStatus } from '../helpers/api';
+import { waitForBoardReady } from '../helpers/board';
 
 test.describe('Project Chat + Iteration Loop', () => {
   test.beforeEach(async ({ page, request }) => {
@@ -122,11 +123,14 @@ test.describe('Project Chat + Iteration Loop', () => {
     await iterateButton.click();
     await iteratePromise;
 
-    // Navigate to Tasks tab and reload to get fresh data
+    // Navigate to Tasks tab and trigger refresh
     const tasksTab = page.locator('[data-testid="tasks-tab"]').first();
     await tasksTab.click();
-    await page.reload();
     await page.waitForSelector('[data-testid="kanban-board"]', { timeout: 5000 });
+
+    // Trigger UI refresh (iterate creates tasks via API)
+    await page.evaluate(() => (window as any).__VIBE__?.refreshTasks?.());
+    await waitForBoardReady(page);
 
     // Verify new tasks are in kanban
     const todoColumn = page.locator('[data-testid="column-todo"]');

@@ -22,6 +22,7 @@ interface TasksViewProps {
   onDelete: () => void;
   executionStatus: any;
   executionLoading: boolean;
+  isRefreshing: boolean;
   onRunAll: () => void;
   onPause: () => void;
   onResume: () => void;
@@ -43,6 +44,7 @@ export function TasksView({
   onDelete,
   executionStatus,
   executionLoading,
+  isRefreshing,
   onRunAll,
   onPause,
   onResume,
@@ -86,6 +88,7 @@ export function TasksView({
             tasks={filteredTasks}
             selectedTaskId={selectedTaskId}
             onTaskClick={onTaskClick}
+            isRefreshing={isRefreshing}
           />
         </div>
       </div>

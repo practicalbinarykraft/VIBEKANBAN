@@ -36,7 +36,9 @@ export default function ProjectClient({ projectId }: ProjectClientProps) {
   const {
     tasks,
     loading,
+    isRefreshing,
     error,
+    refreshTasks,
     handleCreateTask: createTask,
     handleSaveTask: saveTask,
     handleConfirmDelete: deleteTask,
@@ -53,17 +55,18 @@ export default function ProjectClient({ projectId }: ProjectClientProps) {
     handleRunAll,
     handlePause,
     handleResume,
-  } = useProjectExecution(projectId);
+  } = useProjectExecution(projectId, { onTasksChanged: refreshTasks });
 
-  // Expose refetchAttempts for tests
+  // Expose refresh functions for tests
   useEffect(() => {
     if (typeof window !== 'undefined') {
       (window as any).__VIBE__ = {
         ...(window as any).__VIBE__,
         refetchAttempts,
+        refreshTasks,
       };
     }
-  }, [refetchAttempts]);
+  }, [refetchAttempts, refreshTasks]);
 
   const selectedTask = tasks.find((t) => t.id === selectedTaskId);
 
@@ -164,6 +167,7 @@ export default function ProjectClient({ projectId }: ProjectClientProps) {
           onDelete={handleDeleteTask}
           executionStatus={executionStatus}
           executionLoading={executionLoading}
+          isRefreshing={isRefreshing}
           onRunAll={handleRunAll}
           onPause={handlePause}
           onResume={handleResume}
