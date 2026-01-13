@@ -23,22 +23,24 @@ test.describe('Project Execution Orchestrator', () => {
       // Find and click "Run All" button
       const runAllButton = page.locator('[data-testid="run-all-button"]');
       await expect(runAllButton).toBeVisible();
+      const runAllPromise = page.waitForResponse(
+        (res) => res.url().includes('/api/projects/1/run-all') && res.status() === 200
+      );
       await runAllButton.click();
-
-      // Wait for execution to start
-      await page.waitForTimeout(1000);
+      await runAllPromise;
 
       // Verify execution status is "Running"
       const executionStatus = page.locator('[data-testid="execution-status"]');
-      await expect(executionStatus).toContainText(/running/i);
+      await expect(executionStatus).toContainText(/running/i, { timeout: 5000 });
 
-      // Verify first task moved to "In Progress"
-      const task1Card = page.locator(`[data-testid="task-card-${task1.id}"]`);
-      await expect(task1Card).toBeVisible();
+      // Reload to get fresh task state (UI doesn't auto-refresh)
+      await page.reload();
+      await page.waitForSelector('[data-testid="kanban-board"]', { timeout: 10000 });
 
       // Check if task is in "In Progress" column
       const inProgressColumn = page.locator('[data-testid="column-in_progress"]');
-      await expect(inProgressColumn.locator(`[data-testid="task-card-${task1.id}"]`)).toBeVisible();
+      const task1Card = inProgressColumn.locator(`[data-testid="task-card-${task1.id}"]`);
+      await expect(task1Card).toBeVisible({ timeout: 5000 });
 
       // Open first task to verify attempt was created
       await task1Card.click();
