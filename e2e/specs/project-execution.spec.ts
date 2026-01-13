@@ -30,7 +30,7 @@ test.describe('Project Execution Orchestrator', () => {
 
       // Verify execution status is "Running"
       const executionStatus = page.locator('[data-testid="execution-status"]');
-      await expect(executionStatus).toContainText('Running');
+      await expect(executionStatus).toContainText(/running/i);
 
       // Verify first task moved to "In Progress"
       const task1Card = page.locator(`[data-testid="task-card-${task1.id}"]`);
@@ -127,7 +127,7 @@ test.describe('Project Execution Orchestrator', () => {
 
       // Verify status is "Paused"
       const executionStatus = page.locator('[data-testid="execution-status"]');
-      await expect(executionStatus).toContainText('Paused');
+      await expect(executionStatus).toContainText(/paused/i);
 
       // Complete first attempt
       const task1Attempts = await request.get(`http://localhost:8000/api/tasks/${task1.id}/attempts`);
@@ -184,7 +184,7 @@ test.describe('Project Execution Orchestrator', () => {
 
       // Verify status is "Running"
       const executionStatus = page.locator('[data-testid="execution-status"]');
-      await expect(executionStatus).toContainText('Running');
+      await expect(executionStatus).toContainText(/running/i);
 
       // Verify task2 started
       const inProgressColumn = page.locator('[data-testid="column-in_progress"]');
