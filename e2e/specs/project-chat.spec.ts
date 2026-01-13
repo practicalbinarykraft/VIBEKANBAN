@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test';
-import { clearProcessedWebhooks } from '../helpers/api';
+import { clearProcessedWebhooks, resetProjectStatus } from '../helpers/api';
 
 test.describe('Project Chat + Iteration Loop', () => {
   test.beforeEach(async ({ page, request }) => {
     await clearProcessedWebhooks(request);
+    await resetProjectStatus(request, '1');
     await page.goto('/projects/1');
     await page.waitForSelector('[data-testid="kanban-board"]', { timeout: 10000 });
   });
@@ -113,16 +114,18 @@ test.describe('Project Chat + Iteration Loop', () => {
     // Wait for council
     await page.waitForTimeout(2000);
 
-    // Click iterate button
+    // Click iterate button and wait for API response
     const iterateButton = page.locator('[data-testid="iterate-button"]');
+    const iteratePromise = page.waitForResponse(
+      (res) => res.url().includes('/api/projects/1/iterate') && res.status() === 200
+    );
     await iterateButton.click();
+    await iteratePromise;
 
-    // Wait for tasks to be created
-    await page.waitForTimeout(1500);
-
-    // Navigate to Tasks tab to verify
+    // Navigate to Tasks tab and reload to get fresh data
     const tasksTab = page.locator('[data-testid="tasks-tab"]').first();
     await tasksTab.click();
+    await page.reload();
     await page.waitForSelector('[data-testid="kanban-board"]', { timeout: 5000 });
 
     // Verify new tasks are in kanban

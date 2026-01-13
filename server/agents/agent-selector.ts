@@ -79,11 +79,15 @@ const architectKeywords = [
 ];
 
 /**
- * Check if text contains any of the keywords
+ * Check if text contains any of the keywords as whole words
+ * Uses word boundary matching to avoid false positives like "build" matching "ui"
  */
 function containsKeyword(text: string, keywords: string[]): boolean {
   const lowerText = text.toLowerCase();
-  return keywords.some((keyword) => lowerText.includes(keyword));
+  return keywords.some((keyword) => {
+    const regex = new RegExp(`\\b${keyword}\\b`, 'i');
+    return regex.test(lowerText);
+  });
 }
 
 /**

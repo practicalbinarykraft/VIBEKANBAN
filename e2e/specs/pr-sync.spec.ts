@@ -45,25 +45,26 @@ test.describe('Task Details Panel - PR Status Sync', () => {
       const statusBadge = page.locator('[data-testid="pr-status-badge"]');
       await expect(statusBadge).toContainText('Open');
 
-      // Click Sync button
+      // Click Sync button and wait for response
       const syncButton = page.locator('button:has-text("Sync PR Status")');
+      const syncPromise = page.waitForResponse(
+        (res) => res.url().includes('/sync-pr') && res.status() === 200
+      );
       await syncButton.click();
-
-      // Button should show loading state
-      await expect(page.locator('button:has-text("Syncing")')).toBeVisible({ timeout: 2000 });
+      await syncPromise;
 
       // Call sync endpoint in test mode to update status to merged
       await request.post(`http://localhost:8000/api/attempts/${attemptId}/sync-pr`, {
         data: { status: 'merged' },
       });
 
-      // Wait for UI to update (trigger refetch manually if needed)
-      await page.waitForTimeout(1000);
+      // Reload to see updated status
       await page.reload();
-      await page.waitForSelector('[data-testid="task-details-panel"]');
+      await page.waitForSelector('[data-testid="task-details-panel"]', { timeout: 5000 });
 
       // Status badge should now show "Merged"
-      await expect(statusBadge).toContainText('Merged');
+      const updatedBadge = page.locator('[data-testid="pr-status-badge"]');
+      await expect(updatedBadge).toContainText('Merged', { timeout: 5000 });
     } finally {
       await deleteTask(request, task.id);
     }

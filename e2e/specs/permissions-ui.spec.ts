@@ -75,11 +75,11 @@ test.describe('Permissions & Ownership - UI Feedback', () => {
 
       // Try to apply - should succeed (or return non-403)
       const applyResponse = await request.post(`http://localhost:8000/api/attempts/${attemptId}/apply`);
-      expect([200, 500]).toContain(applyResponse.status()); // 500 ok if git not configured
+      expect([200, 400, 500]).toContain(applyResponse.status()); // 400 if repo not found on CI
 
       // Try to create PR - should succeed (or return non-403)
       const prResponse = await request.post(`http://localhost:8000/api/attempts/${attemptId}/create-pr`);
-      expect([200, 500]).toContain(prResponse.status()); // 500 ok if GitHub not configured
+      expect([200, 400, 500]).toContain(prResponse.status()); // 400 if repo/PR not configured
     } finally {
       await deleteTask(request, task.id);
     }

@@ -101,6 +101,23 @@ export async function deleteTask(
 }
 
 /**
+ * Safe cleanup for tasks - won't throw if browser/context is closed
+ * Use in finally blocks to avoid masking test failures
+ */
+export async function safeCleanup(
+  request: APIRequestContext,
+  taskIds: string[]
+): Promise<void> {
+  for (const taskId of taskIds) {
+    try {
+      await request.delete(`http://localhost:8000/api/tasks/${taskId}`);
+    } catch {
+      // Ignore - context may be closed
+    }
+  }
+}
+
+/**
  * Creates a test fixture attempt with logs and artifacts (no Docker needed)
  *
  * @param request - Playwright API request context
@@ -160,5 +177,22 @@ export async function clearProcessedWebhooks(
 
   if (!response.ok()) {
     throw new Error(`Failed to clear processed webhooks: ${response.status()} ${await response.text()}`);
+  }
+}
+
+/**
+ * Reset project execution status to idle
+ * Use in beforeEach to ensure clean state between test runs/retries
+ */
+export async function resetProjectStatus(
+  request: APIRequestContext,
+  projectId: string
+): Promise<void> {
+  const response = await request.post('http://localhost:8000/api/test/fixtures/project/reset-status', {
+    data: { projectId },
+  });
+
+  if (!response.ok()) {
+    throw new Error(`Failed to reset project status: ${response.status()} ${await response.text()}`);
   }
 }
