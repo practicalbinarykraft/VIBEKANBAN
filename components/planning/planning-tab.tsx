@@ -19,9 +19,10 @@ import { Loader2 } from "lucide-react";
 interface PlanningTabProps {
   projectId: string;
   onApplyComplete?: (createdTaskIds: string[]) => void;
+  onExecuteComplete?: (createdTaskIds: string[]) => void;
 }
 
-export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
+export function PlanningTab({ projectId, onApplyComplete, onExecuteComplete }: PlanningTabProps) {
   const {
     idea,
     setIdea,
@@ -32,10 +33,12 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
     isLoading,
     isFinishing,
     isApplying,
+    isExecuting,
     handleStartCouncil,
     handleFinishDiscussion,
     handleApplyPlan,
-  } = usePlanningSession(projectId, onApplyComplete);
+    handleExecutePlan,
+  } = usePlanningSession(projectId, onApplyComplete, onExecuteComplete);
 
   const isStartDisabled = !idea.trim() || isLoading || status !== "IDLE";
 
@@ -114,7 +117,9 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
         <ProductResult
           result={productResult}
           onApplyPlan={handleApplyPlan}
+          onExecutePlan={handleExecutePlan}
           isApplying={isApplying}
+          isExecuting={isExecuting}
         />
       )}
 

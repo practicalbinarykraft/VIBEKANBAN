@@ -199,6 +199,15 @@ export default function ProjectClient({ projectId }: ProjectClientProps) {
               // Clear highlight after 1.5s
               setTimeout(() => setHighlightedTaskIds([]), 1500);
             }}
+            onExecuteComplete={(createdTaskIds) => {
+              setActiveTab("tasks");
+              setHighlightedTaskIds(createdTaskIds);
+              refreshTasks();
+              // Start execution after tasks are created
+              handleRunAll();
+              // Clear highlight after 1.5s
+              setTimeout(() => setHighlightedTaskIds([]), 1500);
+            }}
           />
         </div>
       )}
