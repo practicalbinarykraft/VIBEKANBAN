@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession, deleteSession } from "@/lib/planning-sessions";
+import {
+  getSession,
+  isSessionApplied,
+  getAppliedTaskIds,
+  markSessionApplied,
+} from "@/lib/planning-sessions";
 import { planToTasks } from "@/lib/plan-to-tasks";
 import { db } from "@/server/db";
 import { tasks } from "@/server/db/schema";
@@ -59,6 +64,16 @@ export async function POST(
       );
     }
 
+    // Idempotency check: if already applied, return cached result
+    if (isSessionApplied(sessionId)) {
+      const cachedTaskIds = getAppliedTaskIds(sessionId) || [];
+      return NextResponse.json({
+        createdTaskIds: cachedTaskIds,
+        count: cachedTaskIds.length,
+        alreadyApplied: true,
+      });
+    }
+
     // Extract all tasks from plan steps
     // Each step has { title, tasks[] }, we flatten all tasks
     const allStepTasks: string[] = [];
@@ -90,8 +105,8 @@ export async function POST(
       createdTaskIds.push(taskId);
     }
 
-    // Clean up session after successful apply
-    deleteSession(sessionId);
+    // Mark session as applied (idempotent - stores taskIds for future calls)
+    markSessionApplied(sessionId, createdTaskIds);
 
     return NextResponse.json({
       createdTaskIds,
