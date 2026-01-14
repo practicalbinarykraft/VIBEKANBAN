@@ -291,4 +291,59 @@ test.describe('Project Planning Tab', () => {
     // 14. Assert: count stays the same (no duplicates)
     expect(countAfterSecondApply).toBe(countAfterFirstApply);
   });
+
+  test('T6: Apply Plan saves enrichment fields to created tasks', async ({ page }) => {
+    // 1. Wait for board ready, count tasks BEFORE
+    await waitForBoardReady(page);
+    const countBefore = await getTaskCountInColumn(page, 'todo');
+
+    // 2. Go to Planning tab
+    await page.locator('[data-testid="planning-tab"]').click();
+
+    // 3. Enter idea that triggers PLAN mode
+    const ideaInput = page.locator('[data-testid="planning-idea-input"]');
+    await ideaInput.fill('Build MVP for enrichment test');
+
+    // 4. Start council → wait for chat
+    await page.locator('[data-testid="planning-start-button"]').click();
+    await expect(page.locator('[data-testid="council-chat"]')).toBeVisible({ timeout: 10000 });
+
+    // 5. Finish discussion → wait for plan
+    await page.locator('[data-testid="planning-finish-button"]').click();
+    await expect(page.locator('[data-testid="product-plan"]')).toBeVisible({ timeout: 10000 });
+
+    // 6. Get first step title text to identify the created task
+    const firstStep = page.locator('[data-testid="product-step"]').first();
+    const firstStepTitle = await firstStep.locator('h4').textContent();
+    expect(firstStepTitle).toBeTruthy();
+
+    // 7. Click Apply Plan
+    await page.locator('[data-testid="apply-plan-button"]').click();
+
+    // 8. Wait for board ready and task count to increase
+    await waitForBoardReady(page);
+    await waitForTaskCountToIncrease(page, 'todo', countBefore);
+
+    // 9. Wait for task card with the plan step text to appear
+    await waitForTaskWithTextInColumn(page, 'todo', firstStepTitle!);
+
+    // 10. Click on the task card to open details panel
+    const todoColumn = page.locator('[data-testid="column-todo"]');
+    const taskCard = todoColumn.locator('[data-testid^="task-card-"]', { hasText: firstStepTitle! });
+    await taskCard.first().click();
+
+    // 11. Wait for task details panel to show the correct task (by title match)
+    const taskDetailsPanel = page.locator('[data-testid="task-details-panel"]');
+    await expect(taskDetailsPanel).toBeVisible({ timeout: 5000 });
+    // Wait for panel to show a task whose title contains firstStepTitle
+    await expect(taskDetailsPanel.locator('h2')).toContainText(firstStepTitle!, { timeout: 5000 });
+
+    // 12. Get task description and verify enrichment marker
+    const taskDescription = page.locator('[data-testid="task-description"]');
+    await expect(taskDescription).toBeVisible();
+    const descriptionText = await taskDescription.textContent();
+
+    // 13. Assert: description contains enrichment marker [Px][S|M|L][tags]
+    expect(descriptionText).toMatch(/^\[P[123]\]\[[SML]\]\[.*\]/);
+  });
 });

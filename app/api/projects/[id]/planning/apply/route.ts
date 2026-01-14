@@ -6,6 +6,7 @@ import {
   markSessionApplied,
 } from "@/server/services/planning-session-store";
 import { planToTasks } from "@/lib/plan-to-tasks";
+import { toDbTaskInsert } from "@/lib/task-db-mapper";
 import { db } from "@/server/db";
 import { tasks } from "@/server/db/schema";
 import { randomUUID } from "crypto";
@@ -89,18 +90,15 @@ export async function POST(
       planSteps: allStepTasks,
     });
 
-    // Create tasks in database
+    // Create tasks in database with enrichment fields
     const createdTaskIds: string[] = [];
-    for (let i = 0; i < taskDefinitions.length; i++) {
-      const taskDef = taskDefinitions[i];
+    for (const taskDef of taskDefinitions) {
       const taskId = randomUUID();
+      const dbInsert = toDbTaskInsert(taskDef);
       await db.insert(tasks).values({
         id: taskId,
         projectId,
-        title: taskDef.title,
-        description: taskDef.description,
-        status: "todo",
-        order: i,
+        ...dbInsert,
       });
       createdTaskIds.push(taskId);
     }

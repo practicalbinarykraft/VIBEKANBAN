@@ -162,9 +162,13 @@ export async function getCouncilThread(threadId: string): Promise<CouncilThread 
     .all();
 
   return {
-    ...thread,
+    id: thread.id,
+    projectId: thread.projectId,
+    iterationNumber: thread.iterationNumber,
+    status: thread.status as CouncilThread["status"],
     messages: messages.map((msg) => ({
       ...msg,
+      role: msg.role as CouncilMessage["role"],
       createdAt: new Date(msg.createdAt),
     })),
   };

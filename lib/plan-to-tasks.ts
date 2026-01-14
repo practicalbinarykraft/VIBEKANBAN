@@ -3,6 +3,12 @@
  *
  * Pure function that converts plan steps to enriched task definitions.
  * Deterministic: same input always produces same output.
+ *
+ * Enrichment rules:
+ * - order: 1-based index
+ * - estimate: S (<30 chars), M (30-80 chars), L (>80 chars)
+ * - priority: P1 (first), P3 (last), P2 (middle)
+ * - tags: extracted from keywords, sorted unique
  */
 
 const MAX_TITLE_LENGTH = 80;
@@ -58,9 +64,8 @@ function determineEstimate(step: string): Estimate {
  * i=1 → P1, i=N → P3 (if N>1), otherwise → P2
  */
 function determinePriority(index: number, total: number): Priority {
-  const position = index + 1; // 1-based
-  if (position === 1) return 'P1';
-  if (total > 1 && position === total) return 'P3';
+  if (index === 0) return 'P1';
+  if (total > 1 && index === total - 1) return 'P3';
   return 'P2';
 }
 

@@ -3,6 +3,7 @@ import Database from "better-sqlite3";
 import * as schema from "./schema";
 import path from "path";
 import fs from "fs";
+import { migrate as migrateTaskEnrichment } from "./migrations/0001_add_task_enrichment_columns";
 
 const dbPath = path.join(process.cwd(), "data", "vibe-kanban.db");
 
@@ -225,6 +226,9 @@ export function initDB() {
       console.warn("Warning during migration:", error.message);
     }
   }
+
+  // Run task enrichment migration (estimate, priority, tags columns)
+  migrateTaskEnrichment(_sqlite!);
 
   console.log("✅ Database initialized");
 }

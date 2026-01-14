@@ -8,6 +8,7 @@
 
 import { db } from "@/server/db";
 import { projectMessages } from "@/server/db/schema";
+import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 export interface ChatMessage {
@@ -105,12 +106,13 @@ export async function getChatHistory(projectId: string): Promise<ChatMessage[]> 
   const messages = await db
     .select()
     .from(projectMessages)
-    .where((msg) => msg.projectId === projectId)
+    .where(eq(projectMessages.projectId, projectId))
     .orderBy(projectMessages.createdAt)
     .all();
 
   return messages.map((msg) => ({
     ...msg,
+    role: msg.role as ChatMessage["role"],
     createdAt: new Date(msg.createdAt),
   }));
 }
