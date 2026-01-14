@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/server/db";
 import { tasks } from "@/server/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, asc } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 /**
@@ -13,7 +13,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const projectTasks = await db.select().from(tasks).where(eq(tasks.projectId, id)).all();
+    const projectTasks = await db.select().from(tasks).where(eq(tasks.projectId, id)).orderBy(asc(tasks.order)).all();
     return NextResponse.json(projectTasks);
   } catch (error: any) {
     console.error("Error fetching tasks:", error);
