@@ -1,6 +1,9 @@
 import { test, expect } from '@playwright/test';
-import { createTask, createFixtureAttempt, clearProcessedWebhooks, resetProjectStatus } from '../helpers/api';
+import { createTask, clearProcessedWebhooks, resetProjectStatus, safeCleanup } from '../helpers/api';
 import { waitForBoardReady, waitForTaskInColumn } from '../helpers/board';
+
+// Increase timeout for execution tests (agent startup can take time)
+test.setTimeout(60000);
 
 test.describe('Project Execution Orchestrator', () => {
   test.beforeEach(async ({ page, request }) => {
@@ -17,9 +20,9 @@ test.describe('Project Execution Orchestrator', () => {
     const task3 = await createTask(request, '1', 'Task 3 for orchestration', 'Third task');
 
     try {
-      // Reload to see new tasks (created via API, not UI)
-      await page.reload();
-      await page.waitForSelector('[data-testid="kanban-board"]', { timeout: 10000 });
+      // Refresh UI to see new tasks (created via API, not UI) - NO RELOAD
+      await page.evaluate(() => (window as any).__VIBE__?.refreshTasks?.());
+      await waitForBoardReady(page);
 
       // Find and click "Run All" button
       const runAllButton = page.locator('[data-testid="run-all-button"]');
@@ -52,10 +55,7 @@ test.describe('Project Execution Orchestrator', () => {
       const attemptItems = attemptsHistory.locator('[data-testid^="attempt-item-"]');
       expect(await attemptItems.count()).toBeGreaterThanOrEqual(1);
     } finally {
-      // Cleanup
-      await request.delete(`http://localhost:8000/api/tasks/${task1.id}`);
-      await request.delete(`http://localhost:8000/api/tasks/${task2.id}`);
-      await request.delete(`http://localhost:8000/api/tasks/${task3.id}`);
+      await safeCleanup(request, [task1.id, task2.id, task3.id]);
     }
   });
 
@@ -66,8 +66,9 @@ test.describe('Project Execution Orchestrator', () => {
     const task3 = await createTask(request, '1', 'Serial task 3', 'Third in queue');
 
     try {
-      await page.reload();
-      await page.waitForSelector('[data-testid="kanban-board"]', { timeout: 10000 });
+      // Refresh UI to see new tasks - NO RELOAD
+      await page.evaluate(() => (window as any).__VIBE__?.refreshTasks?.());
+      await waitForBoardReady(page);
 
       // Start execution and wait for API response
       const runAllPromise = page.waitForResponse(
@@ -107,9 +108,7 @@ test.describe('Project Execution Orchestrator', () => {
       // Verify task2 started (in progress)
       await waitForTaskInColumn(page, task2.id, 'in_progress');
     } finally {
-      await request.delete(`http://localhost:8000/api/tasks/${task1.id}`);
-      await request.delete(`http://localhost:8000/api/tasks/${task2.id}`);
-      await request.delete(`http://localhost:8000/api/tasks/${task3.id}`);
+      await safeCleanup(request, [task1.id, task2.id, task3.id]);
     }
   });
 
@@ -118,8 +117,9 @@ test.describe('Project Execution Orchestrator', () => {
     const task2 = await createTask(request, '1', 'Pause test task 2', 'Second task');
 
     try {
-      await page.reload();
-      await page.waitForSelector('[data-testid="kanban-board"]', { timeout: 10000 });
+      // Refresh UI to see new tasks - NO RELOAD
+      await page.evaluate(() => (window as any).__VIBE__?.refreshTasks?.());
+      await waitForBoardReady(page);
 
       // Start execution and wait for API response
       const runAllPromise = page.waitForResponse(
@@ -160,8 +160,7 @@ test.describe('Project Execution Orchestrator', () => {
       // Verify task2 did NOT start (still in todo)
       await waitForTaskInColumn(page, task2.id, 'todo');
     } finally {
-      await request.delete(`http://localhost:8000/api/tasks/${task1.id}`);
-      await request.delete(`http://localhost:8000/api/tasks/${task2.id}`);
+      await safeCleanup(request, [task1.id, task2.id]);
     }
   });
 
@@ -170,8 +169,9 @@ test.describe('Project Execution Orchestrator', () => {
     const task2 = await createTask(request, '1', 'Resume test task 2', 'Second task');
 
     try {
-      await page.reload();
-      await page.waitForSelector('[data-testid="kanban-board"]', { timeout: 10000 });
+      // Refresh UI to see new tasks - NO RELOAD
+      await page.evaluate(() => (window as any).__VIBE__?.refreshTasks?.());
+      await waitForBoardReady(page);
 
       // Start execution and wait for API response
       const runAllPromise = page.waitForResponse(
@@ -207,7 +207,7 @@ test.describe('Project Execution Orchestrator', () => {
       await page.click('[data-testid="resume-button"]');
       await resumePromise;
 
-      // Wait for board auto-refresh (no reload needed)
+      // Wait for board auto-refresh
       await waitForBoardReady(page);
 
       // Verify status is "Running"
@@ -217,8 +217,7 @@ test.describe('Project Execution Orchestrator', () => {
       // Verify task2 started
       await waitForTaskInColumn(page, task2.id, 'in_progress');
     } finally {
-      await request.delete(`http://localhost:8000/api/tasks/${task1.id}`);
-      await request.delete(`http://localhost:8000/api/tasks/${task2.id}`);
+      await safeCleanup(request, [task1.id, task2.id]);
     }
   });
 });
