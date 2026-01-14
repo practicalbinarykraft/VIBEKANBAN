@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession, deleteSession } from "@/lib/planning-sessions";
+import {
+  getSession,
+  isSessionApplied,
+  getAppliedTaskIds,
+  markSessionApplied,
+} from "@/server/services/planning-session-store";
 import { planToTasks } from "@/lib/plan-to-tasks";
 import { db } from "@/server/db";
 import { tasks } from "@/server/db/schema";
@@ -29,14 +34,24 @@ export async function POST(
       );
     }
 
-    // Get session
-    const session = getSession(sessionId);
+    // Get session from DB
+    const session = await getSession(sessionId);
 
     if (!session) {
       return NextResponse.json(
         { error: "Session not found" },
         { status: 404 }
       );
+    }
+
+    // Idempotency check: if already applied, return cached result
+    if (await isSessionApplied(sessionId)) {
+      const cachedTaskIds = (await getAppliedTaskIds(sessionId)) || [];
+      return NextResponse.json({
+        createdTaskIds: cachedTaskIds,
+        count: cachedTaskIds.length,
+        alreadyApplied: true,
+      });
     }
 
     // Verify session status
@@ -90,8 +105,8 @@ export async function POST(
       createdTaskIds.push(taskId);
     }
 
-    // Clean up session after successful apply
-    deleteSession(sessionId);
+    // Mark session as applied (idempotent - stores taskIds for future calls)
+    await markSessionApplied(sessionId, createdTaskIds);
 
     return NextResponse.json({
       createdTaskIds,
