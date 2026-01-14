@@ -75,12 +75,21 @@ export async function POST(
       );
     }
 
-    // Extract all tasks from plan steps
-    // Each step has { title, tasks[] }, we flatten all tasks
-    const allStepTasks: string[] = [];
-    for (const step of session.productResult.steps) {
-      for (const task of step.tasks) {
-        allStepTasks.push(`${step.title}: ${task}`);
+    // Extract tasks from plan steps
+    // If planSteps exists, use it directly; otherwise flatten from steps
+    let allStepTasks: string[];
+    if (session.productResult.planSteps) {
+      allStepTasks = session.productResult.planSteps;
+    } else {
+      allStepTasks = [];
+      for (const step of session.productResult.steps) {
+        if (step.tasks.length === 0) {
+          allStepTasks.push(step.title);
+        } else {
+          for (const task of step.tasks) {
+            allStepTasks.push(`${step.title}: ${task}`);
+          }
+        }
       }
     }
 

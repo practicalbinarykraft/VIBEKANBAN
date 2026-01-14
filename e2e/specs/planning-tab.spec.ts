@@ -467,4 +467,57 @@ test.describe('Project Planning Tab', () => {
     expect(highlightedId).toBeTruthy();
     expect(createdTaskIds).toContain(highlightedId);
   });
+
+  test('T9: Finish returns deterministic plan steps', async ({ page, request }) => {
+    const idea = 'Build MVP quickly';
+
+    // Helper: run planning flow and get first 3 step titles
+    async function runPlanningAndGetSteps(): Promise<string[]> {
+      // Reset state for clean session
+      await request.post('/api/projects/1/reset');
+      await page.goto('/projects/1');
+      await waitForBoardReady(page);
+
+      // Go to Planning tab
+      await page.locator('[data-testid="planning-tab"]').click();
+
+      // Enter idea
+      const ideaInput = page.locator('[data-testid="planning-idea-input"]');
+      await ideaInput.fill(idea);
+
+      // Start council
+      await page.locator('[data-testid="planning-start-button"]').click();
+      await expect(page.locator('[data-testid="council-chat"]')).toBeVisible({ timeout: 10000 });
+
+      // Finish discussion
+      await page.locator('[data-testid="planning-finish-button"]').click();
+      await expect(page.locator('[data-testid="product-plan"]')).toBeVisible({ timeout: 10000 });
+
+      // Get first 3 step titles
+      const steps = page.locator('[data-testid="product-step"]');
+      const stepCount = await steps.count();
+      expect(stepCount).toBeGreaterThanOrEqual(3);
+
+      const titles: string[] = [];
+      for (let i = 0; i < 3; i++) {
+        const title = await steps.nth(i).locator('h4').textContent();
+        titles.push(title || '');
+      }
+      return titles;
+    }
+
+    // First run
+    const steps1 = await runPlanningAndGetSteps();
+
+    // Second run (new session)
+    const steps2 = await runPlanningAndGetSteps();
+
+    // Verify deterministic: same steps both runs
+    expect(steps1).toEqual(steps2);
+
+    // Verify expected values (based on generator output)
+    expect(steps1[0]).toBe('Initialize project repository');
+    expect(steps1[1]).toBe('Setup development environment');
+    expect(steps1[2]).toBe('Create basic project structure');
+  });
 });

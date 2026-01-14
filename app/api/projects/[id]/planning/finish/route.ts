@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, updateSessionResult } from "@/server/services/planning-session-store";
-import {
-  determineProductMode,
-  MOCK_QUESTIONS,
-  MOCK_PLAN_STEPS,
-} from "@/lib/planning-logic";
+import { generateCouncilResult } from "@/lib/council-plan-generator";
 
 /**
  * POST /api/projects/[id]/planning/finish
@@ -48,14 +44,21 @@ export async function POST(
       );
     }
 
-    // Determine mode based on ideaText (deterministic)
-    const mode = determineProductMode(session.ideaText);
+    // Generate deterministic result based on ideaText
+    const councilResult = generateCouncilResult(session.ideaText);
 
-    // Build product result based on mode
+    // Build product result for UI (transform planSteps to steps format)
     const productResult =
-      mode === "QUESTIONS"
-        ? { mode: "QUESTIONS" as const, questions: MOCK_QUESTIONS }
-        : { mode: "PLAN" as const, steps: MOCK_PLAN_STEPS };
+      councilResult.mode === "QUESTIONS"
+        ? { mode: "QUESTIONS" as const, questions: councilResult.questions }
+        : {
+            mode: "PLAN" as const,
+            steps: councilResult.planSteps!.map((step) => ({
+              title: step,
+              tasks: [],
+            })),
+            planSteps: councilResult.planSteps,
+          };
 
     // Update session with result in DB (keeps session for apply endpoint)
     await updateSessionResult(sessionId, productResult);
