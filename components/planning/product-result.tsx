@@ -23,13 +23,17 @@ interface ProductResultData {
 interface ProductResultProps {
   result: ProductResultData;
   onApplyPlan?: () => void;
+  onExecutePlan?: () => void;
   isApplying?: boolean;
+  isExecuting?: boolean;
 }
 
 export function ProductResult({
   result,
   onApplyPlan,
+  onExecutePlan,
   isApplying = false,
+  isExecuting = false,
 }: ProductResultProps) {
   const canApply = result.mode === "PLAN" && result.steps && result.steps.length > 0;
 
@@ -84,23 +88,42 @@ export function ProductResult({
             ))}
           </div>
 
-          {/* Apply Plan Button */}
-          {canApply && onApplyPlan && (
-            <div className="mt-6">
-              <Button
-                onClick={onApplyPlan}
-                disabled={isApplying}
-                data-testid="apply-plan-button"
-              >
-                {isApplying ? (
-                  <span data-testid="apply-plan-loading">
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin inline" />
-                    Применение плана...
-                  </span>
-                ) : (
-                  "Apply Plan"
-                )}
-              </Button>
+          {/* Action Buttons */}
+          {canApply && (
+            <div className="mt-6 flex gap-2">
+              {onApplyPlan && (
+                <Button
+                  onClick={onApplyPlan}
+                  disabled={isApplying || isExecuting}
+                  variant="outline"
+                  data-testid="apply-plan-button"
+                >
+                  {isApplying ? (
+                    <span data-testid="apply-plan-loading">
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin inline" />
+                      Применение...
+                    </span>
+                  ) : (
+                    "Apply Plan"
+                  )}
+                </Button>
+              )}
+              {onExecutePlan && (
+                <Button
+                  onClick={onExecutePlan}
+                  disabled={isApplying || isExecuting}
+                  data-testid="execute-plan-button"
+                >
+                  {isExecuting ? (
+                    <span data-testid="execute-plan-loading">
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin inline" />
+                      Запуск...
+                    </span>
+                  ) : (
+                    "Execute Plan"
+                  )}
+                </Button>
+              )}
             </div>
           )}
         </div>

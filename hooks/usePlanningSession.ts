@@ -36,19 +36,23 @@ interface UsePlanningSessionReturn {
   isLoading: boolean;
   isFinishing: boolean;
   isApplying: boolean;
+  isExecuting: boolean;
   handleStartCouncil: () => Promise<void>;
   handleFinishDiscussion: () => Promise<void>;
   handleApplyPlan: () => Promise<void>;
+  handleExecutePlan: () => Promise<void>;
 }
 
 export function usePlanningSession(
   projectId: string,
-  onApplyComplete?: (createdTaskIds: string[]) => void
+  onApplyComplete?: (createdTaskIds: string[]) => void,
+  onExecuteComplete?: (createdTaskIds: string[]) => void
 ): UsePlanningSessionReturn {
   const [idea, setIdea] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isFinishing, setIsFinishing] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
+  const [isExecuting, setIsExecuting] = useState(false);
   const [messages, setMessages] = useState<CouncilMessage[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [status, setStatus] = useState<PlanningStatus>("IDLE");
@@ -142,6 +146,38 @@ export function usePlanningSession(
     }
   }, [sessionId, projectId, onApplyComplete]);
 
+  const handleExecutePlan = useCallback(async () => {
+    if (!sessionId) return;
+
+    setIsExecuting(true);
+    setError(null);
+
+    try {
+      // First apply the plan
+      const response = await fetch(`/api/projects/${projectId}/planning/apply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to apply plan");
+      }
+
+      const createdTaskIds: string[] = data.taskIds ?? data.createdTaskIds ?? [];
+      setStatus("APPLIED");
+
+      // Call execute complete callback (which will trigger run-all)
+      onExecuteComplete?.(createdTaskIds);
+    } catch (err: any) {
+      setError(err.message || "An error occurred");
+    } finally {
+      setIsExecuting(false);
+    }
+  }, [sessionId, projectId, onExecuteComplete]);
+
   return {
     idea,
     setIdea,
@@ -153,8 +189,10 @@ export function usePlanningSession(
     isLoading,
     isFinishing,
     isApplying,
+    isExecuting,
     handleStartCouncil,
     handleFinishDiscussion,
     handleApplyPlan,
+    handleExecutePlan,
   };
 }
