@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { storeSession } from "@/lib/planning-sessions";
+import { createSession } from "@/server/services/planning-session-store";
 
 /**
  * Mock council messages for planning feature
@@ -49,11 +49,8 @@ export async function POST(
       );
     }
 
-    // Generate deterministic sessionId
-    const sessionId = `session-${id}-${Date.now()}`;
-
-    // Store session for finish endpoint
-    storeSession(sessionId, ideaText.trim());
+    // Create session in DB (returns generated sessionId)
+    const sessionId = await createSession(id, ideaText.trim());
 
     // Simulate slight delay for realistic UX
     await new Promise((resolve) => setTimeout(resolve, 500));

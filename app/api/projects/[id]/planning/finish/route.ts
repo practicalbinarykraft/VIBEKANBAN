@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession, updateSessionResult } from "@/lib/planning-sessions";
+import { getSession, updateSessionResult } from "@/server/services/planning-session-store";
 import {
   determineProductMode,
   MOCK_QUESTIONS,
@@ -38,8 +38,8 @@ export async function POST(
       );
     }
 
-    // Get stored session
-    const session = getSession(sessionId);
+    // Get stored session from DB
+    const session = await getSession(sessionId);
 
     if (!session) {
       return NextResponse.json(
@@ -57,8 +57,8 @@ export async function POST(
         ? { mode: "QUESTIONS" as const, questions: MOCK_QUESTIONS }
         : { mode: "PLAN" as const, steps: MOCK_PLAN_STEPS };
 
-    // Update session with result (keeps session for apply endpoint)
-    updateSessionResult(sessionId, productResult);
+    // Update session with result in DB (keeps session for apply endpoint)
+    await updateSessionResult(sessionId, productResult);
 
     // Simulate slight delay for realistic UX
     await new Promise((resolve) => setTimeout(resolve, 300));

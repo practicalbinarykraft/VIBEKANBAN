@@ -7,8 +7,12 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./test/setup.ts'],
-    include: ['hooks/__tests__/**/*.test.{ts,tsx}', 'lib/__tests__/**/*.test.{ts,tsx}'],
-    exclude: ['server/**', 'node_modules/**'],
+    include: [
+      'hooks/__tests__/**/*.test.{ts,tsx}',
+      'lib/__tests__/**/*.test.{ts,tsx}',
+      'server/services/__tests__/planning-session-store.test.ts',
+    ],
+    exclude: ['node_modules/**'],
     globals: true,
   },
   resolve: {

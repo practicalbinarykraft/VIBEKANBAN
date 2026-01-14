@@ -213,5 +213,18 @@ export function initDB() {
     );
   `);
 
+  // Add planning session columns for Apply Plan idempotency (migration)
+  try {
+    _sqlite!.exec(`
+      ALTER TABLE planning_sessions ADD COLUMN project_id TEXT REFERENCES projects(id);
+      ALTER TABLE planning_sessions ADD COLUMN product_result TEXT;
+      ALTER TABLE planning_sessions ADD COLUMN applied_task_ids TEXT;
+    `);
+  } catch (error: any) {
+    if (!error.message.includes('duplicate column name')) {
+      console.warn("Warning during migration:", error.message);
+    }
+  }
+
   console.log("✅ Database initialized");
 }

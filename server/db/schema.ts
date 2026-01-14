@@ -75,10 +75,13 @@ export const processedWebhooks = sqliteTable("processed_webhooks", {
 
 export const planningSessions = sqliteTable("planning_sessions", {
   id: text("id").primaryKey(),
+  projectId: text("project_id").references(() => projects.id),
   userId: text("user_id"),
   title: text("title"),
   ideaText: text("idea_text").notNull(),
-  status: text("status").notNull().default("draft"), // draft, analyzing, ready, confirmed
+  status: text("status").notNull().default("DISCUSSION"), // DISCUSSION, RESULT_READY, APPLIED
+  productResult: text("product_result"), // JSON string
+  appliedTaskIds: text("applied_task_ids"), // JSON string array
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`CURRENT_TIMESTAMP`),
 });
