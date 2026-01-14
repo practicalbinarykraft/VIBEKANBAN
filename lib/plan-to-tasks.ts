@@ -48,32 +48,6 @@ function truncateTitle(text: string, maxLength: number): string {
   return text.slice(0, maxLength - 3) + '...';
 }
 
-function determineEstimate(step: string): Estimate {
-  const len = step.length;
-  if (len < 30) return 'S';
-  if (len <= 80) return 'M';
-  return 'L';
-}
-
-function determinePriority(index: number, total: number): Priority {
-  if (index === 0) return 'P1';
-  if (total > 1 && index === total - 1) return 'P3';
-  return 'P2';
-}
-
-function extractTags(step: string): string[] {
-  const lowerStep = step.toLowerCase();
-  const foundTags: string[] = [];
-
-  for (const [tag, keywords] of Object.entries(TAG_KEYWORDS)) {
-    if (keywords.some((kw) => lowerStep.includes(kw))) {
-      foundTags.push(tag);
-    }
-  }
-
-  return foundTags.sort();
-}
-
 /**
  * Determines estimate based on step text length
  * <30 chars → S, 30-80 chars → M, >80 chars → L
@@ -90,9 +64,8 @@ function determineEstimate(step: string): Estimate {
  * i=1 → P1, i=N → P3 (if N>1), otherwise → P2
  */
 function determinePriority(index: number, total: number): Priority {
-  const position = index + 1; // 1-based
-  if (position === 1) return 'P1';
-  if (total > 1 && position === total) return 'P3';
+  if (index === 0) return 'P1';
+  if (total > 1 && index === total - 1) return 'P3';
   return 'P2';
 }
 
