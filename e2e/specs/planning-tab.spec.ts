@@ -4,6 +4,7 @@ import {
   getTaskCountInColumn,
   waitForTaskWithTextInColumn,
   waitForTaskCountToIncrease,
+  waitForExecutionStatus,
 } from '../helpers/board';
 
 /**
@@ -519,5 +520,56 @@ test.describe('Project Planning Tab', () => {
     expect(steps1[0]).toBe('Initialize project repository');
     expect(steps1[1]).toBe('Setup development environment');
     expect(steps1[2]).toBe('Create basic project structure');
+  });
+
+  test('T10: Approve Plan triggers autopilot (apply + execute without extra clicks)', async ({ page }) => {
+    // 1. Count TODO tasks before
+    const countBefore = await getTaskCountInColumn(page, 'todo');
+
+    // 2. Go to Planning tab
+    await page.locator('[data-testid="planning-tab"]').click();
+
+    // 3. Enter idea that triggers PLAN mode
+    const ideaInput = page.locator('[data-testid="planning-idea-input"]');
+    await ideaInput.fill('Build MVP for autopilot test');
+
+    // 4. Start council → wait for chat
+    await page.locator('[data-testid="planning-start-button"]').click();
+    await expect(page.locator('[data-testid="council-chat"]')).toBeVisible({ timeout: 10000 });
+
+    // 5. Finish discussion → wait for plan
+    await page.locator('[data-testid="planning-finish-button"]').click();
+    await expect(page.locator('[data-testid="product-plan"]')).toBeVisible({ timeout: 10000 });
+
+    // 6. Capture apply response to get createdTaskIds
+    const applyResponsePromise = page.waitForResponse((resp) => {
+      return resp.url().includes('/planning/apply') && resp.request().method() === 'POST' && resp.status() === 200;
+    });
+
+    // 7. Click APPROVE button (not apply, not execute - one button for full pipeline)
+    const approveButton = page.locator('[data-testid="approve-plan-button"]');
+    await expect(approveButton).toBeVisible();
+    await approveButton.click();
+
+    // 8. Wait for apply response and extract createdTaskIds
+    const applyResp = await applyResponsePromise;
+    const json = await applyResp.json();
+    const createdTaskIds: string[] = json.taskIds ?? json.createdTaskIds ?? [];
+    expect(createdTaskIds.length).toBeGreaterThan(0);
+
+    // 9. Verify Tasks tab is active (board visible) - WITHOUT manual click
+    await waitForBoardReady(page);
+
+    // 10. Verify execution status becomes RUNNING
+    await waitForExecutionStatus(page, 'RUNNING');
+
+    // 11. Verify highlighted task card exists
+    const highlightedTask = page.locator('[data-testid^="task-card-"][data-highlighted="true"]');
+    await expect(highlightedTask.first()).toBeVisible({ timeout: 10000 });
+
+    // 12. Verify TODO count increased (tasks were created)
+    const countAfter = await getTaskCountInColumn(page, 'todo') +
+                       await getTaskCountInColumn(page, 'in_progress');
+    expect(countAfter).toBeGreaterThan(countBefore);
   });
 });

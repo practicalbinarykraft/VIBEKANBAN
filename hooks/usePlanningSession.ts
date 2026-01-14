@@ -5,11 +5,13 @@
  * - Starting council discussion
  * - Finishing discussion
  * - Applying plan
+ * - Autopilot pipeline (via usePlanningPipeline)
  */
 
 "use client";
 
 import { useState, useCallback } from "react";
+import { usePlanningPipeline, PipelinePhase } from "./usePlanningPipeline";
 
 interface CouncilMessage {
   id: string;
@@ -24,6 +26,7 @@ interface ProductResultData {
 }
 
 export type PlanningStatus = "IDLE" | "DISCUSSION" | "DONE" | "APPLIED";
+export type { PipelinePhase };
 
 interface UsePlanningSessionReturn {
   idea: string;
@@ -37,16 +40,21 @@ interface UsePlanningSessionReturn {
   isFinishing: boolean;
   isApplying: boolean;
   isExecuting: boolean;
+  pipelinePhase: PipelinePhase;
   handleStartCouncil: () => Promise<void>;
   handleFinishDiscussion: () => Promise<void>;
   handleApplyPlan: () => Promise<void>;
   handleExecutePlan: () => Promise<void>;
+  handleApproveAndRun: () => Promise<void>;
+  handleRetryApply: () => Promise<void>;
+  handleRetryExecute: () => Promise<void>;
 }
 
 export function usePlanningSession(
   projectId: string,
   onApplyComplete?: (createdTaskIds: string[]) => void,
-  onExecuteComplete?: (createdTaskIds: string[]) => void
+  onExecuteComplete?: (createdTaskIds: string[]) => void,
+  onPipelineComplete?: (createdTaskIds: string[]) => void
 ): UsePlanningSessionReturn {
   const [idea, setIdea] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -59,25 +67,26 @@ export function usePlanningSession(
   const [productResult, setProductResult] = useState<ProductResultData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Use pipeline hook for autopilot
+  const pipeline = usePlanningPipeline({
+    projectId,
+    sessionId,
+    onComplete: onPipelineComplete,
+    onStatusChange: (s) => setStatus(s),
+  });
+
   const handleStartCouncil = useCallback(async () => {
     if (!idea.trim()) return;
-
     setIsLoading(true);
     setError(null);
-
     try {
       const response = await fetch(`/api/projects/${projectId}/planning/start`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idea: idea.trim() }),
       });
-
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to start council");
-      }
-
+      if (!response.ok) throw new Error(data.error || "Failed to start council");
       setSessionId(data.sessionId);
       setMessages(data.councilMessages || data.messages);
       setStatus("DISCUSSION");
@@ -90,23 +99,16 @@ export function usePlanningSession(
 
   const handleFinishDiscussion = useCallback(async () => {
     if (!sessionId) return;
-
     setIsFinishing(true);
     setError(null);
-
     try {
       const response = await fetch(`/api/projects/${projectId}/planning/finish`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionId }),
       });
-
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to finish discussion");
-      }
-
+      if (!response.ok) throw new Error(data.error || "Failed to finish discussion");
       setProductResult(data.productResult);
       setSessionId(data.sessionId);
       setStatus("DONE");
@@ -119,23 +121,16 @@ export function usePlanningSession(
 
   const handleApplyPlan = useCallback(async () => {
     if (!sessionId) return;
-
     setIsApplying(true);
     setError(null);
-
     try {
       const response = await fetch(`/api/projects/${projectId}/planning/apply`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionId }),
       });
-
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to apply plan");
-      }
-
+      if (!response.ok) throw new Error(data.error || "Failed to apply plan");
       const createdTaskIds: string[] = data.taskIds ?? data.createdTaskIds ?? [];
       setStatus("APPLIED");
       onApplyComplete?.(createdTaskIds);
@@ -148,28 +143,18 @@ export function usePlanningSession(
 
   const handleExecutePlan = useCallback(async () => {
     if (!sessionId) return;
-
     setIsExecuting(true);
     setError(null);
-
     try {
-      // First apply the plan
       const response = await fetch(`/api/projects/${projectId}/planning/apply`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionId }),
       });
-
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to apply plan");
-      }
-
+      if (!response.ok) throw new Error(data.error || "Failed to apply plan");
       const createdTaskIds: string[] = data.taskIds ?? data.createdTaskIds ?? [];
       setStatus("APPLIED");
-
-      // Call execute complete callback (which will trigger run-all)
       onExecuteComplete?.(createdTaskIds);
     } catch (err: any) {
       setError(err.message || "An error occurred");
@@ -185,14 +170,18 @@ export function usePlanningSession(
     sessionId,
     status,
     productResult,
-    error,
+    error: error || pipeline.pipelineError,
     isLoading,
     isFinishing,
     isApplying,
     isExecuting,
+    pipelinePhase: pipeline.pipelinePhase,
     handleStartCouncil,
     handleFinishDiscussion,
     handleApplyPlan,
     handleExecutePlan,
+    handleApproveAndRun: pipeline.handleApproveAndRun,
+    handleRetryApply: pipeline.handleRetryApply,
+    handleRetryExecute: pipeline.handleRetryExecute,
   };
 }

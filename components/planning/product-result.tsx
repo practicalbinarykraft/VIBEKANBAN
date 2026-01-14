@@ -20,20 +20,30 @@ interface ProductResultData {
   steps?: PlanStep[];
 }
 
+type PipelinePhase = "IDLE" | "APPLYING" | "EXECUTING" | "PIPELINE_DONE" | "APPLY_FAILED" | "EXECUTE_FAILED";
+
 interface ProductResultProps {
   result: ProductResultData;
   onApplyPlan?: () => void;
   onExecutePlan?: () => void;
+  onApprovePlan?: () => void;
+  onRetryApply?: () => void;
+  onRetryExecute?: () => void;
   isApplying?: boolean;
   isExecuting?: boolean;
+  pipelinePhase?: PipelinePhase;
 }
 
 export function ProductResult({
   result,
   onApplyPlan,
   onExecutePlan,
+  onApprovePlan,
+  onRetryApply,
+  onRetryExecute,
   isApplying = false,
   isExecuting = false,
+  pipelinePhase = "IDLE",
 }: ProductResultProps) {
   const canApply = result.mode === "PLAN" && result.steps && result.steps.length > 0;
 
@@ -90,39 +100,93 @@ export function ProductResult({
 
           {/* Action Buttons */}
           {canApply && (
-            <div className="mt-6 flex gap-2">
-              {onApplyPlan && (
+            <div className="mt-6 flex flex-col gap-4">
+              {/* Approve Plan - Level 2 autopilot button */}
+              {onApprovePlan && pipelinePhase === "IDLE" && (
                 <Button
-                  onClick={onApplyPlan}
+                  onClick={onApprovePlan}
                   disabled={isApplying || isExecuting}
-                  variant="outline"
-                  data-testid="apply-plan-button"
+                  data-testid="approve-plan-button"
+                  className="w-full"
                 >
-                  {isApplying ? (
-                    <span data-testid="apply-plan-loading">
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin inline" />
-                      Применение...
-                    </span>
-                  ) : (
-                    "Apply Plan"
-                  )}
+                  Approve Plan
                 </Button>
               )}
-              {onExecutePlan && (
-                <Button
-                  onClick={onExecutePlan}
-                  disabled={isApplying || isExecuting}
-                  data-testid="execute-plan-button"
-                >
-                  {isExecuting ? (
-                    <span data-testid="execute-plan-loading">
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin inline" />
-                      Запуск...
-                    </span>
-                  ) : (
-                    "Execute Plan"
+
+              {/* Pipeline progress states */}
+              {pipelinePhase === "APPLYING" && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground" data-testid="pipeline-applying">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Applying plan...
+                </div>
+              )}
+              {pipelinePhase === "EXECUTING" && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground" data-testid="pipeline-executing">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Starting execution...
+                </div>
+              )}
+              {pipelinePhase === "PIPELINE_DONE" && (
+                <div className="text-sm text-green-600" data-testid="pipeline-done">
+                  Pipeline complete!
+                </div>
+              )}
+
+              {/* Error states with retry buttons */}
+              {pipelinePhase === "APPLY_FAILED" && onRetryApply && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-destructive">Apply failed</span>
+                  <Button onClick={onRetryApply} variant="outline" size="sm" data-testid="retry-apply-button">
+                    Retry
+                  </Button>
+                </div>
+              )}
+              {pipelinePhase === "EXECUTE_FAILED" && onRetryExecute && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-destructive">Execute failed</span>
+                  <Button onClick={onRetryExecute} variant="outline" size="sm" data-testid="retry-execute-button">
+                    Retry
+                  </Button>
+                </div>
+              )}
+
+              {/* Legacy buttons - hidden during pipeline */}
+              {pipelinePhase === "IDLE" && (
+                <div className="flex gap-2">
+                  {onApplyPlan && (
+                    <Button
+                      onClick={onApplyPlan}
+                      disabled={isApplying || isExecuting}
+                      variant="outline"
+                      data-testid="apply-plan-button"
+                    >
+                      {isApplying ? (
+                        <span data-testid="apply-plan-loading">
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin inline" />
+                          Применение...
+                        </span>
+                      ) : (
+                        "Apply Plan"
+                      )}
+                    </Button>
                   )}
-                </Button>
+                  {onExecutePlan && (
+                    <Button
+                      onClick={onExecutePlan}
+                      disabled={isApplying || isExecuting}
+                      data-testid="execute-plan-button"
+                    >
+                      {isExecuting ? (
+                        <span data-testid="execute-plan-loading">
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin inline" />
+                          Запуск...
+                        </span>
+                      ) : (
+                        "Execute Plan"
+                      )}
+                    </Button>
+                  )}
+                </div>
               )}
             </div>
           )}
