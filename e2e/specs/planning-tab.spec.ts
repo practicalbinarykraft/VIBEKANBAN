@@ -219,4 +219,62 @@ test.describe('Project Planning Tab', () => {
     // 11. Assert: task card with step title text exists in TODO
     await waitForTaskWithTextInColumn(page, 'todo', firstStepTitle!);
   });
+
+  test('T5: Apply Plan is idempotent - second API call does not create duplicates', async ({ page }) => {
+    // 1. Wait for board ready, count tasks BEFORE
+    await waitForBoardReady(page);
+    const countBefore = await getTaskCountInColumn(page, 'todo');
+
+    // 2. Go to Planning tab
+    await page.locator('[data-testid="planning-tab"]').click();
+
+    // 3. Enter idea that triggers PLAN mode
+    const ideaInput = page.locator('[data-testid="planning-idea-input"]');
+    await ideaInput.fill('Build MVP for idempotency test');
+
+    // 4. Start council → wait for chat
+    await page.locator('[data-testid="planning-start-button"]').click();
+    await expect(page.locator('[data-testid="council-chat"]')).toBeVisible({ timeout: 10000 });
+
+    // 5. Finish discussion → wait for plan
+    await page.locator('[data-testid="planning-finish-button"]').click();
+    await expect(page.locator('[data-testid="product-plan"]')).toBeVisible({ timeout: 10000 });
+
+    // 6. Intercept the apply request to capture sessionId
+    let capturedSessionId: string | null = null;
+    await page.route('**/api/projects/*/planning/apply', async (route, request) => {
+      const postData = request.postDataJSON();
+      capturedSessionId = postData?.sessionId;
+      await route.continue();
+    });
+
+    // 7. Click Apply Plan (first time)
+    await page.locator('[data-testid="apply-plan-button"]').click();
+
+    // 8. Wait for board ready
+    await waitForBoardReady(page);
+
+    // 9. Count tasks after first apply
+    const countAfterFirstApply = await getTaskCountInColumn(page, 'todo');
+    expect(countAfterFirstApply).toBeGreaterThan(countBefore);
+
+    // 10. Call API directly second time (simulating race condition or retry)
+    expect(capturedSessionId).toBeTruthy();
+    const response = await page.request.post(`/api/projects/1/planning/apply`, {
+      data: { sessionId: capturedSessionId },
+    });
+    const json = await response.json();
+
+    // 11. API should return success with alreadyApplied flag
+    expect(response.ok()).toBe(true);
+    expect(json.alreadyApplied).toBe(true);
+
+    // 12. Refresh tasks and verify count did NOT increase
+    await page.locator('[data-testid="tasks-tab"]').click();
+    await waitForBoardReady(page);
+    const countAfterSecondApply = await getTaskCountInColumn(page, 'todo');
+
+    // 13. Assert: count stays the same (no duplicates)
+    expect(countAfterSecondApply).toBe(countAfterFirstApply);
+  });
 });

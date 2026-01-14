@@ -22,6 +22,8 @@ export interface PlanningSession {
   ideaText: string;
   status: SessionStatus;
   productResult?: ProductResult;
+  applied?: boolean;
+  appliedTaskIds?: string[];
 }
 
 const sessions = new Map<string, PlanningSession>();
@@ -57,4 +59,34 @@ export function deleteSession(sessionId: string): boolean {
 // For backwards compatibility - returns just ideaText
 export function getSessionIdeaText(sessionId: string): string | undefined {
   return sessions.get(sessionId)?.ideaText;
+}
+
+/**
+ * Mark session as applied with created task IDs (idempotent)
+ * If already applied, does nothing (no-op)
+ */
+export function markSessionApplied(sessionId: string, taskIds: string[]): boolean {
+  const session = sessions.get(sessionId);
+  if (!session) return false;
+
+  // Idempotent: if already applied, do nothing
+  if (session.applied) return true;
+
+  session.applied = true;
+  session.appliedTaskIds = taskIds;
+  return true;
+}
+
+/**
+ * Check if session was already applied
+ */
+export function isSessionApplied(sessionId: string): boolean {
+  return sessions.get(sessionId)?.applied === true;
+}
+
+/**
+ * Get task IDs created when session was applied
+ */
+export function getAppliedTaskIds(sessionId: string): string[] | undefined {
+  return sessions.get(sessionId)?.appliedTaskIds;
 }
