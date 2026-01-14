@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { waitForBoardReady } from '../helpers/board';
+import { waitForBoardReady, getTaskCountInColumn, waitForTaskWithTextInColumn } from '../helpers/board';
 
 /**
  * E2E tests for Planning tab within project page (Council Chat feature)
@@ -177,5 +177,46 @@ test.describe('Project Planning Tab', () => {
     const taskCards = todoColumn.locator('[data-testid^="task-card-"]');
     const taskCount = await taskCards.count();
     expect(taskCount).toBeGreaterThanOrEqual(1);
+  });
+
+  test('T4: Apply Plan increases TODO count and includes plan step text', async ({ page }) => {
+    // 1. Wait for board ready, count tasks BEFORE
+    await waitForBoardReady(page);
+    const countBefore = await getTaskCountInColumn(page, 'todo');
+
+    // 2. Go to Planning tab
+    await page.locator('[data-testid="planning-tab"]').click();
+
+    // 3. Enter idea that triggers PLAN mode
+    const ideaInput = page.locator('[data-testid="planning-idea-input"]');
+    await ideaInput.fill('Build MVP quickly');
+
+    // 4. Start council → wait for chat
+    await page.locator('[data-testid="planning-start-button"]').click();
+    await expect(page.locator('[data-testid="council-chat"]')).toBeVisible({ timeout: 10000 });
+
+    // 5. Finish discussion → wait for plan
+    await page.locator('[data-testid="planning-finish-button"]').click();
+    await expect(page.locator('[data-testid="product-plan"]')).toBeVisible({ timeout: 10000 });
+
+    // 6. Get first step title text (to verify it appears on board)
+    const firstStep = page.locator('[data-testid="product-step"]').first();
+    const firstStepTitle = await firstStep.locator('h4').textContent();
+    expect(firstStepTitle).toBeTruthy();
+
+    // 7. Click Apply Plan (auto-switches to tasks tab)
+    await page.locator('[data-testid="apply-plan-button"]').click();
+
+    // 8. Wait for board ready
+    await waitForBoardReady(page);
+
+    // 9. Count tasks AFTER
+    const countAfter = await getTaskCountInColumn(page, 'todo');
+
+    // 10. Assert: count increased
+    expect(countAfter).toBeGreaterThan(countBefore);
+
+    // 11. Assert: task card with step title text exists in TODO
+    await waitForTaskWithTextInColumn(page, 'todo', firstStepTitle!);
   });
 });

@@ -86,3 +86,21 @@ export async function waitForExecutionStatus(
   const statusBadge = page.locator('[data-testid="execution-status"]');
   await expect(statusBadge).toContainText(new RegExp(status, 'i'), { timeout });
 }
+
+/**
+ * Wait for a task card containing specific text to appear in a column
+ * @param page Playwright page
+ * @param columnStatus Column status: 'todo' | 'in_progress' | 'in_review' | 'done'
+ * @param text Text to search for in task card
+ * @param timeout Timeout in ms
+ */
+export async function waitForTaskWithTextInColumn(
+  page: Page,
+  columnStatus: string,
+  text: string,
+  timeout = 10000
+) {
+  const column = page.locator(`[data-testid="column-${columnStatus}"]`);
+  const taskCard = column.locator('[data-testid^="task-card-"]', { hasText: text });
+  await expect(taskCard.first()).toBeVisible({ timeout });
+}
