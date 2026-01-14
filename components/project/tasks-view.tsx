@@ -29,6 +29,7 @@ interface TasksViewProps {
   attempts: any[];
   selectedAttemptId: string | null;
   attemptsLoading: boolean;
+  highlightedTaskIds?: string[];
 }
 
 export function TasksView({
@@ -51,6 +52,7 @@ export function TasksView({
   attempts,
   selectedAttemptId,
   attemptsLoading,
+  highlightedTaskIds = [],
 }: TasksViewProps) {
   return (
     <div className="flex h-[calc(100vh-7rem)]">
@@ -89,6 +91,7 @@ export function TasksView({
             selectedTaskId={selectedTaskId}
             onTaskClick={onTaskClick}
             isRefreshing={isRefreshing}
+            highlightedTaskIds={highlightedTaskIds}
           />
         </div>
       </div>

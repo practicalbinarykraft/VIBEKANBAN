@@ -9,6 +9,7 @@ interface KanbanColumnProps {
   tasks: Task[];
   selectedTaskId: string | null;
   onTaskClick: (taskId: string) => void;
+  highlightedTaskIds?: string[];
 }
 
 const statusColors: Record<TaskStatus, string> = {
@@ -25,6 +26,7 @@ export function KanbanColumn({
   tasks,
   selectedTaskId,
   onTaskClick,
+  highlightedTaskIds = [],
 }: KanbanColumnProps) {
   return (
     <div className="flex min-w-[260px] max-w-[260px] flex-col shrink-0" data-testid={`column-${status}`}>
@@ -48,6 +50,7 @@ export function KanbanColumn({
               key={task.id}
               task={task}
               isSelected={selectedTaskId === task.id}
+              isHighlighted={highlightedTaskIds.includes(task.id)}
               onClick={() => onTaskClick(task.id)}
             />
           ))

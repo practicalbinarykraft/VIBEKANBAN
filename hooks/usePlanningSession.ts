@@ -43,7 +43,7 @@ interface UsePlanningSessionReturn {
 
 export function usePlanningSession(
   projectId: string,
-  onApplyComplete?: () => void
+  onApplyComplete?: (createdTaskIds: string[]) => void
 ): UsePlanningSessionReturn {
   const [idea, setIdea] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -132,8 +132,9 @@ export function usePlanningSession(
         throw new Error(data.error || "Failed to apply plan");
       }
 
+      const createdTaskIds: string[] = data.taskIds ?? data.createdTaskIds ?? [];
       setStatus("APPLIED");
-      onApplyComplete?.();
+      onApplyComplete?.(createdTaskIds);
     } catch (err: any) {
       setError(err.message || "An error occurred");
     } finally {

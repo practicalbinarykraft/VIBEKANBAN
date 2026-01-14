@@ -426,4 +426,45 @@ test.describe('Project Planning Tab', () => {
     expect(step2Position).toBeGreaterThanOrEqual(0);
     expect(step1Position).toBeLessThan(step2Position);
   });
+
+  test('T8: Apply Plan auto-switches to Tasks tab and highlights created tasks', async ({ page }) => {
+    // 1) Planning tab
+    await page.locator('[data-testid="planning-tab"]').click();
+
+    // 2) Trigger PLAN mode
+    await page.locator('[data-testid="planning-idea-input"]').fill('Build MVP for autofocus test');
+    await page.locator('[data-testid="planning-start-button"]').click();
+    await expect(page.locator('[data-testid="council-chat"]')).toBeVisible({ timeout: 10000 });
+
+    // 3) Finish -> plan
+    await page.locator('[data-testid="planning-finish-button"]').click();
+    await expect(page.locator('[data-testid="product-plan"]')).toBeVisible({ timeout: 10000 });
+
+    // 4) Click Apply + capture response JSON
+    const applyResponsePromise = page.waitForResponse((resp) => {
+      return resp.url().includes('/planning/apply') && resp.request().method() === 'POST' && resp.status() === 200;
+    });
+
+    await page.locator('[data-testid="apply-plan-button"]').click();
+
+    const applyResp = await applyResponsePromise;
+    const json = await applyResp.json();
+    const createdTaskIds: string[] = json.taskIds ?? json.createdTaskIds ?? [];
+
+    expect(createdTaskIds.length).toBeGreaterThan(0);
+
+    // 5) Verify we switched to Tasks view by asserting board + TODO visible
+    const todoColumn = page.locator('[data-testid="column-todo"]');
+    await expect(todoColumn).toBeVisible({ timeout: 10000 });
+
+    // 6) Verify highlight exists on at least one of created tasks
+    // Expectation: task cards render data-highlighted="true" for created ids
+    const highlightedTask = page.locator('[data-testid^="task-card-"][data-highlighted="true"]');
+    await expect(highlightedTask.first()).toBeVisible({ timeout: 10000 });
+
+    const highlightedTestId = await highlightedTask.first().getAttribute('data-testid');
+    const highlightedId = highlightedTestId?.replace('task-card-', '');
+    expect(highlightedId).toBeTruthy();
+    expect(createdTaskIds).toContain(highlightedId);
+  });
 });
