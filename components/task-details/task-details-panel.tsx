@@ -14,6 +14,13 @@ import { useAttemptStream } from "@/hooks/useAttemptStream";
 import { useTaskActions } from "@/hooks/useTaskActions";
 import { parseUnifiedDiff } from "@/lib/diff-parser";
 import { mockDiffs } from "@/lib/mock-data";
+import {
+  formatEstimate,
+  formatPriority,
+  parseTags,
+  getPriorityColor,
+  getEstimateColor,
+} from "@/lib/task-enrichment-format";
 
 interface TaskDetailsPanelProps {
   task: Task;
@@ -118,6 +125,13 @@ export function TaskDetailsPanel({
         <div className="pb-2">
           <p className="text-xs text-muted-foreground/70 leading-relaxed" data-testid="task-description">{task.description}</p>
         </div>
+        {(task.priority || task.estimate || task.tags) && (
+          <div className="pb-2 flex flex-wrap gap-3 text-xs" data-testid="task-enrichment">
+            <span className="text-muted-foreground">Priority: <span className={getPriorityColor(task.priority)} data-testid="task-priority">{formatPriority(task.priority)}</span></span>
+            <span className="text-muted-foreground">Estimate: <span className={getEstimateColor(task.estimate)} data-testid="task-estimate">{formatEstimate(task.estimate)}</span></span>
+            <span className="text-muted-foreground" data-testid="task-tags">Tags: {parseTags(task.tags).length > 0 ? parseTags(task.tags).map((t) => <span key={t} className="ml-1 px-1.5 py-0.5 bg-muted rounded">{t}</span>) : '—'}</span>
+          </div>
+        )}
         <TaskActions
           latestAttempt={latestAttempt}
           currentStatus={currentStatus}

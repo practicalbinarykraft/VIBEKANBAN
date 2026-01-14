@@ -338,12 +338,24 @@ test.describe('Project Planning Tab', () => {
     // Wait for panel to show a task whose title contains firstStepTitle
     await expect(taskDetailsPanel.locator('h2')).toContainText(firstStepTitle!, { timeout: 5000 });
 
-    // 12. Get task description and verify enrichment marker
-    const taskDescription = page.locator('[data-testid="task-description"]');
-    await expect(taskDescription).toBeVisible();
-    const descriptionText = await taskDescription.textContent();
+    // 12. Verify enrichment UI fields are displayed
+    const enrichmentBlock = page.locator('[data-testid="task-enrichment"]');
+    await expect(enrichmentBlock).toBeVisible({ timeout: 5000 });
 
-    // 13. Assert: description contains enrichment marker [Px][S|M|L][tags]
-    expect(descriptionText).toMatch(/^\[P[123]\]\[[SML]\]\[.*\]/);
+    // 13. Assert: priority field shows P1, P2, or P3
+    const priorityField = page.locator('[data-testid="task-priority"]');
+    await expect(priorityField).toBeVisible();
+    const priorityText = await priorityField.textContent();
+    expect(priorityText).toMatch(/^P[123]$/);
+
+    // 14. Assert: estimate field shows S, M, or L
+    const estimateField = page.locator('[data-testid="task-estimate"]');
+    await expect(estimateField).toBeVisible();
+    const estimateText = await estimateField.textContent();
+    expect(estimateText).toMatch(/^[SML]$/);
+
+    // 15. Assert: tags field exists (may be empty or have tags)
+    const tagsField = page.locator('[data-testid="task-tags"]');
+    await expect(tagsField).toBeVisible();
   });
 });

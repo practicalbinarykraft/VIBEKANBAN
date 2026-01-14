@@ -15,6 +15,9 @@ export interface Task {
   description: string;
   status: TaskStatus;
   order: number;
+  estimate?: string | null;  // S | M | L
+  priority?: string | null;  // P1 | P2 | P3
+  tags?: string | null;      // JSON string array
   createdAt: Date;
   updatedAt: Date;
 }
