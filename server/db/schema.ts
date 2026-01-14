@@ -21,6 +21,9 @@ export const tasks = sqliteTable("tasks", {
   description: text("description").notNull(),
   status: text("status").notNull().default("todo"), // todo, in_progress, in_review, done, cancelled
   order: integer("order").notNull().default(0),
+  estimate: text("estimate"), // S | M | L (nullable for backward compat)
+  priority: text("priority"), // P1 | P2 | P3 (nullable for backward compat)
+  tags: text("tags"), // JSON string array (nullable for backward compat)
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`CURRENT_TIMESTAMP`),
 });

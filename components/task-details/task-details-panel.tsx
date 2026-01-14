@@ -116,7 +116,7 @@ export function TaskDetailsPanel({
       />
       <div className="flex-1 overflow-y-auto p-3 space-y-4">
         <div className="pb-2">
-          <p className="text-xs text-muted-foreground/70 leading-relaxed">{task.description}</p>
+          <p className="text-xs text-muted-foreground/70 leading-relaxed" data-testid="task-description">{task.description}</p>
         </div>
         <TaskActions
           latestAttempt={latestAttempt}
