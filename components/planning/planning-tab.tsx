@@ -20,9 +20,10 @@ interface PlanningTabProps {
   projectId: string;
   onApplyComplete?: (createdTaskIds: string[]) => void;
   onExecuteComplete?: (createdTaskIds: string[]) => void;
+  onPipelineComplete?: (createdTaskIds: string[]) => void;
 }
 
-export function PlanningTab({ projectId, onApplyComplete, onExecuteComplete }: PlanningTabProps) {
+export function PlanningTab({ projectId, onApplyComplete, onExecuteComplete, onPipelineComplete }: PlanningTabProps) {
   const {
     idea,
     setIdea,
@@ -34,11 +35,15 @@ export function PlanningTab({ projectId, onApplyComplete, onExecuteComplete }: P
     isFinishing,
     isApplying,
     isExecuting,
+    pipelinePhase,
     handleStartCouncil,
     handleFinishDiscussion,
     handleApplyPlan,
     handleExecutePlan,
-  } = usePlanningSession(projectId, onApplyComplete, onExecuteComplete);
+    handleApproveAndRun,
+    handleRetryApply,
+    handleRetryExecute,
+  } = usePlanningSession(projectId, onApplyComplete, onExecuteComplete, onPipelineComplete);
 
   const isStartDisabled = !idea.trim() || isLoading || status !== "IDLE";
 
@@ -118,8 +123,12 @@ export function PlanningTab({ projectId, onApplyComplete, onExecuteComplete }: P
           result={productResult}
           onApplyPlan={handleApplyPlan}
           onExecutePlan={handleExecutePlan}
+          onApprovePlan={handleApproveAndRun}
+          onRetryApply={handleRetryApply}
+          onRetryExecute={handleRetryExecute}
           isApplying={isApplying}
           isExecuting={isExecuting}
+          pipelinePhase={pipelinePhase}
         />
       )}
 

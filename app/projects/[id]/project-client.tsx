@@ -208,6 +208,15 @@ export default function ProjectClient({ projectId }: ProjectClientProps) {
               // Clear highlight after 1.5s
               setTimeout(() => setHighlightedTaskIds([]), 1500);
             }}
+            onPipelineComplete={(createdTaskIds) => {
+              setActiveTab("tasks");
+              setHighlightedTaskIds(createdTaskIds);
+              refreshTasks();
+              // Autopilot: start execution after apply
+              handleRunAll();
+              // Clear highlight after 1.5s
+              setTimeout(() => setHighlightedTaskIds([]), 1500);
+            }}
           />
         </div>
       )}
