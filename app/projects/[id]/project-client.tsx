@@ -27,6 +27,7 @@ export default function ProjectClient({ projectId }: ProjectClientProps) {
   const [editTaskOpen, setEditTaskOpen] = useState(false);
   const [deleteTaskOpen, setDeleteTaskOpen] = useState(false);
   const [createPROpen, setCreatePROpen] = useState(false);
+  const [highlightedTaskIds, setHighlightedTaskIds] = useState<string[]>([]);
 
   // Track if we've already auto-selected a task on mount
   const hasAutoSelectedRef = useRef(false);
@@ -175,6 +176,7 @@ export default function ProjectClient({ projectId }: ProjectClientProps) {
           attempts={attempts}
           selectedAttemptId={selectedAttemptId}
           attemptsLoading={attemptsLoading}
+          highlightedTaskIds={highlightedTaskIds}
         />
       )}
 
@@ -190,9 +192,12 @@ export default function ProjectClient({ projectId }: ProjectClientProps) {
         <div className="h-[calc(100vh-7rem)]">
           <PlanningTab
             projectId={projectId}
-            onApplyComplete={() => {
+            onApplyComplete={(createdTaskIds) => {
               setActiveTab("tasks");
+              setHighlightedTaskIds(createdTaskIds);
               refreshTasks();
+              // Clear highlight after 1.5s
+              setTimeout(() => setHighlightedTaskIds([]), 1500);
             }}
           />
         </div>

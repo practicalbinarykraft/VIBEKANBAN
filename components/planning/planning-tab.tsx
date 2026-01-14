@@ -18,7 +18,7 @@ import { Loader2 } from "lucide-react";
 
 interface PlanningTabProps {
   projectId: string;
-  onApplyComplete?: () => void;
+  onApplyComplete?: (createdTaskIds: string[]) => void;
 }
 
 export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {

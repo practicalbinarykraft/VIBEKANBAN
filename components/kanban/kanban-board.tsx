@@ -8,6 +8,7 @@ interface KanbanBoardProps {
   selectedTaskId: string | null;
   onTaskClick: (taskId: string) => void;
   isRefreshing?: boolean;
+  highlightedTaskIds?: string[];
 }
 
 const columns: Array<{ title: string; status: TaskStatus }> = [
@@ -23,6 +24,7 @@ export function KanbanBoard({
   selectedTaskId,
   onTaskClick,
   isRefreshing = false,
+  highlightedTaskIds = [],
 }: KanbanBoardProps) {
   const tasksByStatus = columns.map((column) => ({
     ...column,
@@ -52,6 +54,7 @@ export function KanbanBoard({
             tasks={column.tasks}
             selectedTaskId={selectedTaskId}
             onTaskClick={onTaskClick}
+            highlightedTaskIds={highlightedTaskIds}
           />
         ))}
       </div>

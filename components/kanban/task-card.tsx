@@ -4,17 +4,20 @@ import { cn } from "@/lib/utils";
 interface TaskCardProps {
   task: Task;
   isSelected: boolean;
+  isHighlighted?: boolean;
   onClick: () => void;
 }
 
-export function TaskCard({ task, isSelected, onClick }: TaskCardProps) {
+export function TaskCard({ task, isSelected, isHighlighted = false, onClick }: TaskCardProps) {
   return (
     <div
       data-testid={`task-card-${task.id}`}
+      data-highlighted={isHighlighted ? "true" : undefined}
       onClick={onClick}
       className={cn(
         "group cursor-pointer rounded border border-border bg-card px-2 py-2 text-xs hover:border-foreground/20 hover:shadow-sm transition-all",
-        isSelected && "border-foreground/40 bg-accent/30"
+        isSelected && "border-foreground/40 bg-accent/30",
+        isHighlighted && "ring-2 ring-primary/50 bg-primary/10 animate-pulse"
       )}
     >
       <div className="flex items-start gap-1.5">
