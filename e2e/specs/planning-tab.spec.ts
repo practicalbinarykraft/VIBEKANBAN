@@ -1,5 +1,10 @@
 import { test, expect } from '@playwright/test';
-import { waitForBoardReady, getTaskCountInColumn, waitForTaskWithTextInColumn } from '../helpers/board';
+import {
+  waitForBoardReady,
+  getTaskCountInColumn,
+  waitForTaskWithTextInColumn,
+  waitForTaskCountToIncrease,
+} from '../helpers/board';
 
 /**
  * E2E tests for Planning tab within project page (Council Chat feature)
@@ -174,7 +179,10 @@ test.describe('Project Planning Tab', () => {
     const todoColumn = page.locator('[data-testid="column-todo"]');
     await expect(todoColumn).toBeVisible();
 
+    // Wait for at least one task card to appear (tasks are created asynchronously)
     const taskCards = todoColumn.locator('[data-testid^="task-card-"]');
+    await expect(taskCards.first()).toBeVisible({ timeout: 10000 });
+
     const taskCount = await taskCards.count();
     expect(taskCount).toBeGreaterThanOrEqual(1);
   });
@@ -210,13 +218,16 @@ test.describe('Project Planning Tab', () => {
     // 8. Wait for board ready
     await waitForBoardReady(page);
 
-    // 9. Count tasks AFTER
+    // 9. Wait for task count to increase (polls until new tasks appear)
+    await waitForTaskCountToIncrease(page, 'todo', countBefore);
+
+    // 10. Count tasks AFTER (now that new tasks are in DOM)
     const countAfter = await getTaskCountInColumn(page, 'todo');
 
-    // 10. Assert: count increased
+    // 11. Assert: count increased (redundant but explicit)
     expect(countAfter).toBeGreaterThan(countBefore);
 
-    // 11. Assert: task card with step title text exists in TODO
+    // 12. Verify task with plan step text exists
     await waitForTaskWithTextInColumn(page, 'todo', firstStepTitle!);
   });
 
@@ -254,27 +265,30 @@ test.describe('Project Planning Tab', () => {
     // 8. Wait for board ready
     await waitForBoardReady(page);
 
-    // 9. Count tasks after first apply
+    // 9. Wait for task count to increase (polls until new tasks appear)
+    await waitForTaskCountToIncrease(page, 'todo', countBefore);
+
+    // 10. Count tasks after first apply
     const countAfterFirstApply = await getTaskCountInColumn(page, 'todo');
     expect(countAfterFirstApply).toBeGreaterThan(countBefore);
 
-    // 10. Call API directly second time (simulating race condition or retry)
+    // 11. Call API directly second time (simulating race condition or retry)
     expect(capturedSessionId).toBeTruthy();
     const response = await page.request.post(`/api/projects/1/planning/apply`, {
       data: { sessionId: capturedSessionId },
     });
     const json = await response.json();
 
-    // 11. API should return success with alreadyApplied flag
+    // 12. API should return success with alreadyApplied flag
     expect(response.ok()).toBe(true);
     expect(json.alreadyApplied).toBe(true);
 
-    // 12. Refresh tasks and verify count did NOT increase
+    // 13. Refresh tasks and verify count did NOT increase
     await page.locator('[data-testid="tasks-tab"]').click();
     await waitForBoardReady(page);
     const countAfterSecondApply = await getTaskCountInColumn(page, 'todo');
 
-    // 13. Assert: count stays the same (no duplicates)
+    // 14. Assert: count stays the same (no duplicates)
     expect(countAfterSecondApply).toBe(countAfterFirstApply);
   });
 });

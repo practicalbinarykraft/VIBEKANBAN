@@ -74,16 +74,6 @@ export async function POST(
       );
     }
 
-    // Idempotency check: if already applied, return cached result
-    if (isSessionApplied(sessionId)) {
-      const cachedTaskIds = getAppliedTaskIds(sessionId) || [];
-      return NextResponse.json({
-        createdTaskIds: cachedTaskIds,
-        count: cachedTaskIds.length,
-        alreadyApplied: true,
-      });
-    }
-
     // Extract all tasks from plan steps
     // Each step has { title, tasks[] }, we flatten all tasks
     const allStepTasks: string[] = [];
