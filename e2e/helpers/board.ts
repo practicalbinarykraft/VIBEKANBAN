@@ -104,3 +104,29 @@ export async function waitForTaskWithTextInColumn(
   const taskCard = column.locator('[data-testid^="task-card-"]', { hasText: text });
   await expect(taskCard.first()).toBeVisible({ timeout });
 }
+
+/**
+ * Wait for task count in a column to increase above a minimum value
+ * Uses expect.poll() to retry until condition is met
+ * @param page Playwright page
+ * @param columnStatus Column status
+ * @param minCount Minimum expected count (exclusive - count must be > minCount)
+ * @param timeout Timeout in ms
+ */
+export async function waitForTaskCountToIncrease(
+  page: Page,
+  columnStatus: string,
+  minCount: number,
+  timeout = 10000
+) {
+  await expect.poll(
+    async () => {
+      const count = await getTaskCountInColumn(page, columnStatus);
+      return count;
+    },
+    {
+      message: `Expected task count in ${columnStatus} to be greater than ${minCount}`,
+      timeout,
+    }
+  ).toBeGreaterThan(minCount);
+}

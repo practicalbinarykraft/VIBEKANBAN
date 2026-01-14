@@ -4,7 +4,7 @@ import {
   isSessionApplied,
   getAppliedTaskIds,
   markSessionApplied,
-} from "@/lib/planning-sessions";
+} from "@/server/services/planning-session-store";
 import { planToTasks } from "@/lib/plan-to-tasks";
 import { db } from "@/server/db";
 import { tasks } from "@/server/db/schema";
@@ -34,14 +34,24 @@ export async function POST(
       );
     }
 
-    // Get session
-    const session = getSession(sessionId);
+    // Get session from DB
+    const session = await getSession(sessionId);
 
     if (!session) {
       return NextResponse.json(
         { error: "Session not found" },
         { status: 404 }
       );
+    }
+
+    // Idempotency check: if already applied, return cached result
+    if (await isSessionApplied(sessionId)) {
+      const cachedTaskIds = (await getAppliedTaskIds(sessionId)) || [];
+      return NextResponse.json({
+        createdTaskIds: cachedTaskIds,
+        count: cachedTaskIds.length,
+        alreadyApplied: true,
+      });
     }
 
     // Verify session status
@@ -62,16 +72,6 @@ export async function POST(
         { error: "No plan steps available to apply" },
         { status: 400 }
       );
-    }
-
-    // Idempotency check: if already applied, return cached result
-    if (isSessionApplied(sessionId)) {
-      const cachedTaskIds = getAppliedTaskIds(sessionId) || [];
-      return NextResponse.json({
-        createdTaskIds: cachedTaskIds,
-        count: cachedTaskIds.length,
-        alreadyApplied: true,
-      });
     }
 
     // Extract all tasks from plan steps
@@ -106,7 +106,7 @@ export async function POST(
     }
 
     // Mark session as applied (idempotent - stores taskIds for future calls)
-    markSessionApplied(sessionId, createdTaskIds);
+    await markSessionApplied(sessionId, createdTaskIds);
 
     return NextResponse.json({
       createdTaskIds,
