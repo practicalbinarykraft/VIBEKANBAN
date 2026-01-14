@@ -358,4 +358,72 @@ test.describe('Project Planning Tab', () => {
     const tagsField = page.locator('[data-testid="task-tags"]');
     await expect(tagsField).toBeVisible();
   });
+
+  test('T7: TODO column displays tasks in order (step 1 before step 2)', async ({ page }) => {
+    // 1. Wait for board ready, count tasks BEFORE
+    await waitForBoardReady(page);
+    const countBefore = await getTaskCountInColumn(page, 'todo');
+
+    // 2. Go to Planning tab
+    await page.locator('[data-testid="planning-tab"]').click();
+
+    // 3. Enter idea that triggers PLAN mode
+    const ideaInput = page.locator('[data-testid="planning-idea-input"]');
+    await ideaInput.fill('Build MVP for ordering test');
+
+    // 4. Start council → wait for chat
+    await page.locator('[data-testid="planning-start-button"]').click();
+    await expect(page.locator('[data-testid="council-chat"]')).toBeVisible({ timeout: 10000 });
+
+    // 5. Finish discussion → wait for plan
+    await page.locator('[data-testid="planning-finish-button"]').click();
+    await expect(page.locator('[data-testid="product-plan"]')).toBeVisible({ timeout: 10000 });
+
+    // 6. Get step titles to know expected order
+    const steps = page.locator('[data-testid="product-step"]');
+    const stepCount = await steps.count();
+    expect(stepCount).toBeGreaterThanOrEqual(2);
+
+    // Get first step's first task title (will be order=1)
+    const step1Title = await steps.nth(0).locator('h4').textContent();
+    // Get second step's first task title (will be order after step1 tasks)
+    const step2Title = await steps.nth(1).locator('h4').textContent();
+    expect(step1Title).toBeTruthy();
+    expect(step2Title).toBeTruthy();
+
+    // 7. Click Apply Plan
+    await page.locator('[data-testid="apply-plan-button"]').click();
+
+    // 8. Wait for board ready and task count to increase
+    await waitForBoardReady(page);
+    await waitForTaskCountToIncrease(page, 'todo', countBefore);
+
+    // 9. Wait for tasks to appear
+    await waitForTaskWithTextInColumn(page, 'todo', step1Title!);
+    await waitForTaskWithTextInColumn(page, 'todo', step2Title!);
+
+    // 10. Get all task cards in TODO column (excluding seed tasks)
+    const todoColumn = page.locator('[data-testid="column-todo"]');
+    const allCards = todoColumn.locator('[data-testid^="task-card-"]');
+    const cardCount = await allCards.count();
+
+    // Find positions of step1 and step2 tasks
+    let step1Position = -1;
+    let step2Position = -1;
+
+    for (let i = 0; i < cardCount; i++) {
+      const cardText = await allCards.nth(i).textContent();
+      if (cardText?.includes(step1Title!) && step1Position === -1) {
+        step1Position = i;
+      }
+      if (cardText?.includes(step2Title!) && step2Position === -1) {
+        step2Position = i;
+      }
+    }
+
+    // 11. Assert: step1 tasks appear BEFORE step2 tasks in the list
+    expect(step1Position).toBeGreaterThanOrEqual(0);
+    expect(step2Position).toBeGreaterThanOrEqual(0);
+    expect(step1Position).toBeLessThan(step2Position);
+  });
 });
