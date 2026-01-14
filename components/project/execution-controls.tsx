@@ -55,16 +55,18 @@ export function ExecutionControls({
       {getStatusBadge()}
 
       {showRunAll && (
-        <Button
-          onClick={onRunAll}
-          disabled={loading}
-          size="sm"
-          className="h-8 text-xs"
-          data-testid="run-all-button"
-        >
-          <Play className="mr-1 h-3.5 w-3.5" />
-          Run All
-        </Button>
+        <span data-testid="execution-start-button">
+          <Button
+            onClick={onRunAll}
+            disabled={loading}
+            size="sm"
+            className="h-8 text-xs"
+            data-testid="run-all-button"
+          >
+            <Play className="mr-1 h-3.5 w-3.5" />
+            Run All
+          </Button>
+        </span>
       )}
 
       {showPause && (
