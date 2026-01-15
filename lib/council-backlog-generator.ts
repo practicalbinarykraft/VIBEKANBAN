@@ -87,14 +87,16 @@ function generateSteps(idea: string): string[] {
   const used = new Set(steps);
   const target = 60 + (hash % 60);
 
-  while (steps.length < target) {
-    const vi = (hash + steps.length) % ACTION_VERBS.length;
-    const oi = (hash + steps.length * 3) % EXTRA_OBJECTS.length;
+  let iter = 0;
+  while (steps.length < target && iter < 1000) {
+    const vi = (hash + iter) % ACTION_VERBS.length;
+    const oi = (hash + iter * 3) % EXTRA_OBJECTS.length;
     const step = `${ACTION_VERBS[vi]} ${EXTRA_OBJECTS[oi]}`;
     if (!used.has(step)) {
       steps.push(step);
       used.add(step);
     }
+    iter++;
   }
   return steps;
 }
