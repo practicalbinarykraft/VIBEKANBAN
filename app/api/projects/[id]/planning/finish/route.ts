@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, updateSessionResult } from "@/server/services/planning-session-store";
-import { generateCouncilResult } from "@/lib/council-plan-generator";
+import { generateCouncilBacklog } from "@/lib/council-backlog-generator";
 
 /**
  * POST /api/projects/[id]/planning/finish
@@ -44,8 +44,8 @@ export async function POST(
       );
     }
 
-    // Generate deterministic result based on ideaText
-    const councilResult = generateCouncilResult(session.ideaText);
+    // Generate deterministic backlog based on ideaText (30-200 steps)
+    const councilResult = generateCouncilBacklog(session.ideaText);
 
     // Build product result for UI (transform planSteps to steps format)
     const productResult =
