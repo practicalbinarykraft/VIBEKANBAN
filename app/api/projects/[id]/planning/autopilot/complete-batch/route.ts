@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { approveCurrentBatch, getAutopilotStatus } from '@/lib/autopilot-machine';
+import { completeBatch, getAutopilotStatus } from '@/lib/autopilot-machine';
 import { getAutopilotState, saveAutopilotState } from '@/server/services/autopilot-store';
 
 /**
- * POST /api/projects/[id]/planning/autopilot/approve
- * Approve current batch and move to next (or DONE)
+ * POST /api/projects/[id]/planning/autopilot/complete-batch
+ * Mark current batch as complete, transition to WAITING_APPROVAL
+ *
+ * Used for testing and manual batch completion triggers.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -20,14 +22,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No autopilot state found' }, { status: 404 });
     }
 
-    if (state.status !== 'WAITING_APPROVAL') {
+    if (state.status !== 'RUNNING') {
       return NextResponse.json({
-        error: 'Can only approve when WAITING_APPROVAL',
+        error: 'Can only complete batch when RUNNING',
         currentStatus: state.status,
       }, { status: 400 });
     }
 
-    const newState = approveCurrentBatch(state);
+    const newState = completeBatch(state);
     await saveAutopilotState(sessionId, newState);
 
     return NextResponse.json({

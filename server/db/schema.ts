@@ -85,6 +85,7 @@ export const planningSessions = sqliteTable("planning_sessions", {
   status: text("status").notNull().default("DISCUSSION"), // DISCUSSION, RESULT_READY, APPLIED
   productResult: text("product_result"), // JSON string
   appliedTaskIds: text("applied_task_ids"), // JSON string array
+  autopilotState: text("autopilot_state"), // JSON string (AutopilotState)
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`CURRENT_TIMESTAMP`),
 });

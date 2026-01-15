@@ -31,15 +31,15 @@ export async function POST(
     }
 
     // Check for existing state (idempotent)
-    let state = getAutopilotState(sessionId);
+    let state = await getAutopilotState(sessionId);
     if (!state) {
       const batches = chunkBacklog(session.productResult.planSteps);
-      state = initAutopilotState(sessionId, batches);
+      state = await initAutopilotState(sessionId, batches);
     }
 
     // Start if not already running
     state = startAutopilot(state);
-    saveAutopilotState(sessionId, state);
+    await saveAutopilotState(sessionId, state);
 
     return NextResponse.json({
       success: true,

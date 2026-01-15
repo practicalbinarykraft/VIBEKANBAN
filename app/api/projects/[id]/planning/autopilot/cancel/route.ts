@@ -15,13 +15,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'sessionId required' }, { status: 400 });
     }
 
-    const state = getAutopilotState(sessionId);
+    const state = await getAutopilotState(sessionId);
     if (!state) {
       return NextResponse.json({ error: 'No autopilot state found' }, { status: 404 });
     }
 
     const newState = cancelAutopilot(state);
-    saveAutopilotState(sessionId, newState);
+    await saveAutopilotState(sessionId, newState);
 
     return NextResponse.json({
       success: true,

@@ -1,54 +1,72 @@
 /**
- * Autopilot Store - persistence for multi-batch autopilot state
- * Uses in-memory map keyed by sessionId. Can be extended to DB later.
+ * Autopilot Store - DB-backed persistence for multi-batch autopilot state
+ *
+ * Uses planning_sessions table with autopilot_state column.
+ * Single responsibility: autopilot state CRUD by sessionId.
  */
 
+import { db } from '@/server/db';
+import { planningSessions } from '@/server/db/schema';
+import { eq } from 'drizzle-orm';
 import { AutopilotState } from '@/lib/autopilot-machine';
 import { Batch } from '@/lib/backlog-chunker';
-
-// In-memory store (per-process, cleared on restart)
-const autopilotStates = new Map<string, AutopilotState>();
 
 /**
  * Get autopilot state for a session
  */
-export function getAutopilotState(sessionId: string): AutopilotState | undefined {
-  return autopilotStates.get(sessionId);
+export async function getAutopilotState(sessionId: string): Promise<AutopilotState | undefined> {
+  const rows = await db
+    .select({ autopilotState: planningSessions.autopilotState })
+    .from(planningSessions)
+    .where(eq(planningSessions.id, sessionId))
+    .limit(1);
+
+  if (rows.length === 0 || !rows[0].autopilotState) {
+    return undefined;
+  }
+
+  return JSON.parse(rows[0].autopilotState) as AutopilotState;
 }
 
 /**
  * Save autopilot state for a session
  */
-export function saveAutopilotState(sessionId: string, state: AutopilotState): void {
-  autopilotStates.set(sessionId, state);
-}
-
-/**
- * Delete autopilot state for a session
- */
-export function deleteAutopilotState(sessionId: string): void {
-  autopilotStates.delete(sessionId);
+export async function saveAutopilotState(sessionId: string, state: AutopilotState): Promise<void> {
+  await db
+    .update(planningSessions)
+    .set({
+      autopilotState: JSON.stringify(state),
+      updatedAt: new Date(),
+    })
+    .where(eq(planningSessions.id, sessionId));
 }
 
 /**
  * Initialize autopilot state with batches (if not exists)
  * Returns existing state if already initialized (idempotent)
  */
-export function initAutopilotState(sessionId: string, batches: Batch[]): AutopilotState {
-  const existing = autopilotStates.get(sessionId);
+export async function initAutopilotState(sessionId: string, batches: Batch[]): Promise<AutopilotState> {
+  const existing = await getAutopilotState(sessionId);
   if (existing) return existing;
 
   const state: AutopilotState = {
     status: 'IDLE',
     batches,
   };
-  autopilotStates.set(sessionId, state);
+
+  await saveAutopilotState(sessionId, state);
   return state;
 }
 
 /**
- * Clear all states (for testing)
+ * Delete autopilot state for a session
  */
-export function clearAllAutopilotStates(): void {
-  autopilotStates.clear();
+export async function deleteAutopilotState(sessionId: string): Promise<void> {
+  await db
+    .update(planningSessions)
+    .set({
+      autopilotState: null,
+      updatedAt: new Date(),
+    })
+    .where(eq(planningSessions.id, sessionId));
 }

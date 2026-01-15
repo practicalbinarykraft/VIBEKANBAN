@@ -230,5 +230,16 @@ export function initDB() {
   // Run task enrichment migration (estimate, priority, tags columns)
   migrateTaskEnrichment(_sqlite!);
 
+  // Add autopilot_state column to planning_sessions (P13 migration)
+  try {
+    _sqlite!.exec(`
+      ALTER TABLE planning_sessions ADD COLUMN autopilot_state TEXT;
+    `);
+  } catch (error: any) {
+    if (!error.message.includes('duplicate column name')) {
+      console.warn("Warning during migration:", error.message);
+    }
+  }
+
   console.log("✅ Database initialized");
 }
