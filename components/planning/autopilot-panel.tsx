@@ -41,7 +41,7 @@ export function AutopilotPanel({
   status, currentBatch, progress, totalBatches, error,
   isStarting, isApproving, isCanceling, onStart, onApprove, onCancel,
 }: AutopilotPanelProps) {
-  if (totalBatches === 0 && status === "IDLE") return null;
+  // Panel always shows when rendered - parent controls visibility based on plan steps
 
   const progressPercent = totalBatches > 0 ? (parseInt(progress.split("/")[0]) / totalBatches) * 100 : 0;
 
