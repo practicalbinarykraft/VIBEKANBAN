@@ -141,10 +141,22 @@ test.describe('AI Agents Runtime', () => {
         const inReviewColumn = page.locator('[data-testid="column-in_review"]');
         await expect(inReviewColumn.locator(`[data-testid="task-card-${task1.id}"]`)).toBeVisible({ timeout: 5000 });
       }
+      // Wait for task2 to start (after task1 finished, serial execution picks task2)
+      const inProgressColumn2 = page.locator('[data-testid="column-in_progress"]');
+      await expect(inProgressColumn2.locator(`[data-testid="task-card-${task2.id}"]`)).toBeVisible({ timeout: 10000 });
+
       const attempts2Response = await request.get(`http://localhost:8000/api/tasks/${task2.id}/attempts`);
       const attempts2 = await attempts2Response.json();
       const attempt2 = attempts2[0];
       expect(attempt1.agent).toBe(attempt2.agent);
+
+      // Finish task2's attempt so it also has a PR
+      if (attempt2?.id) {
+        await request.post(`http://localhost:8000/api/test/fixtures/attempt/${attempt2.id}/finish`);
+        await page.reload();
+        await page.waitForSelector('[data-testid="kanban-board"]', { timeout: 10000 });
+      }
+
       await page.locator(`[data-testid="task-card-${task1.id}"]`).click();
       await page.waitForSelector('[data-testid="task-details-panel"]', { timeout: 5000 });
       const pr1Link = page.locator('[data-testid="pr-link"]');

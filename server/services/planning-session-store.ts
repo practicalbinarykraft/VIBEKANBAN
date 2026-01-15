@@ -16,6 +16,7 @@ export interface ProductResult {
   mode: 'QUESTIONS' | 'PLAN';
   questions?: string[];
   steps?: { title: string; tasks: string[] }[];
+  planSteps?: string[];  // Raw step titles from backlog generator
 }
 
 export interface PlanningSession {
