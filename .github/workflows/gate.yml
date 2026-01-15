@@ -32,6 +32,8 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          PLAYWRIGHT: '1'
 
       - name: LOC limits check
         run: npm run check:loc
