@@ -49,11 +49,16 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
+      - name: Build for production
+        run: npm run build
+        env:
+          PLAYWRIGHT: "1"
+
       - name: Run E2E tests (deterministic)
         env:
           PLAYWRIGHT: "1"
           DEBUG: "pw:webserver,pw:api"
-        run: npx playwright test --trace on-first-retry --reporter html --max-failures=1 --workers=1
+        run: npx playwright test --trace on-first-retry --reporter html --workers=1
 
       - name: Upload Playwright report
         if: always()

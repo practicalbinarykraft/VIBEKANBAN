@@ -1,10 +1,13 @@
 import { defineConfig, devices } from '@playwright/test';
 
+// In CI, use production build (more stable); locally use dev server (faster iteration)
+const isCI = !!process.env.CI;
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: false,
-  forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+  forbidOnly: isCI,
+  retries: isCI ? 2 : 0,
   workers: 1,
   reporter: 'html',
   use: {
@@ -18,9 +21,11 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'PLAYWRIGHT=1 npm run dev',
+    command: isCI
+      ? 'PLAYWRIGHT=1 npm start'        // Production server (stable for 77+ tests)
+      : 'PLAYWRIGHT=1 npm run dev',     // Dev server (fast HMR for local dev)
     url: 'http://localhost:8000',
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: !isCI,
     timeout: 120000,
   },
 });
