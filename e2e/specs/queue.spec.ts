@@ -27,7 +27,7 @@ test.describe('Task Details Panel - Queue & Concurrency', () => {
     await cleanupRunningAttempts(request, '1');
     const task = await createTask(request, '1', 'Task for queue test', 'Testing queued state');
     await createFixtureAttempt(request, task.id, 'completed', { forceStatus: 'running' });
-    const completedAttempt = await createFixtureAttempt(request, task.id, 'completed', { forceStatus: 'completed' });
+    const completedAttempt = await createFixtureAttempt(request, task.id, 'completed');
 
     try {
       await navigateToTask(page, '1', task.id, completedAttempt);

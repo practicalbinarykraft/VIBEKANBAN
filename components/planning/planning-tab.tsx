@@ -13,7 +13,9 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { CouncilChat } from "./council-chat";
 import { ProductResult } from "./product-result";
+import { AutopilotPanel } from "./autopilot-panel";
 import { usePlanningSession } from "@/hooks/usePlanningSession";
+import { useAutopilot } from "@/hooks/useAutopilot";
 import { Loader2 } from "lucide-react";
 
 interface PlanningTabProps {
@@ -21,13 +23,15 @@ interface PlanningTabProps {
   onApplyComplete?: (createdTaskIds: string[]) => void;
   onExecuteComplete?: (createdTaskIds: string[]) => void;
   onPipelineComplete?: (createdTaskIds: string[]) => void;
+  onAutopilotComplete?: () => void;
 }
 
-export function PlanningTab({ projectId, onApplyComplete, onExecuteComplete, onPipelineComplete }: PlanningTabProps) {
+export function PlanningTab({ projectId, onApplyComplete, onExecuteComplete, onPipelineComplete, onAutopilotComplete }: PlanningTabProps) {
   const {
     idea,
     setIdea,
     messages,
+    sessionId,
     status,
     productResult,
     error,
@@ -44,6 +48,8 @@ export function PlanningTab({ projectId, onApplyComplete, onExecuteComplete, onP
     handleRetryApply,
     handleRetryExecute,
   } = usePlanningSession(projectId, onApplyComplete, onExecuteComplete, onPipelineComplete);
+
+  const autopilot = useAutopilot(projectId, sessionId, undefined, onAutopilotComplete);
 
   const isStartDisabled = !idea.trim() || isLoading || status !== "IDLE";
 
@@ -129,6 +135,23 @@ export function PlanningTab({ projectId, onApplyComplete, onExecuteComplete, onP
           isApplying={isApplying}
           isExecuting={isExecuting}
           pipelinePhase={pipelinePhase}
+        />
+      )}
+
+      {/* Autopilot Panel - show when plan exists */}
+      {status === "DONE" && productResult?.mode === "PLAN" && productResult.steps && productResult.steps.length > 0 && (
+        <AutopilotPanel
+          status={autopilot.status}
+          currentBatch={autopilot.currentBatch}
+          progress={autopilot.progress}
+          totalBatches={autopilot.totalBatches}
+          error={autopilot.error}
+          isStarting={autopilot.isStarting}
+          isApproving={autopilot.isApproving}
+          isCanceling={autopilot.isCanceling}
+          onStart={autopilot.start}
+          onApprove={autopilot.approve}
+          onCancel={autopilot.cancel}
         />
       )}
 
