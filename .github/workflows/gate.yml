@@ -1,0 +1,63 @@
+name: Definition of Done Gate
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+
+jobs:
+  gate:
+    name: DoD Gate Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript check
+        run: npx tsc --noEmit
+
+      - name: Unit tests
+        run: npm run test:unit
+
+      - name: Build
+        run: npm run build
+        env:
+          PLAYWRIGHT: '1'
+
+      - name: LOC limits check
+        run: npm run check:loc
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Clean DB before E2E (unit tests pollute it)
+        run: rm -rf data/
+
+      - name: E2E tests
+        run: npx playwright test --trace on-first-retry --reporter html --workers=1
+        env:
+          PLAYWRIGHT: '1'
+          DEBUG: 'pw:webserver,pw:api'
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gate-test-results
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7
+          if-no-files-found: ignore
