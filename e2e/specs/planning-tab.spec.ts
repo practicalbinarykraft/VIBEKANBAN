@@ -516,10 +516,10 @@ test.describe('Project Planning Tab', () => {
     // Verify deterministic: same steps both runs
     expect(steps1).toEqual(steps2);
 
-    // Verify expected values (based on generator output)
+    // Verify expected values (based on backlog generator output)
     expect(steps1[0]).toBe('Initialize project repository');
     expect(steps1[1]).toBe('Setup development environment');
-    expect(steps1[2]).toBe('Create basic project structure');
+    expect(steps1[2]).toBe('Configure package manager');
   });
 
   test('T10: Approve Plan triggers autopilot (apply + execute without extra clicks)', async ({ page }) => {
@@ -571,5 +571,73 @@ test.describe('Project Planning Tab', () => {
     const countAfter = await getTaskCountInColumn(page, 'todo') +
                        await getTaskCountInColumn(page, 'in_progress');
     expect(countAfter).toBeGreaterThan(countBefore);
+  });
+
+  test('T11: Large backlog (30-200 steps) is deterministic and triggers pipeline', async ({ page, request }) => {
+    const idea = 'Build complete e-commerce platform with product catalog and user authentication';
+
+    // Helper to run planning and capture planSteps via API response
+    async function runPlanningAndCapturePlan(): Promise<string[]> {
+      await request.post('/api/projects/1/reset');
+      await page.goto('/projects/1');
+      await waitForBoardReady(page);
+
+      // Go to Planning tab
+      await page.locator('[data-testid="planning-tab"]').click();
+
+      // Enter idea
+      await page.locator('[data-testid="planning-idea-input"]').fill(idea);
+
+      // Capture finish response
+      const finishResponsePromise = page.waitForResponse((resp) => {
+        return resp.url().includes('/planning/finish') && resp.request().method() === 'POST' && resp.status() === 200;
+      });
+
+      // Start council
+      await page.locator('[data-testid="planning-start-button"]').click();
+      await expect(page.locator('[data-testid="council-chat"]')).toBeVisible({ timeout: 10000 });
+
+      // Finish discussion
+      await page.locator('[data-testid="planning-finish-button"]').click();
+
+      // Wait for finish response and extract planSteps
+      const finishResp = await finishResponsePromise;
+      const json = await finishResp.json();
+      const planSteps: string[] = json.productResult?.planSteps ?? [];
+
+      await expect(page.locator('[data-testid="product-plan"]')).toBeVisible({ timeout: 10000 });
+
+      return planSteps;
+    }
+
+    // First run
+    const steps1 = await runPlanningAndCapturePlan();
+
+    // Verify large backlog (30-200 steps)
+    expect(steps1.length).toBeGreaterThanOrEqual(30);
+    expect(steps1.length).toBeLessThanOrEqual(200);
+
+    // Second run (new session) - verify determinism
+    const steps2 = await runPlanningAndCapturePlan();
+
+    // Assert: planSteps match exactly (deterministic)
+    expect(steps1.join('\n')).toBe(steps2.join('\n'));
+
+    // Now test Approve Plan triggers pipeline to RUNNING
+    const applyResponsePromise = page.waitForResponse((resp) => {
+      return resp.url().includes('/planning/apply') && resp.request().method() === 'POST' && resp.status() === 200;
+    });
+
+    await page.locator('[data-testid="approve-plan-button"]').click();
+
+    // Wait for apply
+    const applyResp = await applyResponsePromise;
+    const applyJson = await applyResp.json();
+    const createdTaskIds: string[] = applyJson.taskIds ?? applyJson.createdTaskIds ?? [];
+    expect(createdTaskIds.length).toBeGreaterThanOrEqual(30);
+
+    // Verify pipeline reaches RUNNING
+    await waitForBoardReady(page);
+    await waitForExecutionStatus(page, 'RUNNING');
   });
 });
