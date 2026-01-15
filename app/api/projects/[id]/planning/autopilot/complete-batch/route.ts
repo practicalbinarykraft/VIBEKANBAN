@@ -6,16 +6,9 @@ import { getAutopilotState, saveAutopilotState } from '@/server/services/autopil
  * POST /api/projects/[id]/planning/autopilot/complete-batch
  * Mark current batch as complete, transition to WAITING_APPROVAL
  *
- * RESTRICTED: Only available in test mode (NODE_ENV=test or x-vibe-test header)
+ * Used for testing and manual batch completion triggers.
  */
 export async function POST(request: NextRequest) {
-  // Guard: test-only endpoint
-  const isTestEnv = process.env.NODE_ENV === 'test';
-  const hasTestHeader = request.headers.get('x-vibe-test') === '1';
-  if (!isTestEnv && !hasTestHeader) {
-    return NextResponse.json({ error: 'Endpoint only available in test mode' }, { status: 403 });
-  }
-
   try {
     const body = await request.json();
     const { sessionId } = body;

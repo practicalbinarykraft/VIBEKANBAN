@@ -73,9 +73,8 @@ test.describe('Multi-PR Autopilot', () => {
     const riskText = await riskBadge.textContent();
     expect(riskText).toMatch(/(low|med|high) risk/);
 
-    // 14. Call complete-batch API to transition to WAITING_APPROVAL (requires test header)
+    // 14. Call complete-batch API to transition to WAITING_APPROVAL
     const completeResponse = await request.post('/api/projects/1/planning/autopilot/complete-batch', {
-      headers: { 'x-vibe-test': '1' },
       data: { sessionId },
     });
     expect(completeResponse.ok()).toBe(true);
