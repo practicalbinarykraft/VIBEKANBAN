@@ -1,37 +1,35 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, GitBranch, ExternalLink, Folder, MoreVertical } from "lucide-react";
+import { GitBranch, ExternalLink, Folder, MoreVertical } from "lucide-react";
+import { NewProjectButton } from "@/components/projects/new-project-button";
 import { Project } from "@/types";
 
 export default function ProjectsPage() {
-  const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Fetch projects from API
-    const fetchProjects = async () => {
-      try {
-        const response = await fetch("/api/projects");
-        if (response.ok) {
-          const data = await response.json();
-          setProjects(data);
-        }
-      } catch (error) {
-        console.error("Failed to fetch projects:", error);
-      } finally {
-        setLoading(false);
+  const fetchProjects = useCallback(async () => {
+    try {
+      const response = await fetch("/api/projects");
+      if (response.ok) {
+        const data = await response.json();
+        setProjects(data);
       }
-    };
-
-    fetchProjects();
+    } catch (error) {
+      console.error("Failed to fetch projects:", error);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchProjects();
+  }, [fetchProjects]);
 
   const truncateUrl = (url: string) => {
     const match = url.match(/github\.com\/(.+)/);
@@ -67,10 +65,7 @@ export default function ProjectsPage() {
                 Manage your AI agent orchestration projects
               </p>
             </div>
-            <Button>
-              <Plus className="mr-1.5 h-4 w-4" />
-              New Project
-            </Button>
+            <NewProjectButton onProjectCreated={fetchProjects} />
           </div>
 
           {/* Projects Grid or Empty State */}
@@ -84,10 +79,7 @@ export default function ProjectsPage() {
                 <p className="mb-6 text-sm text-muted-foreground">
                   Connect a git repository and start running AI agents on your codebase
                 </p>
-                <Button>
-                  <Plus className="mr-1.5 h-4 w-4" />
-                  Create your first project
-                </Button>
+                <NewProjectButton variant="empty-state" onProjectCreated={fetchProjects} />
                 <p className="mt-3 text-xs text-muted-foreground">
                   Takes ~30 seconds. No Docker required for demo.
                 </p>
