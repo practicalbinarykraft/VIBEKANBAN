@@ -39,13 +39,6 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      - name: Start server for E2E
-        run: |
-          npm start &
-          sleep 5
-        env:
-          NODE_ENV: test
-
       - name: E2E tests
         run: npm run test:e2e
         env:
