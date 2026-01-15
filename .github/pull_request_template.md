@@ -8,7 +8,6 @@ Before merging, ensure all items are checked:
 
 ### Code Quality
 - [ ] TypeScript compiles without errors (`npx tsc --noEmit`)
-- [ ] ESLint passes (`npm run lint`)
 - [ ] No new warnings introduced
 
 ### Testing

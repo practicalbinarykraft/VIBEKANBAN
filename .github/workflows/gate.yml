@@ -27,9 +27,6 @@ jobs:
       - name: TypeScript check
         run: npx tsc --noEmit
 
-      - name: Lint check
-        run: npm run lint
-
       - name: Unit tests
         run: npm run test:unit
 

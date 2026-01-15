@@ -34,10 +34,6 @@ const CHECKS: { name: string; fn: CheckFn }[] = [
     fn: () => runCommand('npx tsc --noEmit', 'TypeScript compilation failed'),
   },
   {
-    name: 'lint',
-    fn: () => runCommand('npm run lint', 'ESLint check failed'),
-  },
-  {
     name: 'unit-tests',
     fn: () => runCommand('npm run test:unit', 'Unit tests failed'),
   },

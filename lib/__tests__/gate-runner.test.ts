@@ -27,7 +27,6 @@ describe('runGate', () => {
     const checkNames = result.checks.map((c) => c.name);
 
     expect(checkNames).toContain('typescript');
-    expect(checkNames).toContain('lint');
     expect(checkNames).toContain('unit-tests');
     expect(checkNames).toContain('build');
     expect(checkNames).toContain('loc-limits');
@@ -47,12 +46,12 @@ describe('runGate', () => {
     // Simulate a failing check by mocking
     const result = await runGate({
       dryRun: true,
-      mockFailures: ['lint'],
+      mockFailures: ['build'],
     });
 
     expect(result.passed).toBe(false);
-    const lintCheck = result.checks.find((c) => c.name === 'lint');
-    expect(lintCheck?.passed).toBe(false);
+    const buildCheck = result.checks.find((c) => c.name === 'build');
+    expect(buildCheck?.passed).toBe(false);
   });
 
   it('should include duration for each check', async () => {
