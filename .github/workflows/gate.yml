@@ -42,6 +42,9 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
+      - name: Clean DB before E2E (unit tests pollute it)
+        run: rm -rf data/
+
       - name: E2E tests
         run: npx playwright test --trace on-first-retry --reporter html --workers=1
         env:
