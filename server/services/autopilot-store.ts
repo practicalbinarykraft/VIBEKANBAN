@@ -42,16 +42,28 @@ export async function saveAutopilotState(sessionId: string, state: AutopilotStat
 }
 
 /**
- * Initialize autopilot state with batches (if not exists)
+ * Initialize autopilot state with batches and task queue (if not exists)
  * Returns existing state if already initialized (idempotent)
  */
-export async function initAutopilotState(sessionId: string, batches: Batch[]): Promise<AutopilotState> {
+export async function initAutopilotState(
+  sessionId: string,
+  batches: Batch[],
+  taskIds?: string[]
+): Promise<AutopilotState> {
   const existing = await getAutopilotState(sessionId);
   if (existing) return existing;
 
+  // Extract task IDs from batches if not provided
+  const queue = taskIds || batches.flatMap(b => b.tasks);
+
   const state: AutopilotState = {
     status: 'IDLE',
+    mode: 'OFF',
     batches,
+    taskQueue: queue,
+    currentTaskIndex: 0,
+    completedTasks: [],
+    openPrCount: 0,
   };
 
   await saveAutopilotState(sessionId, state);
