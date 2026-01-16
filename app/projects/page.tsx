@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { GitBranch, ExternalLink, Folder, MoreVertical } from "lucide-react";
 import { NewProjectButton } from "@/components/projects/new-project-button";
+import { ConnectionBadge } from "@/components/projects/connection-badge";
 import { Project } from "@/types";
 
 export default function ProjectsPage() {
@@ -102,9 +103,7 @@ export default function ProjectsPage() {
                         </h3>
                       </div>
                       <div className="ml-2 flex items-center gap-2">
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-green-500/30 text-green-700 dark:text-green-400">
-                          Connected
-                        </Badge>
+                        <ConnectionBadge projectId={project.id} />
                         <button
                           onClick={(e) => {
                             e.preventDefault();
