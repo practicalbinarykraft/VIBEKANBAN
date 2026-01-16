@@ -17,13 +17,7 @@ import { useTaskActions } from "@/hooks/useTaskActions";
 import { useExecutionReadiness } from "@/hooks/useExecutionReadiness";
 import { parseUnifiedDiff } from "@/lib/diff-parser";
 import { mockDiffs } from "@/lib/mock-data";
-import {
-  formatEstimate,
-  formatPriority,
-  parseTags,
-  getPriorityColor,
-  getEstimateColor,
-} from "@/lib/task-enrichment-format";
+import { formatEstimate, formatPriority, parseTags, getPriorityColor, getEstimateColor } from "@/lib/task-enrichment-format";
 
 interface TaskDetailsPanelProps {
   task: Task;
