@@ -72,7 +72,8 @@ test.describe('Project Planning Tab', () => {
     await page.locator('[data-testid="planning-tab"]').click();
 
     const ideaInput = page.locator('[data-testid="planning-idea-input"]');
-    await ideaInput.fill('Test idea for loading state');
+    // Use detailed idea with key words to skip questions step
+    await ideaInput.fill('Build a React web application with TypeScript for admin users');
 
     const startButton = page.locator('[data-testid="planning-start-button"]');
     await startButton.click();
@@ -87,9 +88,10 @@ test.describe('Project Planning Tab', () => {
   test('T1: QUESTIONS flow - shows questions after finish', async ({ page }) => {
     await page.locator('[data-testid="planning-tab"]').click();
 
-    // Enter idea WITHOUT "MVP" or "быстро" → should get QUESTIONS
+    // Enter idea with platform keyword to skip pre-council questions
+    // but without MVP keyword so finish returns QUESTIONS mode
     const ideaInput = page.locator('[data-testid="planning-idea-input"]');
-    await ideaInput.fill('Хочу приложение для бюджета');
+    await ideaInput.fill('Хочу mobile приложение для бюджета');
 
     // Start council
     await page.locator('[data-testid="planning-start-button"]').click();
