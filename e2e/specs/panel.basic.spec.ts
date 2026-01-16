@@ -1,8 +1,11 @@
 import { test, expect } from '@playwright/test';
 import { createTask, createFixtureAttempt, deleteTask } from '../helpers/api';
+import { setupExecutionReady } from '../helpers/board';
 
 test.describe('Task Details Panel - Basic Operations', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, request }) => {
+    // Set up execution readiness (AI configured + repo cloned)
+    await setupExecutionReady(request, '1');
     // Navigate to project page
     await page.goto('/projects/1');
     // Wait for tasks to load

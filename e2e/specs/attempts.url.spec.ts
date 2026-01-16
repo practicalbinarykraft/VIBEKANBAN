@@ -1,9 +1,12 @@
 import { test, expect } from '@playwright/test';
 import { createTask, createFixtureAttempt, deleteTask } from '../helpers/api';
 import { openTaskPanel, waitForExecutionDetails, waitForTaskTabs, getApplyErrorBox } from '../helpers/panel';
+import { setupExecutionReady } from '../helpers/board';
 
 test.describe('Task Details Panel - Attempts & URL Sync', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, request }) => {
+    // Set up execution readiness (AI configured + repo cloned)
+    await setupExecutionReady(request, '1');
     await page.goto('/projects/1');
     await page.waitForSelector('[data-testid="kanban-board"]', { timeout: 10000 });
   });

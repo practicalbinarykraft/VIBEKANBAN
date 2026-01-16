@@ -1,7 +1,11 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("P17-B: AI Mode Banner", () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, request }) => {
+    // Reset to demo mode for AI mode tests (other tests may set anthropic)
+    await request.put("/api/settings", {
+      data: { provider: "demo", anthropicApiKey: "", openaiApiKey: "" },
+    });
     // Navigate to project board first to trigger seeding
     await page.goto("/projects/1");
     await page.waitForSelector('[data-testid="kanban-board"]', {
