@@ -10,9 +10,14 @@ export default defineConfig({
     include: [
       'hooks/__tests__/**/*.test.{ts,tsx}',
       'lib/__tests__/**/*.test.{ts,tsx}',
-      'server/services/__tests__/planning-session-store.test.ts',
+      'server/services/__tests__/**/*.test.ts',
     ],
-    exclude: ['node_modules/**'],
+    exclude: [
+      'node_modules/**',
+      // Exclude tests that use node:test instead of vitest
+      'server/services/__tests__/github-client.test.ts',
+      'server/services/__tests__/pr-status.test.ts',
+    ],
     globals: true,
   },
   resolve: {
