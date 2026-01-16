@@ -177,8 +177,8 @@ export function PlanningTab({ projectId, onApplyComplete, onExecuteComplete, onP
           currentBatch={autopilot.currentBatch}
           progress={autopilot.progress}
           totalBatches={autopilot.totalBatches}
-          taskProgress={autopilot.taskProgress}
-          totalTasks={autopilot.totalTasks}
+          taskProgress={autopilot.totalTasks > 0 ? autopilot.taskProgress : `0/${productResult.steps.length}`}
+          totalTasks={autopilot.totalTasks > 0 ? autopilot.totalTasks : productResult.steps.length}
           completedTasks={autopilot.completedTasks}
           currentTaskId={autopilot.currentTaskId}
           pauseReason={autopilot.pauseReason}

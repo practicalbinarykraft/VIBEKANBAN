@@ -124,6 +124,13 @@ export function useAutopilot(
     }
   }, [projectId, sessionId, updateFromStatus]);
 
+  // Fetch initial status when sessionId changes
+  useEffect(() => {
+    if (sessionId) {
+      fetchStatus();
+    }
+  }, [sessionId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Start polling when status is RUNNING
   useEffect(() => {
     if (status === "RUNNING" && sessionId) {

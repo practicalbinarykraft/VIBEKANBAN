@@ -43,9 +43,9 @@ test.describe('Multi-PR Autopilot', () => {
       resp.url().includes('/autopilot/start') && resp.request().method() === 'POST'
     );
 
-    // 8. Click Start Autopilot button
-    const startButton = page.locator('[data-testid="autopilot-start-button"]');
-    await expect(startButton).toBeVisible();
+    // 8. Click Run All button to start autopilot
+    const startButton = page.locator('[data-testid="autopilot-auto-button"]');
+    await expect(startButton).toBeEnabled({ timeout: 10000 });
     await startButton.click();
 
     // 9. Capture sessionId from response
