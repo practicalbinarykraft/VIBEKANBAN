@@ -4,12 +4,21 @@
  * Orchestrates AI Council discussions
  * Generates discussion between PM, Architect, Backend, Frontend, QA
  * Creates iteration plans
+ *
+ * Supports both demo mode (mock responses) and real AI mode (API calls)
  */
 
 import { db } from "@/server/db";
 import { councilThreads, councilThreadMessages } from "@/server/db/schema";
 import { randomUUID } from "crypto";
 import { eq } from "drizzle-orm";
+import { getAICompletion, isAIConfigured } from "../ai/ai-provider";
+import {
+  COUNCIL_PROMPTS,
+  DISCUSSION_ORDER,
+  buildCouncilContext,
+  CouncilRole,
+} from "../ai/council-prompts";
 
 export interface CouncilMessage {
   id: string;
@@ -36,6 +45,9 @@ export interface IterationPlan {
   }>;
 }
 
+// Default user ID for council operations (can be made configurable later)
+const DEFAULT_USER_ID = "system";
+
 /**
  * Check if running in test mode
  */
@@ -44,9 +56,9 @@ function isTestMode(): boolean {
 }
 
 /**
- * Generate council discussion based on user message
+ * Generate mock council discussion based on keywords (demo/test mode)
  */
-function generateCouncilDiscussion(userMessage: string): Omit<CouncilMessage, "id" | "threadId" | "createdAt">[] {
+function generateMockCouncilDiscussion(userMessage: string): Omit<CouncilMessage, "id" | "threadId" | "createdAt">[] {
   const kw = userMessage.toLowerCase();
   const msgs: Omit<CouncilMessage, "id" | "threadId" | "createdAt">[] = [
     { role: "product", content: `Let's break down: "${userMessage}". What's our approach?` },
@@ -83,9 +95,51 @@ function generateCouncilDiscussion(userMessage: string): Omit<CouncilMessage, "i
 }
 
 /**
- * Generate iteration plan from discussion
+ * Generate real council discussion using AI
  */
-function generateIterationPlan(userMessage: string): IterationPlan {
+async function generateRealCouncilDiscussion(
+  userMessage: string,
+  userId: string = DEFAULT_USER_ID
+): Promise<Omit<CouncilMessage, "id" | "threadId" | "createdAt">[]> {
+  const messages: Omit<CouncilMessage, "id" | "threadId" | "createdAt">[] = [];
+  const previousMessages: Array<{ role: CouncilRole; content: string }> = [];
+
+  for (const role of DISCUSSION_ORDER) {
+    const prompt = COUNCIL_PROMPTS[role];
+    const context = buildCouncilContext(userMessage, previousMessages);
+
+    try {
+      const result = await getAICompletion(userId, {
+        systemPrompt: prompt.systemPrompt,
+        messages: [{ role: "user", content: context }],
+        maxTokens: 500,
+        temperature: 0.7,
+      });
+
+      const content = result.content.trim();
+      messages.push({ role, content });
+      previousMessages.push({ role, content });
+    } catch (error) {
+      console.error(`Error getting AI response for ${role}:`, error);
+      // Fallback to a generic response
+      messages.push({
+        role,
+        content: `[${prompt.title}] I'll contribute to implementing this feature based on my expertise.`,
+      });
+      previousMessages.push({
+        role,
+        content: messages[messages.length - 1].content,
+      });
+    }
+  }
+
+  return messages;
+}
+
+/**
+ * Generate mock iteration plan (demo/test mode)
+ */
+function generateMockIterationPlan(userMessage: string): IterationPlan {
   const kw = userMessage.toLowerCase();
   const tasks: IterationPlan["tasks"] = [];
 
@@ -112,11 +166,80 @@ function generateIterationPlan(userMessage: string): IterationPlan {
 }
 
 /**
+ * Generate real iteration plan using AI
+ */
+async function generateRealIterationPlan(
+  userMessage: string,
+  councilDiscussion: Array<{ role: string; content: string }>,
+  userId: string = DEFAULT_USER_ID
+): Promise<IterationPlan> {
+  const discussionSummary = councilDiscussion
+    .map((m) => `[${m.role}]: ${m.content}`)
+    .join("\n");
+
+  const systemPrompt = `You are a planning assistant that creates iteration plans from council discussions.
+
+Based on the user request and council discussion, create a JSON plan with:
+1. A brief summary of what will be implemented
+2. A list of tasks, each with:
+   - title: Short task name
+   - description: What needs to be done
+   - type: One of "backend", "frontend", or "qa"
+
+Return ONLY valid JSON in this exact format:
+{
+  "summary": "Brief summary of the plan",
+  "tasks": [
+    {"title": "Task name", "description": "Task description", "type": "backend|frontend|qa"}
+  ]
+}`;
+
+  const userPrompt = `User Request: "${userMessage}"
+
+Council Discussion:
+${discussionSummary}
+
+Generate the iteration plan JSON:`;
+
+  try {
+    const result = await getAICompletion(userId, {
+      systemPrompt,
+      messages: [{ role: "user", content: userPrompt }],
+      maxTokens: 1000,
+      temperature: 0.3,
+    });
+
+    // Parse JSON from response
+    const jsonMatch = result.content.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const plan = JSON.parse(jsonMatch[0]) as IterationPlan;
+      // Validate and sanitize the plan
+      if (plan.summary && Array.isArray(plan.tasks)) {
+        return {
+          summary: plan.summary,
+          tasks: plan.tasks.map((t) => ({
+            title: t.title || "Untitled task",
+            description: t.description || "",
+            type: ["backend", "frontend", "qa"].includes(t.type) ? t.type : "backend",
+          })),
+        };
+      }
+    }
+  } catch (error) {
+    console.error("Error generating iteration plan:", error);
+  }
+
+  // Fallback to mock plan
+  return generateMockIterationPlan(userMessage);
+}
+
+/**
  * Start council discussion
  */
 export async function startCouncilDiscussion(
   projectId: string,
-  userMessage: string
+  userMessage: string,
+  userId: string = DEFAULT_USER_ID
 ): Promise<{ thread: CouncilThread; plan: IterationPlan }> {
   const existingThreads = await db.select().from(councilThreads).where(eq(councilThreads.projectId, projectId)).all();
   const iterationNumber = existingThreads.length + 1;
@@ -124,7 +247,14 @@ export async function startCouncilDiscussion(
 
   await db.insert(councilThreads).values({ id: threadId, projectId, iterationNumber, status: "discussing", createdAt: new Date() });
 
-  const discussion = generateCouncilDiscussion(userMessage);
+  // Determine if we should use real AI or mock
+  const useRealAI = !isTestMode() && (await isAIConfigured(userId));
+
+  // Generate discussion
+  const discussion = useRealAI
+    ? await generateRealCouncilDiscussion(userMessage, userId)
+    : generateMockCouncilDiscussion(userMessage);
+
   const messages: CouncilMessage[] = [];
 
   for (const msg of discussion) {
@@ -134,11 +264,16 @@ export async function startCouncilDiscussion(
     messages.push({ id, threadId, role: msg.role, content: msg.content, createdAt });
   }
 
+  // Generate plan
+  const plan = useRealAI
+    ? await generateRealIterationPlan(userMessage, discussion, userId)
+    : generateMockIterationPlan(userMessage);
+
   await db.update(councilThreads).set({ status: "completed" }).where(eq(councilThreads.id, threadId));
 
   return {
     thread: { id: threadId, projectId, iterationNumber, status: "completed", messages },
-    plan: generateIterationPlan(userMessage),
+    plan,
   };
 }
 
