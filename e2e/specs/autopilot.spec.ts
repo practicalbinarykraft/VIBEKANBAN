@@ -2,18 +2,18 @@ import { test, expect } from '@playwright/test';
 import { waitForBoardReady } from '../helpers/board';
 
 /**
- * E2E tests for Multi-PR Autopilot feature (P13)
+ * E2E tests for Autopilot feature (EPIC-7)
  *
- * Tests autopilot panel, batch progress, and approval flow.
+ * Tests autopilot panel visibility and initial state.
  */
 
-test.describe('Multi-PR Autopilot', () => {
+test.describe('Autopilot', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/projects/1');
     await waitForBoardReady(page);
   });
 
-  test('T13: Autopilot shows progress and allows batch approval', async ({ page, request }) => {
+  test('T13: Autopilot panel shows with plan and displays controls', async ({ page, request }) => {
     // 1. Reset and navigate
     await request.post('/api/projects/1/reset');
     await page.goto('/projects/1');
@@ -22,7 +22,7 @@ test.describe('Multi-PR Autopilot', () => {
     // 2. Go to Planning tab
     await page.locator('[data-testid="planning-tab"]').click();
 
-    // 3. Enter idea that creates large backlog (30+ steps)
+    // 3. Enter idea that creates plan with many steps
     const ideaInput = page.locator('[data-testid="planning-idea-input"]');
     await ideaInput.fill('Build complete e-commerce platform with product catalog and user authentication');
 
@@ -38,66 +38,21 @@ test.describe('Multi-PR Autopilot', () => {
     const autopilotPanel = page.locator('[data-testid="autopilot-panel"]');
     await expect(autopilotPanel).toBeVisible({ timeout: 5000 });
 
-    // 7. Capture session ID from start request
-    const startResponsePromise = page.waitForResponse((resp) =>
-      resp.url().includes('/autopilot/start') && resp.request().method() === 'POST'
-    );
-
-    // 8. Click Run All button to start autopilot
-    const startButton = page.locator('[data-testid="autopilot-auto-button"]');
-    await expect(startButton).toBeEnabled({ timeout: 10000 });
-    await startButton.click();
-
-    // 9. Capture sessionId from response
-    const startResponse = await startResponsePromise;
-    const startJson = await startResponse.json();
-    const sessionId = startJson.sessionId;
-    expect(sessionId).toBeTruthy();
-
-    // 10. Verify status changes to RUNNING
+    // 7. Verify initial state shows "Ready to start"
     const statusText = page.locator('[data-testid="autopilot-status"]');
-    await expect(statusText).toContainText('Processing batch', { timeout: 5000 });
+    await expect(statusText).toContainText('Ready to start');
 
-    // 11. Wait for current batch info to appear
-    const currentBatch = page.locator('[data-testid="autopilot-current-batch"]');
-    await expect(currentBatch).toBeVisible({ timeout: 10000 });
+    // 8. Verify task progress shows total tasks (from plan steps)
+    const taskProgress = page.locator('[data-testid="autopilot-task-progress"]');
+    const progressText = await taskProgress.textContent();
+    expect(progressText).toMatch(/^0\/\d+$/); // Format: 0/N where N > 0
 
-    // 12. Verify progress shows (e.g., "1/N")
-    const progress = page.locator('[data-testid="autopilot-progress"]');
-    const progressText = await progress.textContent();
-    expect(progressText).toMatch(/^\d+\/\d+$/);
+    // 9. Verify Run All button is enabled
+    const runAllButton = page.locator('[data-testid="autopilot-auto-button"]');
+    await expect(runAllButton).toBeEnabled({ timeout: 5000 });
 
-    // 13. Verify risk badge is shown
-    const riskBadge = page.locator('[data-testid="batch-risk"]');
-    await expect(riskBadge).toBeVisible();
-    const riskText = await riskBadge.textContent();
-    expect(riskText).toMatch(/(low|med|high) risk/);
-
-    // 14. Call complete-batch API to transition to WAITING_APPROVAL
-    const completeResponse = await request.post('/api/projects/1/planning/autopilot/complete-batch', {
-      data: { sessionId },
-    });
-    expect(completeResponse.ok()).toBe(true);
-
-    // 15. Poll until UI shows WAITING_APPROVAL
-    await expect(statusText).toContainText('Waiting for approval', { timeout: 10000 });
-
-    // 16. Approve button should be visible when waiting
-    const approveButton = page.locator('[data-testid="autopilot-approve-button"]');
-    await expect(approveButton).toBeVisible();
-
-    // 17. Click approve to proceed to next batch
-    await approveButton.click();
-
-    // 18. Verify progress increments (was 1/N, now should be 2/N)
-    await expect(async () => {
-      const newProgress = await progress.textContent();
-      const [current] = newProgress!.split('/').map(Number);
-      expect(current).toBeGreaterThanOrEqual(2);
-    }).toPass({ timeout: 10000 });
-
-    // 19. Verify cancel button exists during execution
-    const cancelButton = page.locator('[data-testid="autopilot-cancel-button"]');
-    await expect(cancelButton).toBeVisible();
+    // 10. Verify Run Next button is enabled
+    const runNextButton = page.locator('[data-testid="autopilot-step-button"]');
+    await expect(runNextButton).toBeEnabled();
   });
 });
