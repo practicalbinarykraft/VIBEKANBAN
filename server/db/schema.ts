@@ -11,6 +11,10 @@ export const projects = sqliteTable("projects", {
   executionStatus: text("execution_status").notNull().default("idle"), // idle, running, paused, completed, failed
   executionStartedAt: integer("execution_started_at", { mode: "timestamp" }),
   executionFinishedAt: integer("execution_finished_at", { mode: "timestamp" }),
+  // Connection status fields
+  connectionStatus: text("connection_status").default("not_checked"), // not_checked, connected, auth_missing, error, not_found
+  connectionLastCheckedAt: integer("connection_last_checked_at", { mode: "timestamp" }),
+  connectionError: text("connection_error"), // Error message if connection failed
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
@@ -133,4 +137,14 @@ export const councilThreadMessages = sqliteTable("council_thread_messages", {
   role: text("role").notNull(), // product, architect, backend, frontend, qa
   content: text("content").notNull(),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+// Global settings (BYOK keys, AI provider config)
+export const settings = sqliteTable("settings", {
+  id: text("id").primaryKey().default("global"), // Single row for MVP
+  provider: text("provider").notNull().default("demo"), // demo, anthropic, openai
+  anthropicApiKey: text("anthropic_api_key"), // User's Anthropic key
+  openaiApiKey: text("openai_api_key"), // User's OpenAI key
+  model: text("model").default("claude-sonnet-4-20250514"), // Selected model
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`CURRENT_TIMESTAMP`),
 });
