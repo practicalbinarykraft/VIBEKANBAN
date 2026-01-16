@@ -1,11 +1,16 @@
 export type TaskStatus = "todo" | "in_progress" | "in_review" | "done" | "cancelled";
 
+export type ConnectionStatus = "not_checked" | "connected" | "auth_missing" | "error" | "not_found" | "not_connected";
+
 export interface Project {
   id: string;
   name: string;
   gitUrl: string;
   defaultBranch: string;
   createdAt: Date;
+  connectionStatus?: ConnectionStatus;
+  connectionLastCheckedAt?: Date;
+  connectionError?: string;
 }
 
 export interface Task {

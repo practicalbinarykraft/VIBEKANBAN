@@ -222,6 +222,15 @@ export function initDB() {
       content TEXT NOT NULL,
       created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
     );
+
+    CREATE TABLE IF NOT EXISTS settings (
+      id TEXT PRIMARY KEY DEFAULT 'global',
+      provider TEXT NOT NULL DEFAULT 'demo',
+      anthropic_api_key TEXT,
+      openai_api_key TEXT,
+      model TEXT DEFAULT 'claude-sonnet-4-20250514',
+      updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+    );
   `);
 
   // Add planning session columns for Apply Plan idempotency (migration)
@@ -230,6 +239,19 @@ export function initDB() {
       ALTER TABLE planning_sessions ADD COLUMN project_id TEXT REFERENCES projects(id);
       ALTER TABLE planning_sessions ADD COLUMN product_result TEXT;
       ALTER TABLE planning_sessions ADD COLUMN applied_task_ids TEXT;
+    `);
+  } catch (error: any) {
+    if (!error.message.includes('duplicate column name')) {
+      console.warn("Warning during migration:", error.message);
+    }
+  }
+
+  // Add connection status columns to projects (migration)
+  try {
+    _sqlite!.exec(`
+      ALTER TABLE projects ADD COLUMN connection_status TEXT DEFAULT 'not_checked';
+      ALTER TABLE projects ADD COLUMN connection_last_checked_at INTEGER;
+      ALTER TABLE projects ADD COLUMN connection_error TEXT;
     `);
   } catch (error: any) {
     if (!error.message.includes('duplicate column name')) {
@@ -261,6 +283,16 @@ export function initDB() {
     if (!error.message.includes('duplicate column name')) {
       console.warn("Warning during migration:", error.message);
     }
+  }
+
+  // Insert default settings row if not exists
+  try {
+    _sqlite!.exec(`
+      INSERT OR IGNORE INTO settings (id, provider, model)
+      VALUES ('global', 'demo', 'claude-sonnet-4-20250514');
+    `);
+  } catch (error: any) {
+    console.warn("Warning inserting default settings:", error.message);
   }
 
   console.log("✅ Database initialized");

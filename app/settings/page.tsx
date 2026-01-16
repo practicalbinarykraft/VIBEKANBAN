@@ -1,3 +1,5 @@
+"use client";
+
 import { AppShell } from "@/components/app-shell";
 import { AiModeSection } from "@/components/settings/ai-mode-section";
 import { Settings } from "lucide-react";

@@ -11,6 +11,7 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Send } from "lucide-react";
+import { AiModeBanner } from "@/components/ai/ai-mode-banner";
 
 interface ChatMessage {
   id: string;
@@ -88,6 +89,11 @@ export function ProjectChat({ projectId, onMessageSent }: ProjectChatProps) {
 
   return (
     <div className="flex h-full flex-col" data-testid="project-chat">
+      {/* AI Mode Banner */}
+      <div className="p-4 pb-0">
+        <AiModeBanner />
+      </div>
+
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 ? (

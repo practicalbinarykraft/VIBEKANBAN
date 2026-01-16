@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Sparkles } from "lucide-react";
 import { IdeaForm } from "@/components/planning/idea-form";
 import { PlanResults } from "@/components/planning/plan-results";
+import { AiModeBanner } from "@/components/ai/ai-mode-banner";
 
 export default function PlanningPage() {
   const router = useRouter();
@@ -96,6 +97,8 @@ export default function PlanningPage() {
               </Badge>
             )}
           </div>
+
+          <AiModeBanner className="mb-6" />
 
           {sessionStatus === 'draft' ? (
             <IdeaForm
