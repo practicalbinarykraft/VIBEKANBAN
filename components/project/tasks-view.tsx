@@ -5,11 +5,13 @@
 import { KanbanBoard } from "@/components/kanban/kanban-board";
 import { TaskDetailsPanel } from "@/components/task-details/task-details-panel";
 import { ExecutionControls } from "@/components/project/execution-controls";
+import { RepoStatus } from "@/components/project/repo-status";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Search } from "lucide-react";
 
 interface TasksViewProps {
+  projectId: string;
   filteredTasks: any[];
   selectedTaskId: string | null;
   selectedTask: any;
@@ -33,6 +35,7 @@ interface TasksViewProps {
 }
 
 export function TasksView({
+  projectId,
   filteredTasks,
   selectedTaskId,
   selectedTask,
@@ -81,6 +84,10 @@ export function TasksView({
               <Plus className="mr-1 h-3.5 w-3.5" />
               Add Task
             </Button>
+          </div>
+          {/* Repo Status */}
+          <div className="mt-2 flex items-center">
+            <RepoStatus projectId={projectId} />
           </div>
         </div>
 

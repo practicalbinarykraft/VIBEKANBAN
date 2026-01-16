@@ -157,6 +157,7 @@ export default function ProjectClient({ projectId }: ProjectClientProps) {
       {/* Tasks View */}
       {activeTab === "tasks" && (
         <TasksView
+          projectId={projectId}
           filteredTasks={filteredTasks}
           selectedTaskId={selectedTaskId}
           selectedTask={selectedTask || null}

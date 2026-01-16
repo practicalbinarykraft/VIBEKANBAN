@@ -7,6 +7,7 @@ export interface Project {
   name: string;
   gitUrl: string;
   defaultBranch: string;
+  repoPath?: string | null;
   createdAt: Date;
   connectionStatus?: ConnectionStatus;
   connectionLastCheckedAt?: Date;
