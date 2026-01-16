@@ -134,6 +134,16 @@ export function initDB() {
       questions TEXT,
       created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
     );
+
+    CREATE TABLE IF NOT EXISTS user_ai_keys (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      provider TEXT NOT NULL,
+      api_key_ciphertext TEXT NOT NULL,
+      created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+      updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+      UNIQUE(user_id, provider)
+    );
   `);
 
   // Add PR columns to attempts table if they don't exist (migration)
