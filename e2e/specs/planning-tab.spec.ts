@@ -47,9 +47,11 @@ test.describe('Project Planning Tab', () => {
     const councilChat = page.locator('[data-testid="council-chat"]');
     await expect(councilChat).toBeVisible({ timeout: 10000 });
 
-    // Verify at least 3 council messages appear
+    // Verify at least 3 council messages appear (auth keywords generate 5: PM, ARCHITECT, BACKEND, FRONTEND, QA)
     const messages = page.locator('[data-testid="council-message"]');
-    await expect(messages).toHaveCount(3, { timeout: 10000 });
+    await expect(messages.first()).toBeVisible({ timeout: 10000 });
+    const count = await messages.count();
+    expect(count).toBeGreaterThanOrEqual(3);
   });
 
   test('should disable start button when textarea is empty', async ({ page }) => {
@@ -85,38 +87,52 @@ test.describe('Project Planning Tab', () => {
     await expect(page.locator('[data-testid="council-chat"]')).toBeVisible({ timeout: 10000 });
   });
 
-  test('T1: QUESTIONS flow - shows questions after finish', async ({ page }) => {
+  test('T1: QUESTIONS flow - shows questions before council for vague prompts', async ({ page }) => {
     await page.locator('[data-testid="planning-tab"]').click();
 
-    // Enter idea with platform keyword to skip pre-council questions
-    // but without MVP keyword so finish returns QUESTIONS mode
+    // Enter a SHORT idea WITHOUT key details (< 6 words, no platform/stack/user keywords)
+    // This should trigger questions BEFORE council starts
     const ideaInput = page.locator('[data-testid="planning-idea-input"]');
-    await ideaInput.fill('Хочу mobile приложение для бюджета');
+    await ideaInput.fill('build an app');
 
-    // Start council
+    // Click Run Council - should trigger analyze first
     await page.locator('[data-testid="planning-start-button"]').click();
 
-    // Wait for council chat
-    await expect(page.locator('[data-testid="council-chat"]')).toBeVisible({ timeout: 10000 });
+    // Questions step should appear (NOT council chat)
+    const questionsStep = page.locator('[data-testid="planning-questions-step"]');
+    await expect(questionsStep).toBeVisible({ timeout: 10000 });
 
-    // Finish button should be visible
+    // Should have at least 3 question inputs (analyzer generates 3-6)
+    const questionInputs = questionsStep.locator('[data-testid^="planning-answer-"]');
+    const questionCount = await questionInputs.count();
+    expect(questionCount).toBeGreaterThanOrEqual(3);
+
+    // Continue button should be disabled until answers are filled
+    const continueButton = page.locator('[data-testid="planning-questions-continue"]');
+    await expect(continueButton).toBeDisabled();
+
+    // Fill all answers
+    for (let i = 0; i < questionCount; i++) {
+      await page.locator(`[data-testid="planning-answer-${i}"]`).fill(`Test answer ${i + 1}`);
+    }
+
+    // Continue button should now be enabled
+    await expect(continueButton).toBeEnabled();
+
+    // Click Continue to start council
+    await continueButton.click();
+
+    // Council chat should appear after answering questions
+    await expect(page.locator('[data-testid="council-chat"]')).toBeVisible({ timeout: 15000 });
+
+    // Finish discussion and verify we get PLAN (not QUESTIONS)
     const finishButton = page.locator('[data-testid="planning-finish-button"]');
     await expect(finishButton).toBeVisible();
-
-    // Click finish
     await finishButton.click();
 
-    // Product result should appear
-    const productResult = page.locator('[data-testid="product-result"]');
-    await expect(productResult).toBeVisible({ timeout: 10000 });
-
-    // Should show questions (at least 2)
-    const questions = page.locator('[data-testid="product-questions"]');
-    await expect(questions).toBeVisible();
-
-    const questionItems = questions.locator('li');
-    const count = await questionItems.count();
-    expect(count).toBeGreaterThanOrEqual(2);
+    // Product result should show PLAN mode (finish always returns PLAN now)
+    const plan = page.locator('[data-testid="product-plan"]');
+    await expect(plan).toBeVisible({ timeout: 10000 });
   });
 
   test('T2: PLAN flow - shows plan after finish', async ({ page }) => {
