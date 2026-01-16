@@ -9,11 +9,13 @@
 
 "use client";
 
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { CouncilChat } from "./council-chat";
 import { ProductResult } from "./product-result";
 import { AutopilotPanel } from "./autopilot-panel";
+import { AiModeBanner } from "@/components/banners/ai-mode-banner";
 import { usePlanningSession } from "@/hooks/usePlanningSession";
 import { useAutopilot } from "@/hooks/useAutopilot";
 import { Loader2 } from "lucide-react";
@@ -27,6 +29,23 @@ interface PlanningTabProps {
 }
 
 export function PlanningTab({ projectId, onApplyComplete, onExecuteComplete, onPipelineComplete, onAutopilotComplete }: PlanningTabProps) {
+  const [canRunAi, setCanRunAi] = useState(true);
+
+  useEffect(() => {
+    const fetchAiConfig = async () => {
+      try {
+        const response = await fetch("/api/settings/ai-provider");
+        if (response.ok) {
+          const data = await response.json();
+          setCanRunAi(data.canRunAi);
+        }
+      } catch (error) {
+        console.error("Failed to fetch AI config:", error);
+      }
+    };
+    fetchAiConfig();
+  }, []);
+
   const {
     idea,
     setIdea,
@@ -51,10 +70,13 @@ export function PlanningTab({ projectId, onApplyComplete, onExecuteComplete, onP
 
   const autopilot = useAutopilot(projectId, sessionId, undefined, onAutopilotComplete);
 
-  const isStartDisabled = !idea.trim() || isLoading || status !== "IDLE";
+  const isStartDisabled = !idea.trim() || isLoading || status !== "IDLE" || !canRunAi;
 
   return (
     <div className="flex h-full flex-col gap-6 overflow-auto p-6">
+      {/* AI Mode Banner */}
+      <AiModeBanner />
+
       {/* Input Section */}
       <div className="space-y-4">
         <h2 className="text-lg font-semibold">Project Planning</h2>
