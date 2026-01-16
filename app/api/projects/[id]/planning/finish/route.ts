@@ -1,20 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, updateSessionResult } from "@/server/services/planning-session-store";
-import { generateCouncilBacklog } from "@/lib/council-backlog-generator";
+import { generateBacklog } from "@/lib/ai-backlog-generator";
 
 /**
  * POST /api/projects/[id]/planning/finish
  *
  * Finish council planning session and return product result
+ * Uses AI to generate 30-200 step backlog when configured
  *
  * Request: { sessionId: string }
  * Response: {
  *   status: "DONE",
  *   sessionId: string,
  *   productResult: {
- *     mode: "QUESTIONS" | "PLAN",
- *     questions?: string[],
- *     steps?: { title: string, tasks: string[] }[]
+ *     mode: "PLAN",
+ *     steps: { title: string, tasks: string[] }[]
  *   }
  * }
  */
@@ -44,27 +44,18 @@ export async function POST(
       );
     }
 
-    // Generate deterministic backlog based on ideaText (30-200 steps)
-    const councilResult = generateCouncilBacklog(session.ideaText);
+    // Generate backlog using AI (or deterministic fallback)
+    const backlogResult = await generateBacklog(session.ideaText);
 
-    // Build product result for UI (transform planSteps to steps format)
-    const productResult =
-      councilResult.mode === "QUESTIONS"
-        ? { mode: "QUESTIONS" as const, questions: councilResult.questions }
-        : {
-            mode: "PLAN" as const,
-            steps: councilResult.planSteps!.map((step) => ({
-              title: step,
-              tasks: [],
-            })),
-            planSteps: councilResult.planSteps,
-          };
+    // Build product result for UI
+    const productResult = {
+      mode: "PLAN" as const,
+      steps: backlogResult.steps,
+      planSteps: backlogResult.planSteps,
+    };
 
-    // Update session with result in DB (keeps session for apply endpoint)
+    // Update session with result in DB
     await updateSessionResult(sessionId, productResult);
-
-    // Simulate slight delay for realistic UX
-    await new Promise((resolve) => setTimeout(resolve, 300));
 
     return NextResponse.json({
       status: "DONE",
