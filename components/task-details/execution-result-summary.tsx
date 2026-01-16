@@ -3,12 +3,15 @@
  *
  * Displays the execution result from attempt artifacts.
  * Shows: status, diff summary, changed files, PR link
+ * Uses human-readable error messages.
  */
 
 "use client";
 
-import { AlertCircle, CheckCircle, ExternalLink, FileCode, GitBranch } from "lucide-react";
+import Link from "next/link";
+import { AlertCircle, CheckCircle, ExternalLink, FileCode, GitBranch, ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { getFriendlyError } from "@/lib/friendly-errors";
 import type { ExecutionResult } from "@/types/execution-result";
 
 interface ExecutionResultSummaryProps {
@@ -47,12 +50,34 @@ export function ExecutionResultSummary({ result, prUrl }: ExecutionResultSummary
         )}
       </div>
 
-      {/* Error message */}
-      {result.error && (
-        <p className="text-xs text-red-700 dark:text-red-300 mb-2">
-          {result.error.message}
-        </p>
-      )}
+      {/* Error message with friendly text */}
+      {result.error && (() => {
+        const friendly = getFriendlyError(result.error.code);
+        return (
+          <div className="mb-2">
+            <p className="text-xs text-red-700 dark:text-red-300">
+              {friendly.message}
+            </p>
+            {friendly.action && (
+              <div className="mt-1">
+                {friendly.actionUrl ? (
+                  <Link
+                    href={friendly.actionUrl}
+                    className="inline-flex items-center gap-1 text-[10px] font-medium text-red-700 hover:text-red-900 dark:text-red-300 dark:hover:text-red-100"
+                  >
+                    {friendly.action}
+                    <ArrowRight className="h-3 w-3" />
+                  </Link>
+                ) : (
+                  <span className="text-[10px] text-red-600 dark:text-red-400">
+                    {friendly.action}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Diff summary */}
       {result.diffSummary && (

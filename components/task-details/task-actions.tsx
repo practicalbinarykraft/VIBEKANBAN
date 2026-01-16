@@ -19,6 +19,7 @@ interface TaskActionsProps {
   applyError: string | null;
   hasConflict: boolean;
   permissionError?: string | null;
+  executionDisabled?: boolean;
   onRun: () => void;
   onApply: () => void;
   onStop: () => void;
@@ -34,13 +35,16 @@ export function TaskActions({
   applyError,
   hasConflict,
   permissionError,
+  executionDisabled,
   onRun,
   onApply,
   onStop,
   onCancel,
 }: TaskActionsProps) {
   // Determine if Apply should be disabled
-  const canApply = hasDiff && !applyError && !permissionError;
+  const canApply = hasDiff && !applyError && !permissionError && !executionDisabled;
+  // Determine if Run should be disabled
+  const canRun = !executionDisabled && !permissionError;
 
   return (
     <div className="space-y-2">
@@ -86,7 +90,7 @@ export function TaskActions({
             onClick={onRun}
             size="sm"
             className="h-9 text-xs justify-center font-medium"
-            disabled={isRunning || !!permissionError}
+            disabled={isRunning || !canRun}
           >
             {isRunning ? "Starting..." : "Run Task"}
           </Button>
@@ -123,7 +127,7 @@ export function TaskActions({
               variant="outline"
               size="sm"
               className="flex-1 h-7 text-xs"
-              disabled={currentStatus === "running" || currentStatus === "queued" || isRunning}
+              disabled={currentStatus === "running" || currentStatus === "queued" || isRunning || !canRun}
             >
               New Attempt
             </Button>

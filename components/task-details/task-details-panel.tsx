@@ -11,8 +11,10 @@ import { TaskTabs } from "./task-tabs";
 import { PRPreviewContainer } from "./pr-preview-container";
 import { ConflictBlock } from "./conflict-block";
 import { ExecutionResultSummary, parseExecutionResult } from "./execution-result-summary";
+import { ReadOnlyBanner } from "@/components/ui/readonly-banner";
 import { useAttemptStream } from "@/hooks/useAttemptStream";
 import { useTaskActions } from "@/hooks/useTaskActions";
+import { useExecutionReadiness } from "@/hooks/useExecutionReadiness";
 import { parseUnifiedDiff } from "@/lib/diff-parser";
 import { mockDiffs } from "@/lib/mock-data";
 import {
@@ -47,6 +49,7 @@ export function TaskDetailsPanel({
   const [selectedAttempt, setSelectedAttempt] = useState<Attempt | null>(null);
   const [isResolvingConflict, setIsResolvingConflict] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const executionReadiness = useExecutionReadiness(task.projectId);
 
   const {
     isRunning,
@@ -133,6 +136,9 @@ export function TaskDetailsPanel({
             <span className="text-muted-foreground" data-testid="task-tags">Tags: {parseTags(task.tags).length > 0 ? parseTags(task.tags).map((t) => <span key={t} className="ml-1 px-1.5 py-0.5 bg-muted rounded">{t}</span>) : '—'}</span>
           </div>
         )}
+        {!executionReadiness.isLoading && !executionReadiness.isReady && (
+          <ReadOnlyBanner reason={executionReadiness.reason} />
+        )}
         <TaskActions
           latestAttempt={latestAttempt}
           currentStatus={currentStatus}
@@ -142,6 +148,7 @@ export function TaskDetailsPanel({
           applyError={applyError}
           hasConflict={hasConflict}
           permissionError={permissionError}
+          executionDisabled={!executionReadiness.isReady}
           onRun={handleRunTask}
           onApply={handleApply}
           onStop={handleStopExecution}
