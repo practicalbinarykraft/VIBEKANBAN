@@ -10,6 +10,7 @@ import { TaskEmptyState } from "./task-empty-state";
 import { TaskTabs } from "./task-tabs";
 import { PRPreviewContainer } from "./pr-preview-container";
 import { ConflictBlock } from "./conflict-block";
+import { ExecutionResultSummary, parseExecutionResult } from "./execution-result-summary";
 import { useAttemptStream } from "@/hooks/useAttemptStream";
 import { useTaskActions } from "@/hooks/useTaskActions";
 import { parseUnifiedDiff } from "@/lib/diff-parser";
@@ -71,9 +72,7 @@ export function TaskDetailsPanel({
     } catch { setSelectedAttempt(null); }
   };
 
-  useEffect(() => {
-    fetchAttemptData();
-  }, [selectedAttemptId]);
+  useEffect(() => { fetchAttemptData(); }, [selectedAttemptId]);
 
   const latestAttempt = attempts.length > 0 ? attempts[0] : null;
   const isSelectedAttemptRunning = selectedAttempt?.status === "running" || selectedAttempt?.status === "queued";
@@ -85,6 +84,8 @@ export function TaskDetailsPanel({
   const displayLogs = shouldStream && stream.logs.length > 0 ? stream.logs : (selectedAttempt as any)?.logs || [];
   const artifacts = (selectedAttempt as any)?.artifacts || [];
   const diffArtifact = artifacts.find((a: any) => a.type === "diff");
+  const summaryArtifact = artifacts.find((a: any) => a.type === "summary");
+  const executionResult = summaryArtifact ? parseExecutionResult(summaryArtifact.content) : null;
   const diffs = diffArtifact ? parseUnifiedDiff(diffArtifact.content) : (selectedAttempt?.id ? mockDiffs[selectedAttempt.id] : null) || [];
   const hasDiff = diffs.length > 0 || diffArtifact !== undefined;
   const applyError = selectedAttempt?.applyError || null;
@@ -146,6 +147,9 @@ export function TaskDetailsPanel({
           onStop={handleStopExecution}
           onCancel={handleCancelQueued}
         />
+        {executionResult && (
+          <ExecutionResultSummary result={executionResult} prUrl={selectedAttempt?.prUrl} />
+        )}
         {hasConflict && selectedAttempt && (
           <ConflictBlock
             conflictFiles={selectedAttempt.conflictFiles || []}
