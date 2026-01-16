@@ -241,5 +241,17 @@ export function initDB() {
     }
   }
 
+  // Add question phase columns to planning_sessions (P17-C migration)
+  try {
+    _sqlite!.exec(`
+      ALTER TABLE planning_sessions ADD COLUMN question_phase_complete INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE planning_sessions ADD COLUMN user_answers TEXT;
+    `);
+  } catch (error: any) {
+    if (!error.message.includes('duplicate column name')) {
+      console.warn("Warning during migration:", error.message);
+    }
+  }
+
   console.log("✅ Database initialized");
 }

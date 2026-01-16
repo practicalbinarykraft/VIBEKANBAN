@@ -140,3 +140,30 @@ export async function getAppliedTaskIds(
   const session = await getSession(sessionId);
   return session?.appliedTaskIds;
 }
+
+/**
+ * Save user answers to clarifying questions and mark question phase complete
+ */
+export async function updateSessionAnswers(
+  sessionId: string,
+  answers: Record<string, string>
+): Promise<boolean> {
+  const rows = await db
+    .select()
+    .from(planningSessions)
+    .where(eq(planningSessions.id, sessionId))
+    .limit(1);
+
+  if (rows.length === 0) return false;
+
+  await db
+    .update(planningSessions)
+    .set({
+      userAnswers: JSON.stringify(answers),
+      questionPhaseComplete: 1,
+      updatedAt: new Date(),
+    })
+    .where(eq(planningSessions.id, sessionId));
+
+  return true;
+}
