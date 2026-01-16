@@ -1,13 +1,11 @@
 /**
- * ProductResult - Display AI Product итог (questions or plan)
- *
- * Shows either:
- * - List of questions (QUESTIONS mode)
- * - List of steps with tasks (PLAN mode) + Apply Plan button
+ * ProductResult - Display AI Product итог with quality gate
  */
-
+import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
+import { validatePlan } from "@/lib/plan-validation";
+import { PlanQualityGate } from "./plan-quality-gate";
 
 interface PlanStep {
   title: string;
@@ -46,6 +44,17 @@ export function ProductResult({
   pipelinePhase = "IDLE",
 }: ProductResultProps) {
   const canApply = result.mode === "PLAN" && result.steps && result.steps.length > 0;
+
+  // Validate plan quality using step titles
+  const validation = useMemo(() => {
+    if (result.mode !== "PLAN" || !result.steps) {
+      return { ok: true, reasons: [] };
+    }
+    const planSteps = result.steps.map((s) => s.title);
+    return validatePlan(planSteps);
+  }, [result.mode, result.steps]);
+
+  const canApprove = canApply && validation.ok;
 
   return (
     <div
@@ -98,22 +107,20 @@ export function ProductResult({
             ))}
           </div>
 
-          {/* Action Buttons */}
+          {/* Plan Quality Gate & Actions */}
+          {canApply && <div className="mt-4"><PlanQualityGate validation={validation} /></div>}
           {canApply && (
             <div className="mt-6 flex flex-col gap-4">
-              {/* Approve Plan - Level 2 autopilot button */}
               {onApprovePlan && pipelinePhase === "IDLE" && (
                 <Button
                   onClick={onApprovePlan}
-                  disabled={isApplying || isExecuting}
+                  disabled={!canApprove || isApplying || isExecuting}
                   data-testid="approve-plan-button"
                   className="w-full"
                 >
                   Approve Plan
                 </Button>
               )}
-
-              {/* Pipeline progress states */}
               {pipelinePhase === "APPLYING" && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground" data-testid="pipeline-applying">
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -131,8 +138,6 @@ export function ProductResult({
                   Pipeline complete!
                 </div>
               )}
-
-              {/* Error states with retry buttons */}
               {pipelinePhase === "APPLY_FAILED" && onRetryApply && (
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-destructive">Apply failed</span>
@@ -149,14 +154,12 @@ export function ProductResult({
                   </Button>
                 </div>
               )}
-
-              {/* Legacy buttons - hidden during pipeline */}
               {pipelinePhase === "IDLE" && (
                 <div className="flex gap-2">
                   {onApplyPlan && (
                     <Button
                       onClick={onApplyPlan}
-                      disabled={isApplying || isExecuting}
+                      disabled={!canApprove || isApplying || isExecuting}
                       variant="outline"
                       data-testid="apply-plan-button"
                     >
@@ -173,7 +176,7 @@ export function ProductResult({
                   {onExecutePlan && (
                     <Button
                       onClick={onExecutePlan}
-                      disabled={isApplying || isExecuting}
+                      disabled={!canApprove || isApplying || isExecuting}
                       data-testid="execute-plan-button"
                     >
                       {isExecuting ? (
