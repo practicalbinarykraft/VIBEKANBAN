@@ -1,42 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createSession } from "@/server/services/planning-session-store";
-
-/**
- * Mock council messages for planning feature
- * In production, these would come from AI agents
- */
-const MOCK_COUNCIL_MESSAGES = [
-  {
-    id: "msg-1",
-    role: "PM",
-    content: "I suggest we break this down into user stories first. Let's identify the core user journeys and prioritize by business value.",
-  },
-  {
-    id: "msg-2",
-    role: "ARCHITECT",
-    content: "From a technical perspective, we should consider the system boundaries and integration points. I recommend starting with a clean architecture approach.",
-  },
-  {
-    id: "msg-3",
-    role: "BACKEND",
-    content: "I can implement the API layer. We should define the data models and REST endpoints first. I suggest using TypeScript for type safety.",
-  },
-];
+import { createSession, updateSessionResult } from "@/server/services/planning-session-store";
+import { startCouncilDiscussion } from "@/server/services/chat/council-orchestrator";
 
 /**
  * POST /api/projects/[id]/planning/start
  *
  * Start council planning session for a project idea
+ * Uses real AI council when configured, mock otherwise
  *
  * Request: { ideaText: string } (also accepts { idea: string } for compatibility)
- * Response: { sessionId, councilMessages, status: "DISCUSSION" }
+ * Response: { sessionId, councilMessages, status: "DISCUSSION", error?: string }
  */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { id: projectId } = await params;
     const body = await request.json();
 
     // Support both old (idea) and new (ideaText) field names
@@ -49,20 +29,44 @@ export async function POST(
       );
     }
 
-    // Create session in DB (returns generated sessionId)
-    const sessionId = await createSession(id, ideaText.trim());
+    // Create session in DB
+    const sessionId = await createSession(projectId, ideaText.trim());
 
-    // Simulate slight delay for realistic UX
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    // Run real council discussion (uses AI when configured, mock otherwise)
+    const { thread, plan, error: councilError } = await startCouncilDiscussion(
+      projectId,
+      ideaText.trim()
+    );
+
+    // Transform messages for frontend format
+    const councilMessages = thread.messages.map((msg) => ({
+      id: msg.id,
+      role: msg.role.toUpperCase(), // frontend expects uppercase
+      content: msg.content,
+    }));
+
+    // Store the plan for finish endpoint
+    if (plan && plan.tasks.length > 0) {
+      await updateSessionResult(sessionId, {
+        mode: "PLAN",
+        planSteps: plan.tasks.map((t) => t.title),
+        steps: plan.tasks.map((t) => ({
+          title: t.title,
+          tasks: [t.description],
+        })),
+      });
+    }
 
     return NextResponse.json({
       sessionId,
-      councilMessages: MOCK_COUNCIL_MESSAGES,
+      councilMessages,
       status: "DISCUSSION",
-      // Keep old fields for backward compatibility
+      // Include error if AI failed (fail loudly)
+      ...(councilError && { error: councilError }),
+      // Backward compatibility
       success: true,
-      projectId: id,
-      messages: MOCK_COUNCIL_MESSAGES,
+      projectId,
+      messages: councilMessages,
     });
   } catch (error: any) {
     console.error("Error starting planning session:", error);
