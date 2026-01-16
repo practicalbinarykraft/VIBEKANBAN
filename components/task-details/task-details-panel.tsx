@@ -72,9 +72,7 @@ export function TaskDetailsPanel({
     } catch { setSelectedAttempt(null); }
   };
 
-  useEffect(() => {
-    fetchAttemptData();
-  }, [selectedAttemptId]);
+  useEffect(() => { fetchAttemptData(); }, [selectedAttemptId]);
 
   const latestAttempt = attempts.length > 0 ? attempts[0] : null;
   const isSelectedAttemptRunning = selectedAttempt?.status === "running" || selectedAttempt?.status === "queued";
