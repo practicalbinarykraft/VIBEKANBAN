@@ -100,7 +100,8 @@ export function startAutopilot(state: AutopilotState, mode?: AutopilotMode): Aut
     return state; // Already complete
   }
 
-  const newMode = mode || state.mode || 'AUTO';
+  // Determine mode: use param, or state mode if not OFF, otherwise default to AUTO
+  const newMode = mode || (state.mode !== 'OFF' ? state.mode : 'AUTO');
   if (newMode === 'OFF') {
     return state; // Can't start in OFF mode
   }
@@ -274,10 +275,11 @@ export function failAutopilot(state: AutopilotState, error: string): AutopilotSt
  * Get status info for UI display
  */
 export function getAutopilotStatus(state: AutopilotState): AutopilotStatusInfo {
-  const totalBatches = state.batches.length;
+  const totalBatches = state.batches?.length ?? 0;
   const batchIndex = state.batchIndex;
-  const totalTasks = state.taskQueue.length;
-  const currentTaskIndex = state.currentTaskIndex;
+  const taskQueue = state.taskQueue ?? [];
+  const totalTasks = taskQueue.length;
+  const currentTaskIndex = state.currentTaskIndex ?? 0;
 
   let progress: string;
   let currentBatch: Batch | undefined;
@@ -293,8 +295,9 @@ export function getAutopilotStatus(state: AutopilotState): AutopilotStatusInfo {
     progress = `0/${totalBatches}`;
   }
 
-  const taskProgress = `${state.completedTasks.length}/${totalTasks}`;
-  const currentTaskId = state.taskQueue[currentTaskIndex];
+  const completedTasks = state.completedTasks ?? [];
+  const taskProgress = `${completedTasks.length}/${totalTasks}`;
+  const currentTaskId = taskQueue[currentTaskIndex];
 
   return {
     status: state.status,
@@ -307,7 +310,7 @@ export function getAutopilotStatus(state: AutopilotState): AutopilotStatusInfo {
     currentTaskIndex,
     totalTasks,
     taskProgress,
-    completedTasks: state.completedTasks.length,
+    completedTasks: completedTasks.length,
     pauseReason: state.pauseReason,
     error: state.error,
   };
