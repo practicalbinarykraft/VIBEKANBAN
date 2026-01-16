@@ -1,17 +1,14 @@
 /**
  * usePlanningSession - Hook for managing planning session state
  *
- * Handles:
- * - Starting council discussion
- * - Finishing discussion
- * - Applying plan
- * - Autopilot pipeline (via usePlanningPipeline)
+ * Handles idea analysis, council discussion, finishing, applying plan.
  */
 
 "use client";
 
 import { useState, useCallback } from "react";
 import { usePlanningPipeline, PipelinePhase } from "./usePlanningPipeline";
+import { usePlanningQuestions } from "./usePlanningQuestions";
 
 interface CouncilMessage {
   id: string;
@@ -25,37 +22,15 @@ interface ProductResultData {
   steps?: { title: string; tasks: string[] }[];
 }
 
-export type PlanningStatus = "IDLE" | "DISCUSSION" | "DONE" | "APPLIED";
+export type PlanningStatus = "IDLE" | "QUESTIONS" | "DISCUSSION" | "DONE" | "APPLIED";
 export type { PipelinePhase };
-
-interface UsePlanningSessionReturn {
-  idea: string;
-  setIdea: (idea: string) => void;
-  messages: CouncilMessage[];
-  sessionId: string | null;
-  status: PlanningStatus;
-  productResult: ProductResultData | null;
-  error: string | null;
-  isLoading: boolean;
-  isFinishing: boolean;
-  isApplying: boolean;
-  isExecuting: boolean;
-  pipelinePhase: PipelinePhase;
-  handleStartCouncil: () => Promise<void>;
-  handleFinishDiscussion: () => Promise<void>;
-  handleApplyPlan: () => Promise<void>;
-  handleExecutePlan: () => Promise<void>;
-  handleApproveAndRun: () => Promise<void>;
-  handleRetryApply: () => Promise<void>;
-  handleRetryExecute: () => Promise<void>;
-}
 
 export function usePlanningSession(
   projectId: string,
   onApplyComplete?: (createdTaskIds: string[]) => void,
   onExecuteComplete?: (createdTaskIds: string[]) => void,
   onPipelineComplete?: (createdTaskIds: string[]) => void
-): UsePlanningSessionReturn {
+) {
   const [idea, setIdea] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isFinishing, setIsFinishing] = useState(false);
@@ -67,7 +42,7 @@ export function usePlanningSession(
   const [productResult, setProductResult] = useState<ProductResultData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Use pipeline hook for autopilot
+  const questionsHook = usePlanningQuestions();
   const pipeline = usePlanningPipeline({
     projectId,
     sessionId,
@@ -75,27 +50,52 @@ export function usePlanningSession(
     onStatusChange: (s) => setStatus(s),
   });
 
-  const handleStartCouncil = useCallback(async () => {
-    if (!idea.trim()) return;
+  // Start council and return sessionId
+  const startCouncil = useCallback(async (): Promise<string> => {
     setIsLoading(true);
+    const response = await fetch(`/api/projects/${projectId}/planning/start`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idea: idea.trim() }),
+    });
+    const data = await response.json();
+    setIsLoading(false);
+    if (!response.ok) throw new Error(data.error || "Failed to start council");
+    setSessionId(data.sessionId);
+    setMessages(data.councilMessages || data.messages);
+    setStatus("DISCUSSION");
+    return data.sessionId;
+  }, [idea, projectId]);
+
+  // Analyze idea and either show questions or start council
+  const handleAnalyzeIdea = useCallback(async () => {
+    if (!idea.trim()) return;
     setError(null);
     try {
-      const response = await fetch(`/api/projects/${projectId}/planning/start`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idea: idea.trim() }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Failed to start council");
-      setSessionId(data.sessionId);
-      setMessages(data.councilMessages || data.messages);
-      setStatus("DISCUSSION");
-    } catch (err: any) {
-      setError(err.message || "An error occurred");
-    } finally {
-      setIsLoading(false);
+      const needsQ = await questionsHook.analyzeIdea(projectId, idea.trim());
+      if (needsQ) {
+        setStatus("QUESTIONS");
+      } else {
+        await startCouncil();
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "An error occurred");
     }
-  }, [idea, projectId]);
+  }, [idea, projectId, questionsHook, startCouncil]);
+
+  // Submit answers and proceed to council
+  const handleSubmitAnswers = useCallback(
+    async (answers: Record<string, string>) => {
+      setError(null);
+      try {
+        const newSessionId = await startCouncil();
+        await questionsHook.submitAnswers(projectId, newSessionId, answers);
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "An error occurred");
+      }
+    },
+    [projectId, questionsHook, startCouncil]
+  );
 
   const handleFinishDiscussion = useCallback(async () => {
     if (!sessionId) return;
@@ -108,12 +108,12 @@ export function usePlanningSession(
         body: JSON.stringify({ sessionId }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Failed to finish discussion");
+      if (!response.ok) throw new Error(data.error || "Failed to finish");
       setProductResult(data.productResult);
       setSessionId(data.sessionId);
       setStatus("DONE");
-    } catch (err: any) {
-      setError(err.message || "An error occurred");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setIsFinishing(false);
     }
@@ -131,11 +131,11 @@ export function usePlanningSession(
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Failed to apply plan");
-      const createdTaskIds: string[] = data.taskIds ?? data.createdTaskIds ?? [];
+      const taskIds: string[] = data.taskIds ?? data.createdTaskIds ?? [];
       setStatus("APPLIED");
-      onApplyComplete?.(createdTaskIds);
-    } catch (err: any) {
-      setError(err.message || "An error occurred");
+      onApplyComplete?.(taskIds);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setIsApplying(false);
     }
@@ -153,11 +153,11 @@ export function usePlanningSession(
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Failed to apply plan");
-      const createdTaskIds: string[] = data.taskIds ?? data.createdTaskIds ?? [];
+      const taskIds: string[] = data.taskIds ?? data.createdTaskIds ?? [];
       setStatus("APPLIED");
-      onExecuteComplete?.(createdTaskIds);
-    } catch (err: any) {
-      setError(err.message || "An error occurred");
+      onExecuteComplete?.(taskIds);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setIsExecuting(false);
     }
@@ -169,14 +169,19 @@ export function usePlanningSession(
     messages,
     sessionId,
     status,
+    questions: questionsHook.questions,
     productResult,
     error: error || pipeline.pipelineError,
     isLoading,
+    isAnalyzing: questionsHook.isAnalyzing,
+    isSubmittingAnswers: questionsHook.isSubmittingAnswers,
     isFinishing,
     isApplying,
     isExecuting,
     pipelinePhase: pipeline.pipelinePhase,
-    handleStartCouncil,
+    handleAnalyzeIdea,
+    handleSubmitAnswers,
+    handleStartCouncil: startCouncil,
     handleFinishDiscussion,
     handleApplyPlan,
     handleExecutePlan,

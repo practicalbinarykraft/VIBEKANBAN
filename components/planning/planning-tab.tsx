@@ -1,12 +1,7 @@
 /**
  * PlanningTab - Planning interface with council chat
- *
- * Two-phase UX:
- * 1. DISCUSSION: User enters idea → council chat appears → finish button visible
- * 2. DONE: After finish → product result (questions or plan) appears
- * 3. APPLIED: After apply plan → tasks created, navigate to board
+ * Phases: IDLE → QUESTIONS (optional) → DISCUSSION → DONE → APPLIED
  */
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -15,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { CouncilChat } from "./council-chat";
 import { ProductResult } from "./product-result";
 import { AutopilotPanel } from "./autopilot-panel";
+import { QuestionsStep } from "./questions-step";
 import { AiModeBanner } from "@/components/banners/ai-mode-banner";
 import { usePlanningSession } from "@/hooks/usePlanningSession";
 import { useAutopilot } from "@/hooks/useAutopilot";
@@ -52,14 +48,18 @@ export function PlanningTab({ projectId, onApplyComplete, onExecuteComplete, onP
     messages,
     sessionId,
     status,
+    questions,
     productResult,
     error,
     isLoading,
+    isAnalyzing,
+    isSubmittingAnswers,
     isFinishing,
     isApplying,
     isExecuting,
     pipelinePhase,
-    handleStartCouncil,
+    handleAnalyzeIdea,
+    handleSubmitAnswers,
     handleFinishDiscussion,
     handleApplyPlan,
     handleExecutePlan,
@@ -70,7 +70,7 @@ export function PlanningTab({ projectId, onApplyComplete, onExecuteComplete, onP
 
   const autopilot = useAutopilot(projectId, sessionId, undefined, onAutopilotComplete);
 
-  const isStartDisabled = !idea.trim() || isLoading || status !== "IDLE" || !canRunAi;
+  const isStartDisabled = !idea.trim() || isLoading || isAnalyzing || status !== "IDLE" || !canRunAi;
 
   return (
     <div className="flex h-full flex-col gap-6 overflow-auto p-6">
@@ -94,14 +94,14 @@ export function PlanningTab({ projectId, onApplyComplete, onExecuteComplete, onP
         />
 
         <Button
-          onClick={handleStartCouncil}
+          onClick={handleAnalyzeIdea}
           disabled={isStartDisabled}
           data-testid="planning-start-button"
         >
-          {isLoading ? (
+          {isLoading || isAnalyzing ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Running Council...
+              {isAnalyzing ? "Analyzing..." : "Running Council..."}
             </>
           ) : (
             "Run Council"
@@ -114,6 +114,15 @@ export function PlanningTab({ projectId, onApplyComplete, onExecuteComplete, onP
         <div className="rounded-md bg-destructive/10 p-4 text-sm text-destructive">
           {error}
         </div>
+      )}
+
+      {/* Questions Step - show before council when idea needs clarification */}
+      {status === "QUESTIONS" && questions.length > 0 && (
+        <QuestionsStep
+          questions={questions}
+          onContinue={handleSubmitAnswers}
+          isSubmitting={isSubmittingAnswers || isLoading}
+        />
       )}
 
       {/* Council Chat */}
