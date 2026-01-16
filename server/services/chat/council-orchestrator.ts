@@ -12,7 +12,7 @@ import { db } from "@/server/db";
 import { councilThreads, councilThreadMessages } from "@/server/db/schema";
 import { randomUUID } from "crypto";
 import { eq } from "drizzle-orm";
-import { getAICompletion, isAIConfigured } from "../ai/ai-provider";
+import { getAICompletion, isAIConfigured, AINotConfiguredError, AIAPIError } from "../ai/ai-provider";
 import {
   COUNCIL_PROMPTS,
   DISCUSSION_ORDER,
@@ -44,9 +44,6 @@ export interface IterationPlan {
     type: "backend" | "frontend" | "qa";
   }>;
 }
-
-// Default user ID for council operations (can be made configurable later)
-const DEFAULT_USER_ID = "system";
 
 /**
  * Check if running in test mode
@@ -96,10 +93,10 @@ function generateMockCouncilDiscussion(userMessage: string): Omit<CouncilMessage
 
 /**
  * Generate real council discussion using AI
+ * Throws error if AI not configured (does not silently fallback)
  */
 async function generateRealCouncilDiscussion(
-  userMessage: string,
-  userId: string = DEFAULT_USER_ID
+  userMessage: string
 ): Promise<Omit<CouncilMessage, "id" | "threadId" | "createdAt">[]> {
   const messages: Omit<CouncilMessage, "id" | "threadId" | "createdAt">[] = [];
   const previousMessages: Array<{ role: CouncilRole; content: string }> = [];
@@ -108,29 +105,17 @@ async function generateRealCouncilDiscussion(
     const prompt = COUNCIL_PROMPTS[role];
     const context = buildCouncilContext(userMessage, previousMessages);
 
-    try {
-      const result = await getAICompletion(userId, {
-        systemPrompt: prompt.systemPrompt,
-        messages: [{ role: "user", content: context }],
-        maxTokens: 500,
-        temperature: 0.7,
-      });
+    // Call AI - will throw if not configured
+    const result = await getAICompletion({
+      systemPrompt: prompt.systemPrompt,
+      messages: [{ role: "user", content: context }],
+      maxTokens: 500,
+      temperature: 0.7,
+    });
 
-      const content = result.content.trim();
-      messages.push({ role, content });
-      previousMessages.push({ role, content });
-    } catch (error) {
-      console.error(`Error getting AI response for ${role}:`, error);
-      // Fallback to a generic response
-      messages.push({
-        role,
-        content: `[${prompt.title}] I'll contribute to implementing this feature based on my expertise.`,
-      });
-      previousMessages.push({
-        role,
-        content: messages[messages.length - 1].content,
-      });
-    }
+    const content = result.content.trim();
+    messages.push({ role, content });
+    previousMessages.push({ role, content });
   }
 
   return messages;
@@ -167,11 +152,11 @@ function generateMockIterationPlan(userMessage: string): IterationPlan {
 
 /**
  * Generate real iteration plan using AI
+ * Throws error if AI not configured (does not silently fallback)
  */
 async function generateRealIterationPlan(
   userMessage: string,
-  councilDiscussion: Array<{ role: string; content: string }>,
-  userId: string = DEFAULT_USER_ID
+  councilDiscussion: Array<{ role: string; content: string }>
 ): Promise<IterationPlan> {
   const discussionSummary = councilDiscussion
     .map((m) => `[${m.role}]: ${m.content}`)
@@ -201,17 +186,17 @@ ${discussionSummary}
 
 Generate the iteration plan JSON:`;
 
-  try {
-    const result = await getAICompletion(userId, {
-      systemPrompt,
-      messages: [{ role: "user", content: userPrompt }],
-      maxTokens: 1000,
-      temperature: 0.3,
-    });
+  const result = await getAICompletion({
+    systemPrompt,
+    messages: [{ role: "user", content: userPrompt }],
+    maxTokens: 1000,
+    temperature: 0.3,
+  });
 
-    // Parse JSON from response
-    const jsonMatch = result.content.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
+  // Parse JSON from response
+  const jsonMatch = result.content.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    try {
       const plan = JSON.parse(jsonMatch[0]) as IterationPlan;
       // Validate and sanitize the plan
       if (plan.summary && Array.isArray(plan.tasks)) {
@@ -224,36 +209,59 @@ Generate the iteration plan JSON:`;
           })),
         };
       }
+    } catch {
+      // JSON parse error - fall through to default
     }
-  } catch (error) {
-    console.error("Error generating iteration plan:", error);
   }
 
-  // Fallback to mock plan
-  return generateMockIterationPlan(userMessage);
+  // Default plan if parsing fails
+  return {
+    summary: `Plan for: ${userMessage}`,
+    tasks: [{ title: userMessage, description: "Implementation as discussed by council", type: "backend" }],
+  };
 }
 
 /**
  * Start council discussion
+ * Returns error info in result if AI fails (fail loudly)
  */
 export async function startCouncilDiscussion(
   projectId: string,
-  userMessage: string,
-  userId: string = DEFAULT_USER_ID
-): Promise<{ thread: CouncilThread; plan: IterationPlan }> {
+  userMessage: string
+): Promise<{ thread: CouncilThread; plan: IterationPlan; error?: string }> {
   const existingThreads = await db.select().from(councilThreads).where(eq(councilThreads.projectId, projectId)).all();
   const iterationNumber = existingThreads.length + 1;
   const threadId = randomUUID();
 
   await db.insert(councilThreads).values({ id: threadId, projectId, iterationNumber, status: "discussing", createdAt: new Date() });
 
-  // Determine if we should use real AI or mock
-  const useRealAI = !isTestMode() && (await isAIConfigured(userId));
+  // Check if real AI is available
+  const aiConfigured = await isAIConfigured();
+  let discussion: Omit<CouncilMessage, "id" | "threadId" | "createdAt">[];
+  let plan: IterationPlan;
+  let errorMessage: string | undefined;
 
-  // Generate discussion
-  const discussion = useRealAI
-    ? await generateRealCouncilDiscussion(userMessage, userId)
-    : generateMockCouncilDiscussion(userMessage);
+  if (aiConfigured && !isTestMode()) {
+    try {
+      // Use real AI
+      discussion = await generateRealCouncilDiscussion(userMessage);
+      plan = await generateRealIterationPlan(userMessage, discussion);
+    } catch (error) {
+      // FAIL LOUDLY: Return error instead of silently falling back
+      if (error instanceof AINotConfiguredError || error instanceof AIAPIError) {
+        errorMessage = error.message;
+      } else {
+        errorMessage = `AI error: ${(error as Error).message}`;
+      }
+      // Still generate mock response but include error
+      discussion = generateMockCouncilDiscussion(userMessage);
+      plan = generateMockIterationPlan(userMessage);
+    }
+  } else {
+    // Test mode or demo mode - use mock
+    discussion = generateMockCouncilDiscussion(userMessage);
+    plan = generateMockIterationPlan(userMessage);
+  }
 
   const messages: CouncilMessage[] = [];
 
@@ -264,16 +272,12 @@ export async function startCouncilDiscussion(
     messages.push({ id, threadId, role: msg.role, content: msg.content, createdAt });
   }
 
-  // Generate plan
-  const plan = useRealAI
-    ? await generateRealIterationPlan(userMessage, discussion, userId)
-    : generateMockIterationPlan(userMessage);
-
   await db.update(councilThreads).set({ status: "completed" }).where(eq(councilThreads.id, threadId));
 
   return {
     thread: { id: threadId, projectId, iterationNumber, status: "completed", messages },
     plan,
+    error: errorMessage,
   };
 }
 
