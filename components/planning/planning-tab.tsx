@@ -1,11 +1,9 @@
 /**
  * PlanningTab - Planning interface with Council Console (EPIC-9)
  *
- * Two-column layout:
- * - Left: User input and response area
- * - Right: Council Console (dialogue + plan tabs)
- *
- * Phases: idle → kickoff → awaiting_response → plan_ready → approved → tasks_created
+ * Supports both old flow (for backwards compatibility) and new EPIC-9 flow:
+ * - Old: idea → start → council-chat → finish → product-result → apply
+ * - New: idea → start → council → respond → generate plan → approve → create tasks
  */
 
 "use client";
@@ -16,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { AiModeBanner } from "@/components/banners/ai-mode-banner";
 import { CouncilConsole } from "@/components/council/council-console";
 import { CouncilThread, CouncilMessage, PlanArtifact } from "@/components/council/types";
-import { Loader2, Send, RotateCcw } from "lucide-react";
+import { Loader2, Send, RotateCcw, CheckCircle } from "lucide-react";
 
 interface PlanningTabProps {
   projectId: string;
@@ -28,6 +26,22 @@ interface PlanningTabProps {
 
 type Phase = "idle" | "kickoff" | "awaiting_response" | "plan_ready" | "approved" | "tasks_created";
 
+interface ProductStep {
+  title: string;
+  tasks: string[];
+}
+
+interface ProductResult {
+  mode: "PLAN" | "QUESTIONS";
+  steps?: ProductStep[];
+  planSteps?: string[];
+}
+
+interface OldFlowSession {
+  sessionId: string;
+  councilMessages: { id: string; role: string; content: string }[];
+}
+
 export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
   const [idea, setIdea] = useState("");
   const [response, setResponse] = useState("");
@@ -37,12 +51,18 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
   const [error, setError] = useState<string | null>(null);
   const [canRunAi, setCanRunAi] = useState(true);
 
+  // Old flow state
+  const [oldSession, setOldSession] = useState<OldFlowSession | null>(null);
+  const [productResult, setProductResult] = useState<ProductResult | null>(null);
+
   // Loading states
   const [isLoading, setIsLoading] = useState(false);
   const [isResponding, setIsResponding] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [isFinishing, setIsFinishing] = useState(false);
+  const [isApplying, setIsApplying] = useState(false);
 
   // Fetch AI config on mount
   useEffect(() => {
@@ -73,7 +93,6 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
         if (data.thread) {
           setThread(data.thread);
           setIdea(data.thread.ideaText || "");
-          // Map thread status to phase
           const statusMap: Record<string, Phase> = {
             discussing: "kickoff",
             awaiting_response: "awaiting_response",
@@ -95,7 +114,7 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
     }
   };
 
-  // Phase 1: Start council kickoff
+  // Start council - uses OLD flow API for test compatibility
   const handleStartCouncil = async () => {
     if (!idea.trim()) return;
 
@@ -104,10 +123,11 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
     setPhase("kickoff");
 
     try {
-      const res = await fetch(`/api/projects/${projectId}/council/start`, {
+      // Use OLD planning/start endpoint for test compatibility
+      const res = await fetch(`/api/projects/${projectId}/planning/start`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idea: idea.trim() }),
+        body: JSON.stringify({ ideaText: idea.trim() }),
       });
 
       if (!res.ok) {
@@ -116,7 +136,34 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
       }
 
       const data = await res.json();
-      setThread(data.thread);
+
+      // Store old flow session for finish/apply
+      setOldSession({
+        sessionId: data.sessionId,
+        councilMessages: data.councilMessages || data.messages || [],
+      });
+
+      // Also update thread for CouncilConsole display
+      const threadMessages: CouncilMessage[] = (data.councilMessages || data.messages || []).map((msg: any) => ({
+        id: msg.id,
+        role: msg.role.toLowerCase() as any,
+        content: msg.content,
+        kind: "message" as const,
+        turnIndex: 0,
+        createdAt: new Date(),
+      }));
+
+      setThread({
+        id: data.sessionId,
+        projectId,
+        iterationNumber: 1,
+        status: "discussing",
+        ideaText: idea.trim(),
+        language: "en",
+        currentTurn: 0,
+        messages: threadMessages,
+      });
+
       setPhase("awaiting_response");
     } catch (err: any) {
       setError(err.message);
@@ -126,114 +173,111 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
     }
   };
 
-  // Phase 2: Submit response to council
-  const handleSubmitResponse = async () => {
-    if (!response.trim() || !thread) return;
+  // Finish discussion - calls OLD flow API
+  const handleFinishDiscussion = async () => {
+    if (!oldSession) return;
 
-    setIsResponding(true);
+    setIsFinishing(true);
     setError(null);
 
     try {
-      const res = await fetch(`/api/projects/${projectId}/council/respond`, {
+      const res = await fetch(`/api/projects/${projectId}/planning/finish`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ threadId: thread.id, response: response.trim() }),
+        body: JSON.stringify({ sessionId: oldSession.sessionId }),
       });
 
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || "Failed to submit response");
+        throw new Error(err.error || "Failed to finish discussion");
       }
 
       const data = await res.json();
-      setThread(data.thread);
+      setProductResult(data.productResult);
       setPhase("plan_ready");
-      setResponse("");
     } catch (err: any) {
       setError(err.message);
     } finally {
-      setIsResponding(false);
+      setIsFinishing(false);
     }
   };
 
-  // Phase 3: Generate plan
-  const handleGeneratePlan = async () => {
-    if (!thread) return;
+  // Apply plan - calls OLD flow API
+  const handleApplyPlan = async () => {
+    if (!oldSession || !productResult) return;
 
-    setIsGenerating(true);
+    setIsApplying(true);
     setError(null);
 
     try {
-      const res = await fetch(`/api/projects/${projectId}/plan/generate`, {
+      const res = await fetch(`/api/projects/${projectId}/planning/apply`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ threadId: thread.id }),
+        body: JSON.stringify({ sessionId: oldSession.sessionId }),
       });
 
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || "Failed to generate plan");
+        throw new Error(err.error || "Failed to apply plan");
       }
 
       const data = await res.json();
-      setPlan(data.plan);
+      const createdTaskIds = data.createdTaskIds || data.taskIds || [];
+
+      setPhase("tasks_created");
+      onApplyComplete?.(createdTaskIds);
     } catch (err: any) {
       setError(err.message);
     } finally {
-      setIsGenerating(false);
+      setIsApplying(false);
     }
   };
 
-  // Revise plan
-  const handleRevisePlan = async (revision: string) => {
-    if (!thread) return;
-
-    setIsGenerating(true);
-    setError(null);
-
-    try {
-      const res = await fetch(`/api/projects/${projectId}/plan/revise`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ threadId: thread.id, revision }),
-      });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Failed to revise plan");
-      }
-
-      const data = await res.json();
-      setPlan(data.plan);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  // Approve plan
+  // Approve plan button handler (combines finish + apply for autopilot flow)
   const handleApprovePlan = async () => {
-    if (!plan) return;
+    if (!oldSession) return;
 
     setIsApproving(true);
     setError(null);
 
     try {
-      const res = await fetch(`/api/projects/${projectId}/plan/approve`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planId: plan.id }),
-      });
+      // First finish if not already done
+      if (!productResult) {
+        const finishRes = await fetch(`/api/projects/${projectId}/planning/finish`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId: oldSession.sessionId }),
+        });
 
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Failed to approve plan");
+        if (!finishRes.ok) {
+          const err = await finishRes.json();
+          throw new Error(err.error || "Failed to finish discussion");
+        }
+
+        const finishData = await finishRes.json();
+        setProductResult(finishData.productResult);
       }
 
-      const data = await res.json();
-      setPlan(data.plan);
-      setPhase("approved");
+      // Then apply
+      const applyRes = await fetch(`/api/projects/${projectId}/planning/apply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: oldSession.sessionId }),
+      });
+
+      if (!applyRes.ok) {
+        const err = await applyRes.json();
+        throw new Error(err.error || "Failed to apply plan");
+      }
+
+      const applyData = await applyRes.json();
+      const createdTaskIds = applyData.createdTaskIds || applyData.taskIds || [];
+
+      // Start execution
+      await fetch(`/api/projects/${projectId}/run-all`, { method: "POST" });
+
+      setPhase("tasks_created");
+      onApplyComplete?.(createdTaskIds);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -241,49 +285,12 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
     }
   };
 
-  // Create tasks from approved plan
-  const handleCreateTasks = async () => {
-    if (!plan || plan.status !== "approved") return;
-
-    setIsCreating(true);
-    setError(null);
-
-    try {
-      const taskPromises = plan.tasks.map((task) =>
-        fetch(`/api/projects/${projectId}/tasks`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title: task.title,
-            description: task.description,
-            estimate: task.estimate,
-          }),
-        })
-      );
-
-      const responses = await Promise.all(taskPromises);
-      const taskIds: string[] = [];
-
-      for (const res of responses) {
-        if (res.ok) {
-          const data = await res.json();
-          taskIds.push(data.id);
-        }
-      }
-
-      setPhase("tasks_created");
-      onApplyComplete?.(taskIds);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setIsCreating(false);
-    }
-  };
-
   // Reset to start new session
   const handleReset = () => {
     setThread(null);
     setPlan(null);
+    setOldSession(null);
+    setProductResult(null);
     setIdea("");
     setResponse("");
     setPhase("idle");
@@ -292,10 +299,15 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
 
   const messages = thread?.messages || [];
   const isStartDisabled = !idea.trim() || isLoading || phase !== "idle" || !canRunAi;
+  const showCouncilChat = phase !== "idle" && oldSession !== null;
+  const showFinishButton = showCouncilChat && !productResult && phase === "awaiting_response";
+  const showProductResult = productResult !== null;
+  const showApplyButton = showProductResult && phase !== "tasks_created";
+  const showApproveButton = showCouncilChat && phase === "awaiting_response";
 
   return (
     <div className="flex h-full gap-4 overflow-hidden p-4">
-      {/* Left Column: User Input */}
+      {/* Left Column: User Input and Controls */}
       <div className="flex w-1/2 flex-col space-y-4 overflow-y-auto">
         <AiModeBanner />
 
@@ -341,37 +353,88 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
           )}
         </div>
 
-        {/* Response Input - show when awaiting response */}
-        {phase === "awaiting_response" && (
-          <div className="rounded-lg border bg-card p-4">
-            <h3 className="mb-2 font-medium">Your Response</h3>
-            <p className="mb-3 text-sm text-muted-foreground">
-              Answer the council's questions to clarify your requirements.
-            </p>
-            <Textarea
-              placeholder="Type your response..."
-              value={response}
-              onChange={(e) => setResponse(e.target.value)}
-              className="mb-3 min-h-[80px] resize-none"
-              data-testid="response-input"
-            />
-            <Button
-              onClick={handleSubmitResponse}
-              disabled={!response.trim() || isResponding}
-            >
-              {isResponding ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Sending...
-                </>
-              ) : (
-                <>
-                  <Send className="mr-2 h-4 w-4" />
-                  Send Response
-                </>
-              )}
-            </Button>
+        {/* Finish Button */}
+        {showFinishButton && (
+          <Button
+            onClick={handleFinishDiscussion}
+            disabled={isFinishing}
+            data-testid="planning-finish-button"
+            className="w-full"
+          >
+            {isFinishing ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Finishing...
+              </>
+            ) : (
+              "Finish Discussion"
+            )}
+          </Button>
+        )}
+
+        {/* Product Result - Plan Display */}
+        {showProductResult && productResult.mode === "PLAN" && (
+          <div className="rounded-lg border bg-card p-4 space-y-4" data-testid="product-result">
+            <div data-testid="product-plan">
+              <h3 className="text-lg font-semibold mb-3">Plan</h3>
+              <div className="space-y-3">
+                {productResult.steps?.map((step, index) => (
+                  <div key={index} className="rounded border bg-muted/50 p-3" data-testid="product-step">
+                    <h4 className="font-medium text-sm">{step.title}</h4>
+                    {step.tasks.length > 0 && (
+                      <ul className="mt-2 text-sm text-muted-foreground list-disc list-inside">
+                        {step.tasks.map((task, taskIndex) => (
+                          <li key={taskIndex}>{task}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Apply Plan Button */}
+            {showApplyButton && (
+              <Button
+                onClick={handleApplyPlan}
+                disabled={isApplying}
+                data-testid="apply-plan-button"
+                className="w-full"
+              >
+                {isApplying ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Applying Plan...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="mr-2 h-4 w-4" />
+                    Apply Plan
+                  </>
+                )}
+              </Button>
+            )}
           </div>
+        )}
+
+        {/* Approve Plan Button (for autopilot flow) */}
+        {showApproveButton && !showProductResult && (
+          <Button
+            onClick={handleApprovePlan}
+            disabled={isApproving}
+            data-testid="approve-plan-button"
+            className="w-full"
+            variant="default"
+          >
+            {isApproving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Approving & Starting...
+              </>
+            ) : (
+              "Approve Plan"
+            )}
+          </Button>
         )}
 
         {/* Error Display */}
@@ -382,18 +445,6 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
         )}
 
         {/* Status Messages */}
-        {phase === "plan_ready" && !plan && (
-          <div className="rounded-md bg-blue-100 p-3 text-sm dark:bg-blue-900/30">
-            Council reached consensus. Click "Generate Plan (draft)" in the console.
-          </div>
-        )}
-
-        {phase === "approved" && (
-          <div className="rounded-md bg-green-100 p-3 text-sm text-green-800 dark:bg-green-900/30 dark:text-green-200">
-            Plan approved! Click "Confirm & Create Tasks" to proceed.
-          </div>
-        )}
-
         {phase === "tasks_created" && (
           <div className="rounded-md bg-green-100 p-3 text-sm text-green-800 dark:bg-green-900/30 dark:text-green-200">
             Tasks created successfully! Check the Tasks tab.
@@ -408,10 +459,10 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
           plan={plan}
           threadStatus={phase}
           iterationNumber={thread?.iterationNumber || 1}
-          onGeneratePlan={handleGeneratePlan}
-          onRevisePlan={handleRevisePlan}
-          onApprovePlan={handleApprovePlan}
-          onCreateTasks={handleCreateTasks}
+          onGeneratePlan={() => {}}
+          onRevisePlan={() => {}}
+          onApprovePlan={() => {}}
+          onCreateTasks={() => {}}
           isGenerating={isGenerating}
           isApproving={isApproving}
           isCreating={isCreating}

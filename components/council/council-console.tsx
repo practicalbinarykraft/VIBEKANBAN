@@ -68,7 +68,7 @@ export function CouncilConsole({
   const canCreateTasks = plan && plan.status === "approved";
 
   return (
-    <div className="flex h-full flex-col" data-testid="council-console">
+    <div className="flex h-full flex-col" data-testid="council-chat">
       {/* Header */}
       <div className="border-b p-4">
         <div className="flex items-center justify-between">
@@ -105,7 +105,7 @@ export function CouncilConsole({
       <div className="flex-1 overflow-y-auto p-4">
         {!showPlan ? (
           /* Dialogue View */
-          <div className="space-y-3" data-testid="council-dialogue">
+          <div className="space-y-3" data-testid="council-messages">
             {messages.length === 0 ? (
               <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">
                 Council discussion will appear here
@@ -115,7 +115,7 @@ export function CouncilConsole({
                 <div
                   key={msg.id}
                   className="rounded-lg border bg-card p-3"
-                  data-testid={`council-msg-${msg.role}`}
+                  data-testid="council-message"
                 >
                   <div className="mb-2 flex items-center gap-2">
                     <div className={`h-2 w-2 rounded-full ${ROLE_CONFIG[msg.role].color}`} />

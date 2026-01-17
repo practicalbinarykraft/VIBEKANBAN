@@ -1,6 +1,15 @@
 import { defineConfig, devices } from '@playwright/test';
 
-// In CI, use production build (more stable); locally use dev server (faster iteration)
+/**
+ * Playwright configuration
+ *
+ * Supports two modes:
+ * 1. External runner (e2e:ci): PLAYWRIGHT_BASE_URL is set, no webServer needed
+ * 2. Legacy mode: webServer auto-starts on port 8000
+ */
+
+const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:8000';
+const useExternalServer = !!process.env.PLAYWRIGHT_BASE_URL;
 const isCI = !!process.env.CI;
 
 export default defineConfig({
@@ -8,10 +17,10 @@ export default defineConfig({
   fullyParallel: false,
   forbidOnly: isCI,
   retries: isCI ? 2 : 0,
-  workers: 1,
+  workers: useExternalServer ? 2 : 1,
   reporter: 'html',
   use: {
-    baseURL: 'http://localhost:8000',
+    baseURL,
     trace: 'on-first-retry',
   },
   projects: [
@@ -20,12 +29,17 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
-  webServer: {
-    command: isCI
-      ? 'PLAYWRIGHT=1 npm start'        // Production server (stable for 77+ tests)
-      : 'PLAYWRIGHT=1 npm run dev',     // Dev server (fast HMR for local dev)
-    url: 'http://localhost:8000',
-    reuseExistingServer: !isCI,
-    timeout: 120000,
-  },
+  // Only start webServer if not using external runner
+  ...(useExternalServer
+    ? {}
+    : {
+        webServer: {
+          command: isCI
+            ? 'PLAYWRIGHT=1 npm start'
+            : 'PLAYWRIGHT=1 npm run dev',
+          url: 'http://localhost:8000',
+          reuseExistingServer: !isCI,
+          timeout: 120000,
+        },
+      }),
 });

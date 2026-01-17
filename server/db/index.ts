@@ -285,6 +285,47 @@ export function initDB() {
     }
   }
 
+  // EPIC-9: Add council threads columns for dialogue tracking
+  try {
+    _sqlite!.exec(`
+      ALTER TABLE council_threads ADD COLUMN idea_text TEXT;
+      ALTER TABLE council_threads ADD COLUMN language TEXT NOT NULL DEFAULT 'en';
+      ALTER TABLE council_threads ADD COLUMN current_turn INTEGER NOT NULL DEFAULT 0;
+    `);
+  } catch (error: any) {
+    if (!error.message.includes('duplicate column name')) {
+      console.warn("Warning during migration:", error.message);
+    }
+  }
+
+  // EPIC-9: Add council thread messages columns for message types
+  try {
+    _sqlite!.exec(`
+      ALTER TABLE council_thread_messages ADD COLUMN kind TEXT NOT NULL DEFAULT 'message';
+      ALTER TABLE council_thread_messages ADD COLUMN turn_index INTEGER NOT NULL DEFAULT 0;
+    `);
+  } catch (error: any) {
+    if (!error.message.includes('duplicate column name')) {
+      console.warn("Warning during migration:", error.message);
+    }
+  }
+
+  // EPIC-9: Create plan_artifacts table
+  _sqlite!.exec(`
+    CREATE TABLE IF NOT EXISTS plan_artifacts (
+      id TEXT PRIMARY KEY,
+      thread_id TEXT NOT NULL REFERENCES council_threads(id),
+      version INTEGER NOT NULL DEFAULT 1,
+      status TEXT NOT NULL DEFAULT 'draft',
+      summary TEXT NOT NULL,
+      scope TEXT NOT NULL,
+      tasks TEXT NOT NULL,
+      task_count INTEGER NOT NULL DEFAULT 0,
+      estimate TEXT NOT NULL DEFAULT 'M',
+      created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+    );
+  `);
+
   // Insert default settings row if not exists
   try {
     _sqlite!.exec(`

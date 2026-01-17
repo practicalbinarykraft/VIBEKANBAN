@@ -31,7 +31,7 @@ jobs:
       - name: Unit tests
         run: npm run test:unit
 
-      - name: Build
+      - name: Build (for LOC check)
         run: npm run build
         env:
           PLAYWRIGHT: '1'
@@ -42,14 +42,11 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      - name: Clean DB before E2E (unit tests pollute it)
-        run: rm -rf data/
-
-      - name: E2E tests
-        run: npx playwright test --trace on-first-retry --reporter html --workers=1
+      - name: E2E tests (stable runner)
+        run: npm run e2e:ci
         env:
           PLAYWRIGHT: '1'
-          DEBUG: 'pw:webserver,pw:api'
+          CI: 'true'
 
       - name: Upload test results
         if: always()
