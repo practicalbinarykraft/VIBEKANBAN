@@ -358,6 +358,7 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
             <Button
               onClick={handleSubmitResponse}
               disabled={!response.trim() || isResponding}
+              data-testid="submit-response-btn"
             >
               {isResponding ? (
                 <>

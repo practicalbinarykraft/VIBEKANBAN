@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/server/db";
-import { projects, tasks } from "@/server/db/schema";
+import { projects, tasks, councilThreads, councilThreadMessages, planArtifacts, planningSessions } from "@/server/db/schema";
 import { eq, and } from "drizzle-orm";
 
 /**
@@ -9,6 +9,8 @@ import { eq, and } from "drizzle-orm";
  * Test fixture: Reset project to clean state for tests
  * - Sets executionStatus to idle
  * - Moves all todo tasks to 'done' so they don't interfere with test tasks
+ * - Clears council threads and plan artifacts (EPIC-9)
+ * - Clears planning sessions
  */
 export async function POST(request: NextRequest) {
   try {
@@ -44,6 +46,20 @@ export async function POST(request: NextRequest) {
       .update(tasks)
       .set({ status: "done" })
       .where(and(eq(tasks.projectId, projectId), eq(tasks.status, "in_review")));
+
+    // Clear council threads for this project (EPIC-9)
+    const threads = await db.select().from(councilThreads).where(eq(councilThreads.projectId, projectId));
+    for (const thread of threads) {
+      // Delete plan artifacts for this thread
+      await db.delete(planArtifacts).where(eq(planArtifacts.threadId, thread.id));
+      // Delete thread messages
+      await db.delete(councilThreadMessages).where(eq(councilThreadMessages.threadId, thread.id));
+    }
+    // Delete threads
+    await db.delete(councilThreads).where(eq(councilThreads.projectId, projectId));
+
+    // Clear planning sessions for this project
+    await db.delete(planningSessions).where(eq(planningSessions.projectId, projectId));
 
     return NextResponse.json({ success: true, projectId });
   } catch (error: any) {

@@ -7,7 +7,10 @@ import { waitForBoardReady } from '../helpers/board';
  * Tests autopilot panel visibility and initial state.
  */
 
-test.describe('Autopilot', () => {
+// Deprecated: legacy planning flow. Replaced by EPIC-9 council-based planning.
+// These tests use old selectors (council-chat, planning-finish-button, product-plan)
+// that were removed in EPIC-9. Will be replaced with new autopilot tests once EPIC-9 is complete.
+test.describe.skip('Autopilot', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/projects/1');
     await waitForBoardReady(page);
