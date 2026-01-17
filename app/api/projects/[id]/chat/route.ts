@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { handleUserMessage, getChatHistory } from "@/server/services/chat/chat-handler";
+import {
+  handleUserMessage,
+  getChatHistory,
+  saveProposalMessage,
+  formatProposalMessage,
+} from "@/server/services/chat/chat-handler";
 import { startCouncilDiscussion } from "@/server/services/chat/council-orchestrator";
 
 /**
@@ -49,13 +54,21 @@ export async function POST(
     const { userMsg, productMsg } = await handleUserMessage(projectId, message);
 
     // Start council discussion
-    const { thread, plan } = await startCouncilDiscussion(projectId, message);
+    const { thread, plan, error: councilError } = await startCouncilDiscussion(projectId, message);
+
+    // Save proposal message to chat with plan details
+    const proposalMsg = await saveProposalMessage(projectId, plan);
+    const { data: proposalData } = formatProposalMessage(plan);
 
     return NextResponse.json({
       userMessage: userMsg,
       productMessage: productMsg,
+      proposalMessage: proposalMsg,
+      proposal: proposalData,
       councilThread: thread,
       iterationPlan: plan,
+      // Include error if AI failed (fail loudly)
+      ...(councilError && { error: councilError }),
     });
   } catch (error: any) {
     console.error("Error handling chat message:", error);
