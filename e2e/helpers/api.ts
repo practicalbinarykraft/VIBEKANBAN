@@ -1,6 +1,5 @@
 import { APIRequestContext } from '@playwright/test';
-
-const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000';
+import { BASE_URL } from './base-url';
 
 interface Task {
   id: string;

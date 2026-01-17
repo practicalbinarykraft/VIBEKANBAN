@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import { createTask, createFixtureAttempt, deleteTask } from '../helpers/api';
 import { cleanupRunningAttempts, navigateToTask, refetchAttempts, waitForAttemptStatus, waitForAttemptsHistory } from '../helpers/queue';
 import { setupExecutionReady } from '../helpers/board';
+import { apiUrl } from '../helpers/base-url';
 
 test.describe('Task Details Panel - Queue & Concurrency', () => {
   test.beforeEach(async ({ page, request }) => {
@@ -56,7 +57,7 @@ test.describe('Task Details Panel - Queue & Concurrency', () => {
       await navigateToTask(page, '1', task.id, queuedAttemptId);
       await refetchAttempts(page);
       await waitForAttemptStatus(page, 'queued');
-      await request.post(`http://localhost:8000/api/test/fixtures/attempt/${runningAttemptId}/finish`);
+      await request.post(apiUrl(`/api/test/fixtures/attempt/${runningAttemptId}/finish`));
       await refetchAttempts(page);
       await waitForAttemptStatus(page, 'running');
     } finally {

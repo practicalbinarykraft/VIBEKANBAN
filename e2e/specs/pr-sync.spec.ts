@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { createTask, createFixtureAttempt, deleteTask } from '../helpers/api';
 import { openTaskPanel } from '../helpers/panel';
+import { apiUrl } from '../helpers/base-url';
 
 test.describe('Task Details Panel - PR Status Sync', () => {
   test.beforeEach(async ({ page }) => {
@@ -54,7 +55,7 @@ test.describe('Task Details Panel - PR Status Sync', () => {
       await syncPromise;
 
       // Call sync endpoint in test mode to update status to merged
-      await request.post(`http://localhost:8000/api/attempts/${attemptId}/sync-pr`, {
+      await request.post(apiUrl(`/api/attempts/${attemptId}/sync-pr`), {
         data: { status: 'merged' },
       });
 

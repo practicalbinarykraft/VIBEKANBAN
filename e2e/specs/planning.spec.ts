@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { apiUrl } from '../helpers/base-url';
 
 test.describe('Planning → AI Council → Project Bootstrap', () => {
   test.beforeEach(async ({ page }) => {
@@ -132,7 +133,7 @@ test.describe('Planning → AI Council → Project Bootstrap', () => {
 
     // Cleanup: delete project
     if (projectId) {
-      await request.delete(`http://localhost:8000/api/projects/${projectId}`);
+      await request.delete(apiUrl(`/api/projects/${projectId}`));
     }
   });
 

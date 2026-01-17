@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { createTask, createFixtureAttempt, deleteTask } from '../helpers/api';
+import { apiUrl } from '../helpers/base-url';
 
 test.describe('Permissions & Ownership', () => {
   test.beforeEach(async ({ page }) => {
@@ -12,18 +13,18 @@ test.describe('Permissions & Ownership', () => {
 
     try {
       // Set non-owner user context
-      await request.post('http://localhost:8000/api/test/set-user', {
+      await request.post(apiUrl('/api/test/set-user'), {
         data: { userId: 'user-non-owner' },
       });
 
       // Try to run task as non-owner
-      const response = await request.post(`http://localhost:8000/api/tasks/${task.id}/run`);
+      const response = await request.post(apiUrl(`/api/tasks/${task.id}/run`));
       expect(response.status()).toBe(403);
       const body = await response.json();
       expect(body.error).toContain('permission');
     } finally {
       // Reset to owner
-      await request.post('http://localhost:8000/api/test/set-user', {
+      await request.post(apiUrl('/api/test/set-user'), {
         data: { userId: 'user-owner' },
       });
       await deleteTask(request, task.id);
@@ -38,17 +39,17 @@ test.describe('Permissions & Ownership', () => {
 
     try {
       // Set non-owner user context
-      await request.post('http://localhost:8000/api/test/set-user', {
+      await request.post(apiUrl('/api/test/set-user'), {
         data: { userId: 'user-non-owner' },
       });
 
       // Try to apply as non-owner
-      const response = await request.post(`http://localhost:8000/api/attempts/${attemptId}/apply`);
+      const response = await request.post(apiUrl(`/api/attempts/${attemptId}/apply`));
       expect(response.status()).toBe(403);
       const body = await response.json();
       expect(body.error).toContain('permission');
     } finally {
-      await request.post('http://localhost:8000/api/test/set-user', {
+      await request.post(apiUrl('/api/test/set-user'), {
         data: { userId: 'user-owner' },
       });
       await deleteTask(request, task.id);
@@ -63,17 +64,17 @@ test.describe('Permissions & Ownership', () => {
 
     try {
       // Set non-owner user context
-      await request.post('http://localhost:8000/api/test/set-user', {
+      await request.post(apiUrl('/api/test/set-user'), {
         data: { userId: 'user-non-owner' },
       });
 
       // Try to create PR as non-owner
-      const response = await request.post(`http://localhost:8000/api/attempts/${attemptId}/create-pr`);
+      const response = await request.post(apiUrl(`/api/attempts/${attemptId}/create-pr`));
       expect(response.status()).toBe(403);
       const body = await response.json();
       expect(body.error).toContain('permission');
     } finally {
-      await request.post('http://localhost:8000/api/test/set-user', {
+      await request.post(apiUrl('/api/test/set-user'), {
         data: { userId: 'user-owner' },
       });
       await deleteTask(request, task.id);
@@ -85,16 +86,16 @@ test.describe('Permissions & Ownership', () => {
 
     try {
       // Ensure we're owner
-      await request.post('http://localhost:8000/api/test/set-user', {
+      await request.post(apiUrl('/api/test/set-user'), {
         data: { userId: 'user-owner' },
       });
 
       // Owner can run task
-      const runResponse = await request.post(`http://localhost:8000/api/tasks/${task.id}/run`);
+      const runResponse = await request.post(apiUrl(`/api/tasks/${task.id}/run`));
       expect(runResponse.status()).toBe(200);
 
       // Get the attempt ID
-      const attemptsResponse = await request.get(`http://localhost:8000/api/tasks/${task.id}/attempts`);
+      const attemptsResponse = await request.get(apiUrl(`/api/tasks/${task.id}/attempts`));
       const attempts = await attemptsResponse.json();
       expect(attempts.length).toBeGreaterThan(0);
       const attemptId = attempts[0].id;
@@ -108,11 +109,11 @@ test.describe('Permissions & Ownership', () => {
       });
 
       // Owner can apply
-      const applyResponse = await request.post(`http://localhost:8000/api/attempts/${completedAttemptId}/apply`);
+      const applyResponse = await request.post(apiUrl(`/api/attempts/${completedAttemptId}/apply`));
       expect([200, 400, 500]).toContain(applyResponse.status()); // 400 if repo not found on CI
 
       // Owner can create PR
-      const prResponse = await request.post(`http://localhost:8000/api/attempts/${completedAttemptId}/create-pr`);
+      const prResponse = await request.post(apiUrl(`/api/attempts/${completedAttemptId}/create-pr`));
       expect([200, 400, 500]).toContain(prResponse.status()); // 400 if repo not found on CI
     } finally {
       await deleteTask(request, task.id);

@@ -1,4 +1,5 @@
 import { APIRequestContext } from '@playwright/test';
+import { apiUrl } from './base-url';
 
 /**
  * Send GitHub webhook for PR status change
@@ -34,7 +35,7 @@ export async function sendPRWebhook(
     headers['X-GitHub-Delivery'] = deliveryId;
   }
 
-  return request.post('http://localhost:8000/api/webhooks/github', {
+  return request.post(apiUrl('/api/webhooks/github'), {
     data: {
       action,
       pull_request: {

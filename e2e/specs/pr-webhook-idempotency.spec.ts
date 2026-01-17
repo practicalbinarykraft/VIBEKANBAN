@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import { createTask, createFixtureAttempt, deleteTask, clearProcessedWebhooks } from '../helpers/api';
 import { openTaskPanel } from '../helpers/panel';
 import { sendPRWebhook } from '../helpers/github-webhook';
+import { apiUrl } from '../helpers/base-url';
 
 test.describe('GitHub Webhooks - Idempotency & Replay Protection', () => {
   test.beforeEach(async ({ page, request }) => {
@@ -89,7 +90,7 @@ test.describe('GitHub Webhooks - Idempotency & Replay Protection', () => {
       await expect(statusBadge).toContainText('Merged');
 
       // Verify DB was not updated twice
-      const dbResponse = await request.get(`http://localhost:8000/api/attempts/${attemptId}`);
+      const dbResponse = await request.get(apiUrl(`/api/attempts/${attemptId}`));
       const dbAttempt = await dbResponse.json();
       expect(dbAttempt.prStatus).toBe('merged');
     } finally {
@@ -145,7 +146,7 @@ test.describe('GitHub Webhooks - Idempotency & Replay Protection', () => {
       expect(body1.success).toBe(true);
 
       // Verify DB was updated
-      const dbResponse1 = await request.get(`http://localhost:8000/api/attempts/${attemptId}`);
+      const dbResponse1 = await request.get(apiUrl(`/api/attempts/${attemptId}`));
       const dbAttempt1 = await dbResponse1.json();
       expect(dbAttempt1.prStatus).toBe('merged');
 
@@ -161,7 +162,7 @@ test.describe('GitHub Webhooks - Idempotency & Replay Protection', () => {
       expect(body2.duplicate).toBe(true); // Should be marked as duplicate
 
       // Verify DB was NOT updated
-      const dbResponse2 = await request.get(`http://localhost:8000/api/attempts/${attemptId}`);
+      const dbResponse2 = await request.get(apiUrl(`/api/attempts/${attemptId}`));
       const dbAttempt2 = await dbResponse2.json();
       expect(dbAttempt2.prStatus).toBe('merged'); // Still merged, not closed
     } finally {

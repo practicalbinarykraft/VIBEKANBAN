@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import { createTask, createFixtureAttempt, deleteTask } from '../helpers/api';
 import { openTaskPanel } from '../helpers/panel';
 import { sendPRWebhook } from '../helpers/github-webhook';
+import { apiUrl } from '../helpers/base-url';
 
 test.describe('GitHub Webhooks - PR Status Updates', () => {
   test.beforeEach(async ({ page }) => {
@@ -68,7 +69,7 @@ test.describe('GitHub Webhooks - PR Status Updates', () => {
     // To test real validation, we'd need to temporarily unset PLAYWRIGHT
     // For now, we verify the endpoint exists and handles requests
 
-    const response = await request.post('http://localhost:8000/api/webhooks/github', {
+    const response = await request.post(apiUrl('/api/webhooks/github'), {
       data: {
         action: 'closed',
         pull_request: {

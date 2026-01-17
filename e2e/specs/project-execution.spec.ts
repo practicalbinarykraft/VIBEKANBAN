@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { createTask, clearProcessedWebhooks, resetProjectStatus, safeCleanup } from '../helpers/api';
 import { waitForBoardReady, waitForTaskInColumn } from '../helpers/board';
+import { apiUrl } from '../helpers/base-url';
 
 // Increase timeout for execution tests (agent startup can take time)
 test.setTimeout(60000);
@@ -84,13 +85,13 @@ test.describe('Project Execution Orchestrator', () => {
       await waitForTaskInColumn(page, task1.id, 'in_progress');
 
       // Get the attempt ID for task1
-      const task1Attempts = await request.get(`http://localhost:8000/api/tasks/${task1.id}/attempts`);
+      const task1Attempts = await request.get(apiUrl(`/api/tasks/${task1.id}/attempts`));
       const attempts1 = await task1Attempts.json();
       expect(attempts1.length).toBeGreaterThan(0);
       const attempt1Id = attempts1[0].id;
 
       // Complete first attempt via fixture finish endpoint
-      await request.post(`http://localhost:8000/api/test/fixtures/attempt/${attempt1Id}/finish`, {
+      await request.post(apiUrl(`/api/test/fixtures/attempt/${attempt1Id}/finish`), {
         data: { success: true },
       });
 
@@ -146,10 +147,10 @@ test.describe('Project Execution Orchestrator', () => {
       await expect(executionStatus).toContainText(/paused/i);
 
       // Complete first attempt
-      const task1Attempts = await request.get(`http://localhost:8000/api/tasks/${task1.id}/attempts`);
+      const task1Attempts = await request.get(apiUrl(`/api/tasks/${task1.id}/attempts`));
       const attempts1 = await task1Attempts.json();
       const attempt1Id = attempts1[0].id;
-      await request.post(`http://localhost:8000/api/test/fixtures/attempt/${attempt1Id}/finish`, {
+      await request.post(apiUrl(`/api/test/fixtures/attempt/${attempt1Id}/finish`), {
         data: { success: true },
       });
 
@@ -188,10 +189,10 @@ test.describe('Project Execution Orchestrator', () => {
       await pausePromise;
 
       // Complete first attempt while paused
-      const task1Attempts = await request.get(`http://localhost:8000/api/tasks/${task1.id}/attempts`);
+      const task1Attempts = await request.get(apiUrl(`/api/tasks/${task1.id}/attempts`));
       const attempts1 = await task1Attempts.json();
       const attempt1Id = attempts1[0].id;
-      await request.post(`http://localhost:8000/api/test/fixtures/attempt/${attempt1Id}/finish`, {
+      await request.post(apiUrl(`/api/test/fixtures/attempt/${attempt1Id}/finish`), {
         data: { success: true },
       });
 

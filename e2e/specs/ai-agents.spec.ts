@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { createTask, clearProcessedWebhooks, safeCleanup, resetProjectStatus } from '../helpers/api';
+import { apiUrl } from '../helpers/base-url';
 
 test.describe('AI Agents Runtime', () => {
   test.beforeEach(async ({ page, request }) => {
@@ -63,12 +64,12 @@ test.describe('AI Agents Runtime', () => {
       const inProgressColumn = page.locator('[data-testid="column-in_progress"]');
       await expect(inProgressColumn.locator(`[data-testid="task-card-${task.id}"]`)).toBeVisible({ timeout: 5000 });
 
-      const attemptsResponse = await request.get(`http://localhost:8000/api/tasks/${task.id}/attempts`);
+      const attemptsResponse = await request.get(apiUrl(`/api/tasks/${task.id}/attempts`));
       const attempts = await attemptsResponse.json();
       const attemptId = attempts[0]?.id;
       if (attemptId) {
         // Finish attempt and reload to see updated task state
-        await request.post(`http://localhost:8000/api/test/fixtures/attempt/${attemptId}/finish`);
+        await request.post(apiUrl(`/api/test/fixtures/attempt/${attemptId}/finish`));
         await page.reload();
         await page.waitForSelector('[data-testid="kanban-board"]', { timeout: 10000 });
         const inReviewColumn = page.locator('[data-testid="column-in_review"]');
@@ -107,11 +108,11 @@ test.describe('AI Agents Runtime', () => {
       const inProgressColumn = page.locator('[data-testid="column-in_progress"]');
       await expect(inProgressColumn.locator(`[data-testid="task-card-${task1.id}"]`)).toBeVisible({ timeout: 5000 });
 
-      const attempts1Response = await request.get(`http://localhost:8000/api/tasks/${task1.id}/attempts`);
+      const attempts1Response = await request.get(apiUrl(`/api/tasks/${task1.id}/attempts`));
       const attempts1 = await attempts1Response.json();
       const attempt1Id = attempts1[0]?.id;
       if (attempt1Id) {
-        await request.post(`http://localhost:8000/api/test/fixtures/attempt/${attempt1Id}/finish`);
+        await request.post(apiUrl(`/api/test/fixtures/attempt/${attempt1Id}/finish`));
         await page.reload();
         await page.waitForSelector('[data-testid="kanban-board"]', { timeout: 10000 });
         // Wait for task2 to move to in_progress (next task starts)
@@ -147,11 +148,11 @@ test.describe('AI Agents Runtime', () => {
       const inProgressColumn = page.locator('[data-testid="column-in_progress"]');
       await expect(inProgressColumn.locator(`[data-testid="task-card-${task1.id}"]`)).toBeVisible({ timeout: 5000 });
 
-      const attempts1Response = await request.get(`http://localhost:8000/api/tasks/${task1.id}/attempts`);
+      const attempts1Response = await request.get(apiUrl(`/api/tasks/${task1.id}/attempts`));
       const attempts1 = await attempts1Response.json();
       const attempt1 = attempts1[0];
       if (attempt1?.id) {
-        await request.post(`http://localhost:8000/api/test/fixtures/attempt/${attempt1.id}/finish`);
+        await request.post(apiUrl(`/api/test/fixtures/attempt/${attempt1.id}/finish`));
         await page.reload();
         await page.waitForSelector('[data-testid="kanban-board"]', { timeout: 10000 });
         // Wait for task1 to move to in_review
@@ -162,14 +163,14 @@ test.describe('AI Agents Runtime', () => {
       const inProgressColumn2 = page.locator('[data-testid="column-in_progress"]');
       await expect(inProgressColumn2.locator(`[data-testid="task-card-${task2.id}"]`)).toBeVisible({ timeout: 10000 });
 
-      const attempts2Response = await request.get(`http://localhost:8000/api/tasks/${task2.id}/attempts`);
+      const attempts2Response = await request.get(apiUrl(`/api/tasks/${task2.id}/attempts`));
       const attempts2 = await attempts2Response.json();
       const attempt2 = attempts2[0];
       expect(attempt1.agent).toBe(attempt2.agent);
 
       // Finish task2's attempt so it also has a PR
       if (attempt2?.id) {
-        await request.post(`http://localhost:8000/api/test/fixtures/attempt/${attempt2.id}/finish`);
+        await request.post(apiUrl(`/api/test/fixtures/attempt/${attempt2.id}/finish`));
         await page.reload();
         await page.waitForSelector('[data-testid="kanban-board"]', { timeout: 10000 });
       }
