@@ -144,3 +144,12 @@ export async function setupExecutionReady(request: APIRequestContext, projectId:
     throw new Error(`Failed to set execution ready: ${await response.text()}`);
   }
 }
+
+/**
+ * Wait for Planning tab to be ready (all initial fetches complete)
+ * Use after clicking Planning tab to ensure UI is stable before interactions
+ */
+export async function waitForPlanningReady(page: Page, timeout = 10000) {
+  // Wait for planning-ready marker (appears after AI config and council load)
+  await page.waitForSelector('[data-testid="planning-ready"]', { timeout });
+}

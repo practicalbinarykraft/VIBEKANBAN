@@ -8,7 +8,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { AiModeBanner } from "@/components/banners/ai-mode-banner";
@@ -64,25 +64,40 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
   const [isFinishing, setIsFinishing] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
 
+  // Initial mount readiness tracking (prevents re-renders during click)
+  const [aiConfigLoaded, setAiConfigLoaded] = useState(false);
+  const [councilLoaded, setCouncilLoaded] = useState(false);
+  const isReady = aiConfigLoaded && councilLoaded;
+
   // Fetch AI config on mount
   useEffect(() => {
+    let mounted = true;
     const fetchAiConfig = async () => {
       try {
         const res = await fetch("/api/settings/ai-provider");
-        if (res.ok) {
+        if (res.ok && mounted) {
           const data = await res.json();
           setCanRunAi(data.canRunAi);
         }
       } catch (err) {
         console.error("Failed to fetch AI config:", err);
+      } finally {
+        if (mounted) setAiConfigLoaded(true);
       }
     };
     fetchAiConfig();
+    return () => { mounted = false; };
   }, []);
 
   // Load existing council on mount
   useEffect(() => {
-    loadExistingCouncil();
+    let mounted = true;
+    const load = async () => {
+      await loadExistingCouncil();
+      if (mounted) setCouncilLoaded(true);
+    };
+    load();
+    return () => { mounted = false; };
   }, [projectId]);
 
   const loadExistingCouncil = async () => {
@@ -305,8 +320,17 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
   const showApplyButton = showProductResult && phase !== "tasks_created";
   const showApproveButton = showCouncilChat && phase === "awaiting_response";
 
+  // Show loading spinner until both fetches complete
+  if (!isReady) {
+    return (
+      <div className="flex h-full items-center justify-center" data-testid="planning-loading">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   return (
-    <div className="flex h-full gap-4 overflow-hidden p-4">
+    <div className="flex h-full gap-4 overflow-hidden p-4" data-testid="planning-ready">
       {/* Left Column: User Input and Controls */}
       <div className="flex w-1/2 flex-col space-y-4 overflow-y-auto">
         <AiModeBanner />

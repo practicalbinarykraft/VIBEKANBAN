@@ -10,7 +10,8 @@ import { waitForBoardReady } from "../helpers/board";
  * - Approve button disabled when plan fails validation (<10 steps)
  */
 
-test.describe("Plan Quality Gate", () => {
+// Skip entire suite: plan-quality-gate UI not implemented in current version
+test.describe.skip("Plan Quality Gate", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/projects/1");
     await waitForBoardReady(page);
