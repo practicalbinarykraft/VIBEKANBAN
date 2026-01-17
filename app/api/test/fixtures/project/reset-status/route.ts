@@ -85,7 +85,8 @@ export async function POST(request: NextRequest) {
       await db.delete(planningSessions).where(eq(planningSessions.projectId, projectId));
     }
 
-    return NextResponse.json({ success: true, projectId });
+    console.log(`[reset-status] Cleared ${threadIds.length} council threads, ${sessionIds.length} planning sessions for project ${projectId}`);
+    return NextResponse.json({ success: true, projectId, clearedThreads: threadIds.length, clearedSessions: sessionIds.length });
   } catch (error: any) {
     console.error("Error resetting project status:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });

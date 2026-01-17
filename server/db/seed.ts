@@ -15,16 +15,34 @@ export async function seed() {
     return;
   }
 
-  // Insert project
+  // Insert projects (multiple for test isolation)
   const projectId = "1";
-  await db.insert(projects).values({
-    id: projectId,
-    name: "vibe-kanban",
-    gitUrl: "https://github.com/practicalbinarykraft/VIBEKANBAN",
-    repoPath: "/Users/aleksandrmishin/Desktop/vibe-kanban", // Local repo path for PoC
-    defaultBranch: "main",
-    ownerId: "user-owner", // Default owner for permission testing
-  });
+  await db.insert(projects).values([
+    {
+      id: "1",
+      name: "vibe-kanban",
+      gitUrl: "https://github.com/practicalbinarykraft/VIBEKANBAN",
+      repoPath: "/Users/aleksandrmishin/Desktop/vibe-kanban", // Local repo path for PoC
+      defaultBranch: "main",
+      ownerId: "user-owner", // Default owner for permission testing
+    },
+    {
+      id: "2",
+      name: "test-project-2",
+      gitUrl: "https://github.com/test/project-2",
+      repoPath: "/tmp/test-project-2",
+      defaultBranch: "main",
+      ownerId: "user-owner",
+    },
+    {
+      id: "3",
+      name: "test-project-3",
+      gitUrl: "https://github.com/test/project-3",
+      repoPath: "/tmp/test-project-3",
+      defaultBranch: "main",
+      ownerId: "user-owner",
+    },
+  ]);
 
   // Insert tasks
   await db.insert(tasks).values([

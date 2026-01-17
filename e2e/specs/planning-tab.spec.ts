@@ -93,8 +93,7 @@ test.describe('Project Planning Tab', () => {
     await expect(page.locator('[data-testid="council-chat"]')).toBeVisible({ timeout: 10000 });
   });
 
-  test.skip('T1: QUESTIONS flow - shows questions before council for vague prompts', async ({ page }) => {
-    // Skip: planning-questions-step is not implemented in current UI
+  test('T1: QUESTIONS flow - shows questions before council for vague prompts', async ({ page }) => {
     await page.locator('[data-testid="planning-tab"]').click();
     await waitForPlanningReady(page);
 
@@ -556,8 +555,7 @@ test.describe('Project Planning Tab', () => {
     expect(steps1[2]).toBe('Configure package manager');
   });
 
-  test.skip('T10: Approve Plan triggers autopilot (apply + execute without extra clicks)', async ({ page }) => {
-    // Skip: autopilot execution (run-all after apply) not working properly in test mode
+  test('T10: Approve Plan triggers autopilot (apply + execute without extra clicks)', async ({ page }) => {
     // 1. Count TODO tasks before
     const countBefore = await getTaskCountInColumn(page, 'todo');
 
@@ -606,8 +604,7 @@ test.describe('Project Planning Tab', () => {
     expect(countAfter).toBeGreaterThan(countBefore);
   });
 
-  test.skip('T11: Large backlog (30-200 steps) is deterministic and triggers pipeline', async ({ page, request }) => {
-    // Skip: autopilot execution test - approve button hidden after finish is called
+  test('T11: Large backlog (30-200 steps) is deterministic and triggers pipeline', async ({ page, request }) => {
     const idea = 'Build complete e-commerce platform with product catalog and user authentication';
 
     // Helper to run planning and capture planSteps via API response

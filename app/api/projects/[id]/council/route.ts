@@ -30,6 +30,7 @@ export async function GET(
       plan = await getLatestPlan(thread.id);
     }
 
+    console.log(`[GET /council] Project ${projectId}: thread=${thread?.id || 'null'}, status=${thread?.status || 'none'}`);
     return NextResponse.json({ thread, plan });
   } catch (error: any) {
     console.error("Error fetching council:", error);

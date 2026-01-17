@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
-import { waitForBoardReady } from "../helpers/board";
+import { waitForBoardReady, waitForPlanningReady } from "../helpers/board";
+import { resetProjectStatus } from "../helpers/api";
 
 /**
  * P17-C2: Questions flow E2E tests
@@ -10,13 +11,23 @@ import { waitForBoardReady } from "../helpers/board";
  * - Council chat only starts after questions are answered
  */
 
-// Skip entire suite: planning-questions-step UI not implemented in current version
-test.describe.skip("Planning Questions Flow", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/projects/1");
+// Use project "2" for test isolation (seeded in seed.ts)
+const PROJECT_ID = "2";
+
+test.describe("Planning Questions Flow", () => {
+  test.beforeEach(async ({ page, request }) => {
+    // Reset project state BEFORE page load to ensure fresh state
+    await resetProjectStatus(request, PROJECT_ID);
+    // Navigate to project page - the reset ensures no existing council session
+    await page.goto(`/projects/${PROJECT_ID}`);
     await waitForBoardReady(page);
+    // Click Planning tab and wait for it to be ready
     await page.locator('[data-testid="planning-tab"]').click();
-    await expect(page.locator('[data-testid="planning-idea-input"]')).toBeVisible();
+    await waitForPlanningReady(page);
+    // Verify textarea is visible and enabled (phase === "idle")
+    const ideaInput = page.locator('[data-testid="planning-idea-input"]');
+    await expect(ideaInput).toBeVisible();
+    await expect(ideaInput).toBeEnabled({ timeout: 5000 });
   });
 
   test("short idea triggers questions step", async ({ page }) => {

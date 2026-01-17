@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
-import { waitForBoardReady } from "../helpers/board";
+import { waitForBoardReady, waitForPlanningReady } from "../helpers/board";
+import { resetProjectStatus } from "../helpers/api";
 
 /**
  * P17-C3: Plan Quality Gate E2E tests
@@ -10,13 +11,18 @@ import { waitForBoardReady } from "../helpers/board";
  * - Approve button disabled when plan fails validation (<10 steps)
  */
 
-// Skip entire suite: plan-quality-gate UI not implemented in current version
-test.describe.skip("Plan Quality Gate", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/projects/1");
+// Use project "3" for test isolation (seeded in seed.ts)
+const PROJECT_ID = "3";
+
+test.describe("Plan Quality Gate", () => {
+  test.beforeEach(async ({ page, request }) => {
+    await resetProjectStatus(request, PROJECT_ID);
+    await page.goto(`/projects/${PROJECT_ID}`);
     await waitForBoardReady(page);
     await page.locator('[data-testid="planning-tab"]').click();
+    await waitForPlanningReady(page);
     await expect(page.locator('[data-testid="planning-idea-input"]')).toBeVisible();
+    await expect(page.locator('[data-testid="planning-idea-input"]')).toBeEnabled({ timeout: 5000 });
   });
 
   test("quality gate shows success for valid plan", async ({ page }) => {
@@ -28,8 +34,12 @@ test.describe.skip("Plan Quality Gate", () => {
     await page.locator('[data-testid="planning-start-button"]').click();
     await expect(page.locator('[data-testid="council-chat"]')).toBeVisible({ timeout: 10000 });
 
+    // Wait for finish button to appear (after council API completes)
+    const finishButton = page.locator('[data-testid="planning-finish-button"]');
+    await expect(finishButton).toBeVisible({ timeout: 10000 });
+
     // Finish discussion
-    await page.locator('[data-testid="planning-finish-button"]').click();
+    await finishButton.click();
     await expect(page.locator('[data-testid="product-plan"]')).toBeVisible({ timeout: 10000 });
 
     // Quality gate should show success (plan has 60+ steps)

@@ -14,6 +14,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { AiModeBanner } from "@/components/banners/ai-mode-banner";
 import { CouncilConsole } from "@/components/council/council-console";
 import { CouncilThread, CouncilMessage, PlanArtifact } from "@/components/council/types";
+import { QuestionsStep } from "@/components/planning/questions-step";
+import { ProductResult } from "@/components/planning/product-result";
 import { Loader2, Send, RotateCcw, CheckCircle } from "lucide-react";
 
 interface PlanningTabProps {
@@ -24,7 +26,7 @@ interface PlanningTabProps {
   onAutopilotComplete?: () => void;
 }
 
-type Phase = "idle" | "kickoff" | "awaiting_response" | "plan_ready" | "approved" | "tasks_created";
+type Phase = "idle" | "analyzing" | "questions" | "kickoff" | "awaiting_response" | "plan_ready" | "approved" | "tasks_created";
 
 interface ProductStep {
   title: string;
@@ -42,7 +44,7 @@ interface OldFlowSession {
   councilMessages: { id: string; role: string; content: string }[];
 }
 
-export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
+export function PlanningTab({ projectId, onApplyComplete, onPipelineComplete }: PlanningTabProps) {
   const [idea, setIdea] = useState("");
   const [response, setResponse] = useState("");
   const [thread, setThread] = useState<CouncilThread | null>(null);
@@ -54,6 +56,10 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
   // Old flow state
   const [oldSession, setOldSession] = useState<OldFlowSession | null>(null);
   const [productResult, setProductResult] = useState<ProductResult | null>(null);
+
+  // Questions flow state
+  const [questions, setQuestions] = useState<string[]>([]);
+  const [isSubmittingAnswers, setIsSubmittingAnswers] = useState(false);
 
   // Loading states
   const [isLoading, setIsLoading] = useState(false);
@@ -129,12 +135,49 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
     }
   };
 
-  // Start council - uses OLD flow API for test compatibility
+  // Start council - first analyze idea, show questions if needed
   const handleStartCouncil = async () => {
     if (!idea.trim()) return;
 
     setIsLoading(true);
     setError(null);
+    setPhase("analyzing");
+
+    try {
+      // First, analyze idea to check if questions are needed
+      const analyzeRes = await fetch(`/api/projects/${projectId}/planning/analyze`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ideaText: idea.trim() }),
+      });
+
+      if (!analyzeRes.ok) {
+        const err = await analyzeRes.json();
+        throw new Error(err.error || "Failed to analyze idea");
+      }
+
+      const analyzeData = await analyzeRes.json();
+
+      if (analyzeData.needsQuestions && analyzeData.questions?.length > 0) {
+        // Show questions step
+        setQuestions(analyzeData.questions);
+        setPhase("questions");
+        setIsLoading(false);
+        return;
+      }
+
+      // No questions needed, proceed directly to council
+      await startCouncilDirectly();
+    } catch (err: any) {
+      setError(err.message);
+      setPhase("idle");
+      setIsLoading(false);
+    }
+  };
+
+  // Start council directly (after questions or when not needed)
+  const startCouncilDirectly = async () => {
+    setIsLoading(true);
     setPhase("kickoff");
 
     try {
@@ -185,6 +228,22 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
       setPhase("idle");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Handle continue from questions step
+  const handleContinueFromQuestions = async (answers: Record<string, string>) => {
+    setIsSubmittingAnswers(true);
+    setError(null);
+
+    try {
+      // Save answers (optional - for analytics/improvement)
+      // For now, just proceed to council
+      await startCouncilDirectly();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsSubmittingAnswers(false);
     }
   };
 
@@ -288,11 +347,10 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
       const applyData = await applyRes.json();
       const createdTaskIds = applyData.createdTaskIds || applyData.taskIds || [];
 
-      // Start execution
-      await fetch(`/api/projects/${projectId}/run-all`, { method: "POST" });
-
       setPhase("tasks_created");
-      onApplyComplete?.(createdTaskIds);
+      // Use onPipelineComplete which handles tab switch AND starts execution via handleRunAll
+      // This ensures execution status is properly refreshed in the parent
+      onPipelineComplete?.(createdTaskIds);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -306,6 +364,7 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
     setPlan(null);
     setOldSession(null);
     setProductResult(null);
+    setQuestions([]);
     setIdea("");
     setResponse("");
     setPhase("idle");
@@ -314,7 +373,8 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
 
   const messages = thread?.messages || [];
   const isStartDisabled = !idea.trim() || isLoading || phase !== "idle" || !canRunAi;
-  const showCouncilChat = phase !== "idle" && oldSession !== null;
+  const showQuestionsStep = phase === "questions" && questions.length > 0;
+  const showCouncilChat = (phase !== "idle" && phase !== "analyzing" && phase !== "questions") && oldSession !== null;
   const showFinishButton = showCouncilChat && !productResult && phase === "awaiting_response";
   const showProductResult = productResult !== null;
   const showApplyButton = showProductResult && phase !== "tasks_created";
@@ -377,6 +437,15 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
           )}
         </div>
 
+        {/* Questions Step - shown when idea needs clarification */}
+        {showQuestionsStep && (
+          <QuestionsStep
+            questions={questions}
+            onContinue={handleContinueFromQuestions}
+            isSubmitting={isSubmittingAnswers}
+          />
+        )}
+
         {/* Finish Button */}
         {showFinishButton && (
           <Button
@@ -396,49 +465,14 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
           </Button>
         )}
 
-        {/* Product Result - Plan Display */}
-        {showProductResult && productResult.mode === "PLAN" && (
-          <div className="rounded-lg border bg-card p-4 space-y-4" data-testid="product-result">
-            <div data-testid="product-plan">
-              <h3 className="text-lg font-semibold mb-3">Plan</h3>
-              <div className="space-y-3">
-                {productResult.steps?.map((step, index) => (
-                  <div key={index} className="rounded border bg-muted/50 p-3" data-testid="product-step">
-                    <h4 className="font-medium text-sm">{step.title}</h4>
-                    {step.tasks.length > 0 && (
-                      <ul className="mt-2 text-sm text-muted-foreground list-disc list-inside">
-                        {step.tasks.map((task, taskIndex) => (
-                          <li key={taskIndex}>{task}</li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Apply Plan Button */}
-            {showApplyButton && (
-              <Button
-                onClick={handleApplyPlan}
-                disabled={isApplying}
-                data-testid="apply-plan-button"
-                className="w-full"
-              >
-                {isApplying ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Applying Plan...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="mr-2 h-4 w-4" />
-                    Apply Plan
-                  </>
-                )}
-              </Button>
-            )}
-          </div>
+        {/* Product Result - Plan Display with Quality Gate */}
+        {showProductResult && (
+          <ProductResult
+            result={productResult}
+            onApplyPlan={showApplyButton ? handleApplyPlan : undefined}
+            onApprovePlan={showApplyButton ? handleApprovePlan : undefined}
+            isApplying={isApplying}
+          />
         )}
 
         {/* Approve Plan Button (for autopilot flow) */}
@@ -476,22 +510,24 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
         )}
       </div>
 
-      {/* Right Column: Council Console */}
-      <div className="w-1/2 overflow-hidden rounded-lg border">
-        <CouncilConsole
-          messages={messages}
-          plan={plan}
-          threadStatus={phase}
-          iterationNumber={thread?.iterationNumber || 1}
-          onGeneratePlan={() => {}}
-          onRevisePlan={() => {}}
-          onApprovePlan={() => {}}
-          onCreateTasks={() => {}}
-          isGenerating={isGenerating}
-          isApproving={isApproving}
-          isCreating={isCreating}
-        />
-      </div>
+      {/* Right Column: Council Console - hidden during questions phase */}
+      {!showQuestionsStep && (
+        <div className="w-1/2 overflow-hidden rounded-lg border">
+          <CouncilConsole
+            messages={messages}
+            plan={plan}
+            threadStatus={phase}
+            iterationNumber={thread?.iterationNumber || 1}
+            onGeneratePlan={() => {}}
+            onRevisePlan={() => {}}
+            onApprovePlan={() => {}}
+            onCreateTasks={() => {}}
+            isGenerating={isGenerating}
+            isApproving={isApproving}
+            isCreating={isCreating}
+          />
+        </div>
+      )}
     </div>
   );
 }
