@@ -173,14 +173,23 @@ export function PlanningTab({ projectId, onApplyComplete, onExecuteComplete, onP
       {status === "DONE" && productResult?.mode === "PLAN" && productResult.steps && productResult.steps.length > 0 && (
         <AutopilotPanel
           status={autopilot.status}
+          mode={autopilot.mode}
           currentBatch={autopilot.currentBatch}
           progress={autopilot.progress}
           totalBatches={autopilot.totalBatches}
+          taskProgress={autopilot.totalTasks > 0 ? autopilot.taskProgress : `0/${productResult.steps.length}`}
+          totalTasks={autopilot.totalTasks > 0 ? autopilot.totalTasks : productResult.steps.length}
+          completedTasks={autopilot.completedTasks}
+          currentTaskId={autopilot.currentTaskId}
+          pauseReason={autopilot.pauseReason}
           error={autopilot.error}
           isStarting={autopilot.isStarting}
           isApproving={autopilot.isApproving}
           isCanceling={autopilot.isCanceling}
-          onStart={autopilot.start}
+          isExecuting={autopilot.isExecuting}
+          onStartStep={() => autopilot.start("STEP")}
+          onStartAuto={() => autopilot.start("AUTO")}
+          onResume={autopilot.resume}
           onApprove={autopilot.approve}
           onCancel={autopilot.cancel}
         />

@@ -18,9 +18,14 @@ export async function GET(request: NextRequest) {
     const state = await getAutopilotState(sessionId);
     if (!state) {
       return NextResponse.json({
-        status: 'NOT_STARTED',
+        status: 'IDLE',
+        mode: 'OFF',
         progress: '0/0',
         totalBatches: 0,
+        currentTaskIndex: 0,
+        totalTasks: 0,
+        taskProgress: '0/0',
+        completedTasks: 0,
       });
     }
 
