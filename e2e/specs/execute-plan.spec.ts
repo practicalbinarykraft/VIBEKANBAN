@@ -17,10 +17,10 @@ import {
 // Increase timeout for execution tests
 test.setTimeout(60000);
 
-// Deprecated: legacy planning flow. Replaced by EPIC-9 council-based planning.
-// These tests use old selectors (council-chat, planning-finish-button, product-plan)
-// that were removed in EPIC-9. Will be replaced with new execute-plan tests once EPIC-9 is complete.
-test.describe.skip('Execute Plan', () => {
+// TODO: Adapt to EPIC-9 council flow. See issue #XX.
+// These tests use legacy selectors (council-chat, planning-finish-button, product-plan)
+// that were replaced in EPIC-9. Execute Plan feature is independent but entry flow changed.
+test.describe.skip('Execute Plan (needs EPIC-9 adaptation)', () => {
   test.beforeEach(async ({ page, request }) => {
     await resetProjectStatus(request, '1');
     await page.goto('/projects/1');
