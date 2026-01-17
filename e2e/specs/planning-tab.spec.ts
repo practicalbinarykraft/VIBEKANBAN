@@ -10,6 +10,11 @@ import {
 /**
  * E2E tests for Planning tab within project page (Council Chat feature)
  *
+ * @deprecated Most tests in this file use the legacy planning flow (pre-EPIC-9).
+ * EPIC-9 replaced council-chat with council-dialogue, removed finish button,
+ * and changed the plan approval flow.
+ * See: e2e/specs/epic9-council-flow.spec.ts for the new tests.
+ *
  * Tests the UX skeleton:
  * 1. User navigates to project's Planning tab
  * 2. User enters idea in textarea
@@ -18,7 +23,8 @@ import {
  * 5. Chat displays messages from council members
  */
 
-test.describe('Project Planning Tab', () => {
+// Deprecated: legacy planning flow. Replaced by EPIC-9 council-based planning.
+test.describe.skip('Project Planning Tab (Legacy)', () => {
   test.beforeEach(async ({ page }) => {
     // Navigate to project page
     await page.goto('/projects/1');

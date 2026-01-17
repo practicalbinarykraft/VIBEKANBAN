@@ -4,13 +4,18 @@ import { waitForBoardReady } from "../helpers/board";
 /**
  * P17-C3: Plan Quality Gate E2E tests
  *
+ * @deprecated EPIC-9 replaced the quality gate UI with a new plan artifact view.
+ * The new council-based planning flow has different validation logic.
+ * See: e2e/specs/epic9-council-flow.spec.ts for the new tests.
+ *
  * Tests the plan validation and quality gate UI:
  * - Quality gate appears when plan is displayed
  * - Approve button enabled when plan passes validation
  * - Approve button disabled when plan fails validation (<10 steps)
  */
 
-test.describe("Plan Quality Gate", () => {
+// Deprecated: legacy planning flow. Replaced by EPIC-9 council-based planning.
+test.describe.skip("Plan Quality Gate", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/projects/1");
     await waitForBoardReady(page);

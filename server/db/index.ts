@@ -285,6 +285,61 @@ export function initDB() {
     }
   }
 
+  // Add EPIC-9 columns to council_threads (EPIC-9 migration)
+  try {
+    _sqlite!.exec(`ALTER TABLE council_threads ADD COLUMN idea_text TEXT;`);
+  } catch (error: any) {
+    if (!error.message.includes('duplicate column name')) {
+      console.warn("Warning during migration:", error.message);
+    }
+  }
+  try {
+    _sqlite!.exec(`ALTER TABLE council_threads ADD COLUMN language TEXT NOT NULL DEFAULT 'en';`);
+  } catch (error: any) {
+    if (!error.message.includes('duplicate column name')) {
+      console.warn("Warning during migration:", error.message);
+    }
+  }
+  try {
+    _sqlite!.exec(`ALTER TABLE council_threads ADD COLUMN current_turn INTEGER NOT NULL DEFAULT 0;`);
+  } catch (error: any) {
+    if (!error.message.includes('duplicate column name')) {
+      console.warn("Warning during migration:", error.message);
+    }
+  }
+
+  // Add EPIC-9 columns to council_thread_messages
+  try {
+    _sqlite!.exec(`ALTER TABLE council_thread_messages ADD COLUMN kind TEXT NOT NULL DEFAULT 'message';`);
+  } catch (error: any) {
+    if (!error.message.includes('duplicate column name')) {
+      console.warn("Warning during migration:", error.message);
+    }
+  }
+  try {
+    _sqlite!.exec(`ALTER TABLE council_thread_messages ADD COLUMN turn_index INTEGER NOT NULL DEFAULT 0;`);
+  } catch (error: any) {
+    if (!error.message.includes('duplicate column name')) {
+      console.warn("Warning during migration:", error.message);
+    }
+  }
+
+  // Create EPIC-9 plan_artifacts table
+  _sqlite!.exec(`
+    CREATE TABLE IF NOT EXISTS plan_artifacts (
+      id TEXT PRIMARY KEY,
+      thread_id TEXT NOT NULL REFERENCES council_threads(id),
+      version INTEGER NOT NULL DEFAULT 1,
+      status TEXT NOT NULL DEFAULT 'draft',
+      summary TEXT NOT NULL,
+      scope TEXT NOT NULL,
+      tasks TEXT NOT NULL,
+      task_count INTEGER NOT NULL DEFAULT 0,
+      estimate TEXT NOT NULL DEFAULT 'M',
+      created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+    );
+  `);
+
   // Insert default settings row if not exists
   try {
     _sqlite!.exec(`

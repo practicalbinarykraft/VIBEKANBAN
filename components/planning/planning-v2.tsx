@@ -1,11 +1,9 @@
 /**
- * PlanningTab - Planning interface with Council Console (EPIC-9)
+ * PlanningV2 - New planning interface with Council Console (EPIC-9)
  *
  * Two-column layout:
  * - Left: User input and response area
- * - Right: Council Console (dialogue + plan tabs)
- *
- * Phases: idle → kickoff → awaiting_response → plan_ready → approved → tasks_created
+ * - Right: Council Console (dialogue + plan)
  */
 
 "use client";
@@ -16,49 +14,27 @@ import { Textarea } from "@/components/ui/textarea";
 import { AiModeBanner } from "@/components/banners/ai-mode-banner";
 import { CouncilConsole } from "@/components/council/council-console";
 import { CouncilThread, CouncilMessage, PlanArtifact } from "@/components/council/types";
-import { Loader2, Send, RotateCcw } from "lucide-react";
+import { Loader2, Send } from "lucide-react";
 
-interface PlanningTabProps {
+interface PlanningV2Props {
   projectId: string;
-  onApplyComplete?: (createdTaskIds: string[]) => void;
-  onExecuteComplete?: (createdTaskIds: string[]) => void;
-  onPipelineComplete?: (createdTaskIds: string[]) => void;
-  onAutopilotComplete?: () => void;
+  onTasksCreated?: (taskIds: string[]) => void;
 }
 
-type Phase = "idle" | "kickoff" | "awaiting_response" | "plan_ready" | "approved" | "tasks_created";
+type Phase = "idle" | "kickoff" | "awaiting_response" | "follow_up" | "plan_ready" | "approved";
 
-export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
+export function PlanningV2({ projectId, onTasksCreated }: PlanningV2Props) {
   const [idea, setIdea] = useState("");
   const [response, setResponse] = useState("");
   const [thread, setThread] = useState<CouncilThread | null>(null);
   const [plan, setPlan] = useState<PlanArtifact | null>(null);
   const [phase, setPhase] = useState<Phase>("idle");
   const [error, setError] = useState<string | null>(null);
-  const [canRunAi, setCanRunAi] = useState(true);
-
-  // Loading states
   const [isLoading, setIsLoading] = useState(false);
   const [isResponding, setIsResponding] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-
-  // Fetch AI config on mount
-  useEffect(() => {
-    const fetchAiConfig = async () => {
-      try {
-        const res = await fetch("/api/settings/ai-provider");
-        if (res.ok) {
-          const data = await res.json();
-          setCanRunAi(data.canRunAi);
-        }
-      } catch (err) {
-        console.error("Failed to fetch AI config:", err);
-      }
-    };
-    fetchAiConfig();
-  }, []);
 
   // Load existing council on mount
   useEffect(() => {
@@ -72,21 +48,9 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
         const data = await res.json();
         if (data.thread) {
           setThread(data.thread);
-          setIdea(data.thread.ideaText || "");
-          // Map thread status to phase
-          const statusMap: Record<string, Phase> = {
-            discussing: "kickoff",
-            awaiting_response: "awaiting_response",
-            plan_ready: "plan_ready",
-            approved: "approved",
-            completed: "tasks_created",
-          };
-          setPhase(statusMap[data.thread.status] || "idle");
+          setPhase(data.thread.status as Phase);
           if (data.plan) {
             setPlan(data.plan);
-            if (data.plan.status === "approved") {
-              setPhase("approved");
-            }
           }
         }
       }
@@ -249,6 +213,7 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
     setError(null);
 
     try {
+      // Create tasks using existing apply endpoint
       const taskPromises = plan.tasks.map((task) =>
         fetch(`/api/projects/${projectId}/tasks`, {
           method: "POST",
@@ -271,8 +236,7 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
         }
       }
 
-      setPhase("tasks_created");
-      onApplyComplete?.(taskIds);
+      onTasksCreated?.(taskIds);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -280,37 +244,18 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
     }
   };
 
-  // Reset to start new session
-  const handleReset = () => {
-    setThread(null);
-    setPlan(null);
-    setIdea("");
-    setResponse("");
-    setPhase("idle");
-    setError(null);
-  };
-
   const messages = thread?.messages || [];
-  const isStartDisabled = !idea.trim() || isLoading || phase !== "idle" || !canRunAi;
 
   return (
-    <div className="flex h-full gap-4 overflow-hidden p-4">
+    <div className="flex h-full gap-4 p-4">
       {/* Left Column: User Input */}
-      <div className="flex w-1/2 flex-col space-y-4 overflow-y-auto">
+      <div className="flex w-1/2 flex-col space-y-4">
         <AiModeBanner />
 
         <div className="rounded-lg border bg-card p-4">
-          <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Project Planning</h2>
-            {phase !== "idle" && (
-              <Button variant="ghost" size="sm" onClick={handleReset}>
-                <RotateCcw className="mr-1 h-3 w-3" />
-                New Session
-              </Button>
-            )}
-          </div>
+          <h2 className="mb-2 text-lg font-semibold">Project Planning</h2>
           <p className="mb-4 text-sm text-muted-foreground">
-            Describe your idea and the AI council will discuss and create a plan.
+            Describe your idea and the AI council will discuss it.
           </p>
 
           {/* Idea Input */}
@@ -326,8 +271,8 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
           {phase === "idle" && (
             <Button
               onClick={handleStartCouncil}
-              disabled={isStartDisabled}
-              data-testid="planning-start-button"
+              disabled={!idea.trim() || isLoading}
+              data-testid="start-council-btn"
             >
               {isLoading ? (
                 <>
@@ -346,7 +291,7 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
           <div className="rounded-lg border bg-card p-4">
             <h3 className="mb-2 font-medium">Your Response</h3>
             <p className="mb-3 text-sm text-muted-foreground">
-              Answer the council's questions to clarify your requirements.
+              Answer the council's questions to help them understand your needs better.
             </p>
             <Textarea
               placeholder="Type your response..."
@@ -358,7 +303,6 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
             <Button
               onClick={handleSubmitResponse}
               disabled={!response.trim() || isResponding}
-              data-testid="submit-response-btn"
             >
               {isResponding ? (
                 <>
@@ -384,26 +328,20 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
 
         {/* Status Messages */}
         {phase === "plan_ready" && !plan && (
-          <div className="rounded-md bg-blue-100 p-3 text-sm dark:bg-blue-900/30">
+          <div className="rounded-md bg-blue-100 dark:bg-blue-900/30 p-3 text-sm">
             Council reached consensus. Click "Generate Plan (draft)" in the console.
           </div>
         )}
 
         {phase === "approved" && (
-          <div className="rounded-md bg-green-100 p-3 text-sm text-green-800 dark:bg-green-900/30 dark:text-green-200">
+          <div className="rounded-md bg-green-100 dark:bg-green-900/30 p-3 text-sm text-green-800 dark:text-green-200">
             Plan approved! Click "Confirm & Create Tasks" to proceed.
-          </div>
-        )}
-
-        {phase === "tasks_created" && (
-          <div className="rounded-md bg-green-100 p-3 text-sm text-green-800 dark:bg-green-900/30 dark:text-green-200">
-            Tasks created successfully! Check the Tasks tab.
           </div>
         )}
       </div>
 
       {/* Right Column: Council Console */}
-      <div className="w-1/2 overflow-hidden rounded-lg border">
+      <div className="w-1/2 rounded-lg border">
         <CouncilConsole
           messages={messages}
           plan={plan}

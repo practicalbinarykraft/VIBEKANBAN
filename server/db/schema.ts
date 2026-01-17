@@ -127,7 +127,10 @@ export const councilThreads = sqliteTable("council_threads", {
   id: text("id").primaryKey(),
   projectId: text("project_id").notNull().references(() => projects.id),
   iterationNumber: integer("iteration_number").notNull(),
-  status: text("status").notNull().default("discussing"), // discussing, completed
+  status: text("status").notNull().default("discussing"), // discussing, awaiting_response, plan_ready, approved, completed
+  ideaText: text("idea_text"), // Original user idea
+  language: text("language").notNull().default("en"), // User language (en, ru, etc.)
+  currentTurn: integer("current_turn").notNull().default(0),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
@@ -136,6 +139,22 @@ export const councilThreadMessages = sqliteTable("council_thread_messages", {
   threadId: text("thread_id").notNull().references(() => councilThreads.id),
   role: text("role").notNull(), // product, architect, backend, frontend, qa
   content: text("content").notNull(),
+  kind: text("kind").notNull().default("message"), // message, question, concern, proposal, consensus
+  turnIndex: integer("turn_index").notNull().default(0),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+// Plan artifacts with versioning (EPIC-9)
+export const planArtifacts = sqliteTable("plan_artifacts", {
+  id: text("id").primaryKey(),
+  threadId: text("thread_id").notNull().references(() => councilThreads.id),
+  version: integer("version").notNull().default(1),
+  status: text("status").notNull().default("draft"), // draft, revised, approved, final
+  summary: text("summary").notNull(),
+  scope: text("scope").notNull(),
+  tasks: text("tasks").notNull(), // JSON array of {title, description, type, estimate}
+  taskCount: integer("task_count").notNull().default(0),
+  estimate: text("estimate").notNull().default("M"), // S, M, L
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 

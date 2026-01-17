@@ -4,13 +4,18 @@ import { waitForBoardReady } from "../helpers/board";
 /**
  * P17-C2: Questions flow E2E tests
  *
+ * @deprecated EPIC-9 removed the questions step from the planning flow.
+ * The new council-based planning flow does not use a separate questions UI.
+ * See: e2e/specs/epic9-council-flow.spec.ts for the new tests.
+ *
  * Tests the interactive planning questions step:
  * - Short ideas trigger questions before council
  * - Users must answer all questions before continuing
  * - Council chat only starts after questions are answered
  */
 
-test.describe("Planning Questions Flow", () => {
+// Deprecated: legacy planning flow. Replaced by EPIC-9 council-based planning.
+test.describe.skip("Planning Questions Flow", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/projects/1");
     await waitForBoardReady(page);
