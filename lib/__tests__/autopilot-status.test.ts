@@ -49,7 +49,12 @@ describe('getAutopilotStatus', () => {
   it('should return complete info when DONE', () => {
     const state: AutopilotState = {
       status: 'DONE',
+      mode: 'AUTO',
       batches: sampleBatches,
+      taskQueue: ['t1', 't2', 't3'],
+      currentTaskIndex: 3,
+      completedTasks: ['t1', 't2', 't3'],
+      openPrCount: 0,
     };
 
     const status = getAutopilotStatus(state);

@@ -128,7 +128,12 @@ describe('cancelAutopilot', () => {
   it('should keep DONE state unchanged', () => {
     const state: AutopilotState = {
       status: 'DONE',
+      mode: 'AUTO',
       batches: sampleBatches,
+      taskQueue: ['t1', 't2', 't3'],
+      currentTaskIndex: 3,
+      completedTasks: ['t1', 't2', 't3'],
+      openPrCount: 0,
     };
 
     const newState = cancelAutopilot(state);
