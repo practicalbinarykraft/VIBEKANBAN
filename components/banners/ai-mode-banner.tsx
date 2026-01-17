@@ -58,9 +58,12 @@ export function AiModeBanner() {
       <Icon className="h-4 w-4 shrink-0" />
       <span>{config.bannerText}</span>
       {config.mode === "disabled" && (
-        <span className="ml-auto text-xs opacity-75">
-          Set ANTHROPIC_API_KEY or OPENAI_API_KEY in .env
-        </span>
+        <a
+          href="/settings"
+          className="ml-auto text-xs opacity-75 underline hover:opacity-100"
+        >
+          Configure in Settings →
+        </a>
       )}
     </div>
   );

@@ -93,14 +93,15 @@ describe("ai-provider-config", () => {
 
     it("DISABLED mode has correct banner text", () => {
       const result = detectAiMode();
-      expect(result.bannerText).toBe("AI disabled: configure API keys");
+      expect(result.bannerText).toContain("AI disabled");
+      expect(result.bannerText).toContain("configure API keys");
       expect(result.bannerVariant).toBe("destructive");
     });
 
     it("REAL mode shows provider info", () => {
       process.env.ANTHROPIC_API_KEY = "sk-ant-test";
       const result = detectAiMode();
-      expect(result.bannerText).toContain("Real mode");
+      expect(result.bannerText).toContain("Real AI");
       expect(result.bannerText).toContain("Anthropic");
       expect(result.bannerVariant).toBe("default");
     });

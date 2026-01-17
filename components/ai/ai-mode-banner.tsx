@@ -17,14 +17,6 @@ interface AiModeBannerProps {
   className?: string;
 }
 
-/**
- * Check if demo mode is forced via environment variable
- * NEXT_PUBLIC_ prefix required for client-side access
- */
-function isDemoModeEnv(): boolean {
-  return process.env.NEXT_PUBLIC_VIBE_DEMO_MODE === "1";
-}
-
 export function AiModeBanner({ className = "" }: AiModeBannerProps) {
   const [settings, setSettings] = useState<SettingsData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -51,10 +43,12 @@ export function AiModeBanner({ className = "" }: AiModeBannerProps) {
     return null;
   }
 
-  const getAiMode = (): AiMode => {
-    // Demo mode env var overrides everything
-    if (isDemoModeEnv()) return "demo";
+  // Check for demo mode env var
+  const isDemoModeEnv = process.env.NEXT_PUBLIC_VIBE_DEMO_MODE === "1";
 
+  const getAiMode = (): AiMode => {
+    // Env var takes precedence
+    if (isDemoModeEnv) return "demo";
     if (!settings) return "demo";
     if (settings.provider === "demo") return "demo";
     if (settings.provider === "anthropic" && !settings.hasAnthropicKey) return "disabled";

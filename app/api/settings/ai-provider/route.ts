@@ -2,13 +2,14 @@
  * AI Provider Settings API
  *
  * GET: Returns current AI mode and provider configuration
+ * Uses BYOK settings from database, falls back to env vars
  */
 
 import { NextResponse } from "next/server";
-import { detectAiMode } from "@/lib/ai-provider-config";
+import { detectAiModeAsync } from "@/lib/ai-provider-config";
 
 export async function GET() {
-  const config = detectAiMode();
+  const config = await detectAiModeAsync();
 
   return NextResponse.json({
     mode: config.mode,
