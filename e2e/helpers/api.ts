@@ -1,5 +1,7 @@
 import { APIRequestContext } from '@playwright/test';
 
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000';
+
 interface Task {
   id: string;
   title: string;
@@ -22,7 +24,7 @@ export async function createTask(
   title: string,
   description: string
 ): Promise<Task> {
-  const response = await request.post(`http://localhost:8000/api/projects/${projectId}/tasks`, {
+  const response = await request.post(`${BASE_URL}/api/projects/${projectId}/tasks`, {
     data: {
       title,
       description,
@@ -41,7 +43,7 @@ export async function runTask(
   request: APIRequestContext,
   taskId: string
 ): Promise<{ attemptId: string }> {
-  const response = await request.post(`http://localhost:8000/api/tasks/${taskId}/run`);
+  const response = await request.post(`${BASE_URL}/api/tasks/${taskId}/run`);
 
   if (!response.ok()) {
     throw new Error(`Failed to run task: ${response.status()} ${await response.text()}`);
@@ -54,7 +56,7 @@ export async function getLatestAttempt(
   request: APIRequestContext,
   taskId: string
 ): Promise<Attempt | null> {
-  const response = await request.get(`http://localhost:8000/api/tasks/${taskId}/attempts`);
+  const response = await request.get(`${BASE_URL}/api/tasks/${taskId}/attempts`);
 
   if (!response.ok()) {
     throw new Error(`Failed to get attempts: ${response.status()}`);
@@ -93,7 +95,7 @@ export async function deleteTask(
   request: APIRequestContext,
   taskId: string
 ): Promise<void> {
-  const response = await request.delete(`http://localhost:8000/api/tasks/${taskId}`);
+  const response = await request.delete(`${BASE_URL}/api/tasks/${taskId}`);
 
   if (!response.ok()) {
     throw new Error(`Failed to delete task: ${response.status()}`);
@@ -110,7 +112,7 @@ export async function safeCleanup(
 ): Promise<void> {
   for (const taskId of taskIds) {
     try {
-      await request.delete(`http://localhost:8000/api/tasks/${taskId}`);
+      await request.delete(`${BASE_URL}/api/tasks/${taskId}`);
     } catch {
       // Ignore - context may be closed
     }
@@ -141,7 +143,7 @@ export async function createFixtureAttempt(
     forceStatus?: 'running' | 'queued' | 'stopped';
   }
 ): Promise<string> {
-  const response = await request.post('http://localhost:8000/api/test/fixtures/create-attempt', {
+  const response = await request.post(`${BASE_URL}/api/test/fixtures/create-attempt`, {
     data: {
       taskId,
       status,
@@ -173,7 +175,7 @@ export async function createFixtureAttempt(
 export async function clearProcessedWebhooks(
   request: APIRequestContext
 ): Promise<void> {
-  const response = await request.delete('http://localhost:8000/api/test/webhooks/clear');
+  const response = await request.delete(`${BASE_URL}/api/test/webhooks/clear`);
 
   if (!response.ok()) {
     throw new Error(`Failed to clear processed webhooks: ${response.status()} ${await response.text()}`);
@@ -188,7 +190,7 @@ export async function resetProjectStatus(
   request: APIRequestContext,
   projectId: string
 ): Promise<void> {
-  const response = await request.post('http://localhost:8000/api/test/fixtures/project/reset-status', {
+  const response = await request.post(`${BASE_URL}/api/test/fixtures/project/reset-status`, {
     data: { projectId },
   });
 
