@@ -50,7 +50,10 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Debug env before build
-        run: echo "AUTOPILOT flags: FEATURE_AUTOPILOT_V2=$FEATURE_AUTOPILOT_V2 NEXT_PUBLIC_FEATURE_AUTOPILOT_V2=$NEXT_PUBLIC_FEATURE_AUTOPILOT_V2"
+        run: |
+          echo "AUTOPILOT flags:"
+          echo "  FEATURE_AUTOPILOT_V2=$FEATURE_AUTOPILOT_V2"
+          echo "  NEXT_PUBLIC_FEATURE_AUTOPILOT_V2=$NEXT_PUBLIC_FEATURE_AUTOPILOT_V2"
         env:
           FEATURE_AUTOPILOT_V2: "1"
           NEXT_PUBLIC_FEATURE_AUTOPILOT_V2: "1"
