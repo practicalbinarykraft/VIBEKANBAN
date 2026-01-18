@@ -53,10 +53,14 @@ jobs:
         run: npm run build
         env:
           PLAYWRIGHT: "1"
+          FEATURE_AUTOPILOT_V2: "1"
+          NEXT_PUBLIC_FEATURE_AUTOPILOT_V2: "1"
 
       - name: Run E2E tests (deterministic)
         env:
           PLAYWRIGHT: "1"
+          FEATURE_AUTOPILOT_V2: "1"
+          NEXT_PUBLIC_FEATURE_AUTOPILOT_V2: "1"
           DEBUG: "pw:webserver,pw:api"
         run: npx playwright test --trace on-first-retry --reporter html --workers=1
 
