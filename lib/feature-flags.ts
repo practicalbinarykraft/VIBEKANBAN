@@ -22,6 +22,7 @@
 
 /**
  * All available feature flags
+ * Note: For client-side usage, also check NEXT_PUBLIC_ prefixed versions
  */
 export const FeatureFlagNames = {
   /** Enable real AI API calls (vs demo/mock mode) */
@@ -57,6 +58,7 @@ export type FeatureFlagName = keyof typeof FeatureFlagNames;
 
 /**
  * Check if a feature flag is enabled via environment variable
+ * Checks both FEATURE_* and NEXT_PUBLIC_FEATURE_* for client compatibility
  *
  * @param flag - Feature flag name (key from FeatureFlagNames)
  * @returns true if the feature is enabled
