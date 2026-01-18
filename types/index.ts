@@ -82,3 +82,30 @@ export interface LogEntry {
   level: "info" | "warning" | "error";
   message: string;
 }
+
+// Re-export council and planning types
+export type {
+  CouncilRole,
+  CouncilThreadStatus,
+  CouncilMessageKind,
+  CouncilThread,
+  CouncilThreadMessage,
+  CouncilMessage,
+  PlanArtifactStatus,
+  TaskEstimate,
+  PlanTaskType,
+  PlanTask,
+  PlanArtifact,
+  PlanArtifactWithThread,
+  AutopilotMode,
+  AutopilotStatus,
+  AutopilotTaskExecution,
+  AutopilotState,
+  PlanningSessionStatus,
+  PlanningSession,
+  PlanDraft,
+} from './council';
+
+// Re-export test IDs
+export { TestIds } from './test-ids';
+export type { TestIdValue } from './test-ids';
