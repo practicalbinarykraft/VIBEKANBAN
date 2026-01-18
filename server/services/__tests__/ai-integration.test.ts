@@ -83,7 +83,7 @@ describe("AI Provider Integration", () => {
       delete process.env.PLAYWRIGHT;
       delete process.env.VIBE_DEMO_MODE;
       // Set NODE_ENV to something other than 'test' to bypass test mode check
-      process.env.NODE_ENV = "development";
+      (process.env as Record<string, string | undefined>).NODE_ENV = "development";
     });
 
     it("getAISettings returns demo provider when no settings", async () => {
