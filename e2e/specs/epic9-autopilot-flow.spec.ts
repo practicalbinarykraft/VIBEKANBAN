@@ -62,25 +62,28 @@ test.describe("EPIC-9 Autopilot Integration", () => {
     await expect(createTasksBtn).toBeVisible({ timeout: 10000 });
     await createTasksBtn.click();
 
-    // 8. DEBUG: Capture state before checking autopilot panel
+    // 8. Wait for phase to reach tasks_created FIRST
+    const phaseMarker = page.locator('[data-testid="phase-tasks-created"]');
+    await expect(phaseMarker).toBeVisible({ timeout: 15000 });
+    console.log("DEBUG T1: phase-tasks-created marker visible");
+
+    // Check debug markers to diagnose why autopilot-panel might not appear
+    const autopilotDisabled = await page.locator('[data-testid="debug-autopilot-disabled"]').count();
+    const noSession = await page.locator('[data-testid="debug-no-session"]').count();
+    console.log("DEBUG T1: autopilot-disabled marker count:", autopilotDisabled);
+    console.log("DEBUG T1: no-session marker count:", noSession);
+
+    if (autopilotDisabled > 0) {
+      console.log("DEBUG T1: FEATURE_AUTOPILOT_V2 flag is OFF!");
+    }
+    if (noSession > 0) {
+      console.log("DEBUG T1: sessionId is missing!");
+    }
+
+    // Take screenshot for debugging
     await page.screenshot({ path: "test-results/debug-autopilot-t1.png", fullPage: true });
 
-    const createTasksBtnVisible = await page.locator('[data-testid="create-tasks-btn"]').isVisible().catch(() => false);
-    console.log("DEBUG T1: create-tasks-btn visible:", createTasksBtnVisible);
-
-    const councilDialogueVisible = await page.locator('[data-testid="council-dialogue"]').isVisible().catch(() => false);
-    console.log("DEBUG T1: council-dialogue visible:", councilDialogueVisible);
-
-    const autopilotPanelVisible = await page.locator('[data-testid="autopilot-panel"]').isVisible().catch(() => false);
-    console.log("DEBUG T1: autopilot-panel visible:", autopilotPanelVisible);
-
-    const planTabVisible = await page.getByRole("button", { name: /Plan v/i }).isVisible().catch(() => false);
-    console.log("DEBUG T1: Plan tab visible:", planTabVisible);
-
-    // Log page URL to see current state
-    console.log("DEBUG T1: Current URL:", page.url());
-
-    // 8. AutopilotPanel should appear
+    // Now wait for AutopilotPanel
     const autopilotPanel = page.locator('[data-testid="autopilot-panel"]');
     await expect(autopilotPanel).toBeVisible({ timeout: 10000 });
 
@@ -136,11 +139,16 @@ test.describe("EPIC-9 Autopilot Integration", () => {
     await expect(createTasksBtn).toBeVisible({ timeout: 10000 });
     await createTasksBtn.click();
 
-    // DEBUG: Capture state before checking autopilot panel
+    // Wait for phase marker first
+    await expect(page.locator('[data-testid="phase-tasks-created"]')).toBeVisible({ timeout: 15000 });
+    console.log("DEBUG T2: phase-tasks-created visible");
+
+    // Check debug markers
+    const autopilotDisabled = await page.locator('[data-testid="debug-autopilot-disabled"]').count();
+    const noSession = await page.locator('[data-testid="debug-no-session"]').count();
+    console.log("DEBUG T2: autopilot-disabled count:", autopilotDisabled, "no-session count:", noSession);
+
     await page.screenshot({ path: "test-results/debug-autopilot-t2.png", fullPage: true });
-    console.log("DEBUG T2: autopilot-panel visible:", await page.locator('[data-testid="autopilot-panel"]').isVisible().catch(() => false));
-    console.log("DEBUG T2: create-tasks-btn visible:", await page.locator('[data-testid="create-tasks-btn"]').isVisible().catch(() => false));
-    console.log("DEBUG T2: Current URL:", page.url());
 
     // Wait for AutopilotPanel
     const autopilotPanel = page.locator('[data-testid="autopilot-panel"]');
@@ -195,11 +203,16 @@ test.describe("EPIC-9 Autopilot Integration", () => {
     await expect(createTasksBtn).toBeVisible({ timeout: 10000 });
     await createTasksBtn.click();
 
-    // DEBUG: Capture state before checking autopilot panel
+    // Wait for phase marker first
+    await expect(page.locator('[data-testid="phase-tasks-created"]')).toBeVisible({ timeout: 15000 });
+    console.log("DEBUG T3: phase-tasks-created visible");
+
+    // Check debug markers
+    const autopilotDisabled = await page.locator('[data-testid="debug-autopilot-disabled"]').count();
+    const noSession = await page.locator('[data-testid="debug-no-session"]').count();
+    console.log("DEBUG T3: autopilot-disabled count:", autopilotDisabled, "no-session count:", noSession);
+
     await page.screenshot({ path: "test-results/debug-autopilot-t3.png", fullPage: true });
-    console.log("DEBUG T3: autopilot-panel visible:", await page.locator('[data-testid="autopilot-panel"]').isVisible().catch(() => false));
-    console.log("DEBUG T3: create-tasks-btn visible:", await page.locator('[data-testid="create-tasks-btn"]').isVisible().catch(() => false));
-    console.log("DEBUG T3: Current URL:", page.url());
 
     // Wait for AutopilotPanel
     const autopilotPanel = page.locator('[data-testid="autopilot-panel"]');

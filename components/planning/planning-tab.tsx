@@ -448,8 +448,23 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, onApplyCompl
         )}
 
         {phase === "tasks_created" && (
-          <div className="rounded-md bg-green-100 p-3 text-sm text-green-800 dark:bg-green-900/30 dark:text-green-200">
+          <div
+            className="rounded-md bg-green-100 p-3 text-sm text-green-800 dark:bg-green-900/30 dark:text-green-200"
+            data-testid="phase-tasks-created"
+          >
             Tasks created successfully! Check the Tasks tab.
+          </div>
+        )}
+
+        {/* Debug markers for E2E tests - only rendered when conditions partially met */}
+        {phase === "tasks_created" && !showAutopilot && (
+          <div data-testid="debug-autopilot-disabled" className="hidden">
+            Autopilot flag is OFF (enableAutopilotV2={String(showAutopilot)})
+          </div>
+        )}
+        {phase === "tasks_created" && showAutopilot && !sessionId && (
+          <div data-testid="debug-no-session" className="hidden">
+            No sessionId for autopilot
           </div>
         )}
 
