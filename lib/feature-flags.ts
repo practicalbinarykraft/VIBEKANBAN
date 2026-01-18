@@ -70,8 +70,7 @@ export type FeatureFlagName = keyof typeof FeatureFlagNames;
  */
 export function isFeatureEnabled(flag: FeatureFlagName): boolean {
   const envVar = FeatureFlagNames[flag];
-  // Check both server-side and client-side env vars
-  const value = process.env[envVar] || process.env[`NEXT_PUBLIC_${envVar}`];
+  const value = process.env[envVar];
   return value === '1' || value === 'true';
 }
 

@@ -1,6 +1,3 @@
-// Enable feature flag for this spec
-process.env.FEATURE_AUTOPILOT_V2 = "1";
-
 import { test, expect } from "@playwright/test";
 import { waitForBoardReady, getTaskCountInColumn } from "../helpers/board";
 import { resetProjectStatus } from "../helpers/api";
