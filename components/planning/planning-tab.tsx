@@ -16,6 +16,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { AiModeBanner } from "@/components/banners/ai-mode-banner";
 import { CouncilConsole } from "@/components/council/council-console";
 import { CouncilThread, CouncilMessage, PlanArtifact } from "@/components/council/types";
+import { AutopilotPanel } from "@/components/planning/autopilot-panel";
+import { useAutopilot } from "@/hooks/useAutopilot";
+import { isFeatureEnabled } from "@/lib/feature-flags";
 import { Loader2, Send, RotateCcw } from "lucide-react";
 
 interface PlanningTabProps {
@@ -28,7 +31,7 @@ interface PlanningTabProps {
 
 type Phase = "idle" | "kickoff" | "awaiting_response" | "plan_ready" | "approved" | "tasks_created";
 
-export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
+export function PlanningTab({ projectId, onApplyComplete, onAutopilotComplete }: PlanningTabProps) {
   const [idea, setIdea] = useState("");
   const [response, setResponse] = useState("");
   const [thread, setThread] = useState<CouncilThread | null>(null);
@@ -37,12 +40,26 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
   const [error, setError] = useState<string | null>(null);
   const [canRunAi, setCanRunAi] = useState(true);
 
+  // Autopilot integration (FEATURE_AUTOPILOT_V2)
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [createdTaskIds, setCreatedTaskIds] = useState<string[]>([]);
+  const showAutopilot = isFeatureEnabled("AUTOPILOT_V2");
+
   // Loading states
   const [isLoading, setIsLoading] = useState(false);
   const [isResponding, setIsResponding] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+
+  // Autopilot hook
+  const autopilot = useAutopilot(
+    projectId,
+    sessionId,
+    undefined, // onBatchComplete
+    onAutopilotComplete, // onAllComplete
+    undefined // onTaskComplete
+  );
 
   // Fetch AI config on mount
   useEffect(() => {
@@ -271,6 +288,27 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
         }
       }
 
+      // Create planning session for autopilot (if feature enabled)
+      if (showAutopilot && taskIds.length > 0) {
+        try {
+          const sessionRes = await fetch(`/api/projects/${projectId}/planning/start`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              idea: idea.trim(),
+              taskIds, // Pass created task IDs
+            }),
+          });
+          if (sessionRes.ok) {
+            const sessionData = await sessionRes.json();
+            setSessionId(sessionData.sessionId);
+            setCreatedTaskIds(taskIds);
+          }
+        } catch (sessionErr) {
+          console.error("Failed to create autopilot session:", sessionErr);
+        }
+      }
+
       setPhase("tasks_created");
       onApplyComplete?.(taskIds);
     } catch (err: any) {
@@ -288,6 +326,20 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
     setResponse("");
     setPhase("idle");
     setError(null);
+    // Reset autopilot state
+    setSessionId(null);
+    setCreatedTaskIds([]);
+  };
+
+  // Autopilot handlers
+  const handleStartAutopilotStep = async () => {
+    if (!sessionId || createdTaskIds.length === 0) return;
+    await autopilot.start("STEP", createdTaskIds);
+  };
+
+  const handleStartAutopilotAuto = async () => {
+    if (!sessionId || createdTaskIds.length === 0) return;
+    await autopilot.start("AUTO", createdTaskIds);
   };
 
   const messages = thread?.messages || [];
@@ -399,6 +451,32 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
           <div className="rounded-md bg-green-100 p-3 text-sm text-green-800 dark:bg-green-900/30 dark:text-green-200">
             Tasks created successfully! Check the Tasks tab.
           </div>
+        )}
+
+        {/* Autopilot Panel - shown after tasks created (FEATURE_AUTOPILOT_V2) */}
+        {phase === "tasks_created" && showAutopilot && sessionId && (
+          <AutopilotPanel
+            status={autopilot.status}
+            mode={autopilot.mode}
+            currentBatch={autopilot.currentBatch}
+            progress={autopilot.progress}
+            totalBatches={autopilot.totalBatches}
+            taskProgress={autopilot.taskProgress}
+            totalTasks={createdTaskIds.length}
+            completedTasks={autopilot.completedTasks}
+            currentTaskId={autopilot.currentTaskId}
+            pauseReason={autopilot.pauseReason}
+            error={autopilot.error}
+            isStarting={autopilot.isStarting}
+            isApproving={autopilot.isApproving}
+            isCanceling={autopilot.isCanceling}
+            isExecuting={autopilot.isExecuting}
+            onStartStep={handleStartAutopilotStep}
+            onStartAuto={handleStartAutopilotAuto}
+            onResume={autopilot.resume}
+            onApprove={autopilot.approve}
+            onCancel={autopilot.cancel}
+          />
         )}
       </div>
 

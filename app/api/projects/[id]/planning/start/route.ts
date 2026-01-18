@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createSession, updateSessionResult } from "@/server/services/planning-session-store";
+import { createSession, updateSessionResult, markSessionApplied } from "@/server/services/planning-session-store";
 import { startCouncilDiscussion } from "@/server/services/chat/council-orchestrator";
 
 /**
@@ -9,6 +9,7 @@ import { startCouncilDiscussion } from "@/server/services/chat/council-orchestra
  * Uses real AI council when configured, mock otherwise
  *
  * Request: { ideaText: string } (also accepts { idea: string } for compatibility)
+ * Optional: { taskIds: string[] } - Skip council, create session for autopilot with existing tasks
  * Response: { sessionId, councilMessages, status: "DISCUSSION", error?: string }
  */
 export async function POST(
@@ -21,6 +22,7 @@ export async function POST(
 
     // Support both old (idea) and new (ideaText) field names
     const ideaText = body.ideaText || body.idea;
+    const taskIds: string[] | undefined = body.taskIds;
 
     if (!ideaText || typeof ideaText !== "string" || ideaText.trim().length === 0) {
       return NextResponse.json(
@@ -31,6 +33,26 @@ export async function POST(
 
     // Create session in DB
     const sessionId = await createSession(projectId, ideaText.trim());
+
+    // If taskIds provided, create autopilot-ready session without council discussion
+    // This is used by EPIC-9 council flow after tasks are created
+    if (taskIds && Array.isArray(taskIds) && taskIds.length > 0) {
+      // Store task titles as planSteps for autopilot
+      await updateSessionResult(sessionId, {
+        mode: "PLAN",
+        planSteps: taskIds, // Using IDs as planSteps - autopilot/start will use taskIds from body
+      });
+      await markSessionApplied(sessionId, taskIds);
+
+      return NextResponse.json({
+        sessionId,
+        councilMessages: [],
+        status: "APPLIED",
+        success: true,
+        projectId,
+        taskIds,
+      });
+    }
 
     // Run real council discussion (uses AI when configured, mock otherwise)
     const { thread, plan, error: councilError } = await startCouncilDiscussion(

@@ -36,7 +36,7 @@ interface UseAutopilotReturn {
   isCanceling: boolean;
   isExecuting: boolean;
   // Actions
-  start: (mode?: AutopilotMode) => Promise<void>;
+  start: (mode?: AutopilotMode, taskIds?: string[]) => Promise<void>;
   executeNext: () => Promise<void>;
   approve: () => Promise<void>;
   cancel: () => Promise<void>;
@@ -148,7 +148,7 @@ export function useAutopilot(
     };
   }, [status, sessionId, fetchStatus]);
 
-  const start = useCallback(async (startMode?: AutopilotMode) => {
+  const start = useCallback(async (startMode?: AutopilotMode, taskIds?: string[]) => {
     if (!sessionId) return;
     setIsStarting(true);
     setError(null);
@@ -156,7 +156,7 @@ export function useAutopilot(
       const response = await fetch(`/api/projects/${projectId}/planning/autopilot/start`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId, mode: startMode || "AUTO" }),
+        body: JSON.stringify({ sessionId, mode: startMode || "AUTO", taskIds }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Failed to start autopilot");
