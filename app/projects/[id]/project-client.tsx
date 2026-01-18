@@ -14,11 +14,12 @@ import { PlanningTab } from "@/components/planning/planning-tab";
 
 interface ProjectClientProps {
   projectId: string;
+  enableAutopilotV2?: boolean;
 }
 
 type TabType = "tasks" | "chat" | "planning";
 
-export default function ProjectClient({ projectId }: ProjectClientProps) {
+export default function ProjectClient({ projectId, enableAutopilotV2 = false }: ProjectClientProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>("tasks");
@@ -193,6 +194,7 @@ export default function ProjectClient({ projectId }: ProjectClientProps) {
         <div className="h-[calc(100vh-7rem)]">
           <PlanningTab
             projectId={projectId}
+            enableAutopilotV2={enableAutopilotV2}
             onApplyComplete={(createdTaskIds) => {
               setActiveTab("tasks");
               setHighlightedTaskIds(createdTaskIds);

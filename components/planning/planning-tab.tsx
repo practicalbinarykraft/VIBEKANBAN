@@ -18,11 +18,11 @@ import { CouncilConsole } from "@/components/council/council-console";
 import { CouncilThread, CouncilMessage, PlanArtifact } from "@/components/council/types";
 import { AutopilotPanel } from "@/components/planning/autopilot-panel";
 import { useAutopilot } from "@/hooks/useAutopilot";
-import { isFeatureEnabled } from "@/lib/feature-flags";
 import { Loader2, Send, RotateCcw } from "lucide-react";
 
 interface PlanningTabProps {
   projectId: string;
+  enableAutopilotV2?: boolean;
   onApplyComplete?: (createdTaskIds: string[]) => void;
   onExecuteComplete?: (createdTaskIds: string[]) => void;
   onPipelineComplete?: (createdTaskIds: string[]) => void;
@@ -31,7 +31,7 @@ interface PlanningTabProps {
 
 type Phase = "idle" | "kickoff" | "awaiting_response" | "plan_ready" | "approved" | "tasks_created";
 
-export function PlanningTab({ projectId, onApplyComplete, onAutopilotComplete }: PlanningTabProps) {
+export function PlanningTab({ projectId, enableAutopilotV2 = false, onApplyComplete, onAutopilotComplete }: PlanningTabProps) {
   const [idea, setIdea] = useState("");
   const [response, setResponse] = useState("");
   const [thread, setThread] = useState<CouncilThread | null>(null);
@@ -43,7 +43,7 @@ export function PlanningTab({ projectId, onApplyComplete, onAutopilotComplete }:
   // Autopilot integration (FEATURE_AUTOPILOT_V2)
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [createdTaskIds, setCreatedTaskIds] = useState<string[]>([]);
-  const showAutopilot = isFeatureEnabled("AUTOPILOT_V2");
+  const showAutopilot = enableAutopilotV2;
 
   // Loading states
   const [isLoading, setIsLoading] = useState(false);
