@@ -27,11 +27,12 @@ interface PlanningTabProps {
   onExecuteComplete?: (createdTaskIds: string[]) => void;
   onPipelineComplete?: (createdTaskIds: string[]) => void;
   onAutopilotComplete?: () => void;
+  onAutopilotSessionCreated?: (sessionId: string, taskIds: string[]) => void;
 }
 
 type Phase = "idle" | "kickoff" | "awaiting_response" | "plan_ready" | "approved" | "tasks_created";
 
-export function PlanningTab({ projectId, enableAutopilotV2 = false, onApplyComplete, onAutopilotComplete }: PlanningTabProps) {
+export function PlanningTab({ projectId, enableAutopilotV2 = false, onApplyComplete, onAutopilotComplete, onAutopilotSessionCreated }: PlanningTabProps) {
   const [idea, setIdea] = useState("");
   const [response, setResponse] = useState("");
   const [thread, setThread] = useState<CouncilThread | null>(null);
@@ -378,6 +379,8 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, onApplyCompl
             const sessionData = await sessionRes.json();
             setSessionId(sessionData.sessionId);
             setCreatedTaskIds(taskIds);
+            // Notify parent about session creation (for project-level AutopilotPanel)
+            onAutopilotSessionCreated?.(sessionData.sessionId, taskIds);
           }
         } catch (sessionErr) {
           console.error("Failed to create autopilot session:", sessionErr);
@@ -387,11 +390,7 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, onApplyCompl
       console.log("[DEBUG] Setting phase to tasks_created, taskIds:", taskIds.length);
       setDebugCreateTasks(prev => ({ ...prev, phaseSet: true }));
       setPhase("tasks_created");
-      // Only call onApplyComplete if autopilot is NOT enabled
-      // When autopilot is enabled, we want to stay on Planning tab to show AutopilotPanel
-      if (!showAutopilot) {
-        onApplyComplete?.(taskIds);
-      }
+      onApplyComplete?.(taskIds);
     } catch (err: any) {
       const errMsg = err.message || "UNKNOWN_ERROR";
       console.error("[DEBUG] handleCreateTasks error:", errMsg);

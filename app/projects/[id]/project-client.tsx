@@ -11,6 +11,8 @@ import { ChatPage } from "@/components/chat/chat-page";
 import { ProjectTabs } from "@/components/project/project-tabs";
 import { TasksView } from "@/components/project/tasks-view";
 import { PlanningTab } from "@/components/planning/planning-tab";
+import { AutopilotPanel } from "@/components/planning/autopilot-panel";
+import { useAutopilot } from "@/hooks/useAutopilot";
 
 interface ProjectClientProps {
   projectId: string;
@@ -29,6 +31,10 @@ export default function ProjectClient({ projectId, enableAutopilotV2 = false }: 
   const [deleteTaskOpen, setDeleteTaskOpen] = useState(false);
   const [createPROpen, setCreatePROpen] = useState(false);
   const [highlightedTaskIds, setHighlightedTaskIds] = useState<string[]>([]);
+
+  // Autopilot state (lifted from PlanningTab to survive tab switch)
+  const [autopilotSessionId, setAutopilotSessionId] = useState<string | null>(null);
+  const [autopilotTaskIds, setAutopilotTaskIds] = useState<string[]>([]);
 
   // Track if we've already auto-selected a task on mount
   const hasAutoSelectedRef = useRef(false);
@@ -59,6 +65,35 @@ export default function ProjectClient({ projectId, enableAutopilotV2 = false }: 
     handlePause,
     handleResume,
   } = useProjectExecution(projectId, { onTasksChanged: refreshTasks });
+
+  // Autopilot hook (at project level so it survives tab switch)
+  const autopilot = useAutopilot(
+    projectId,
+    autopilotSessionId,
+    undefined, // onBatchComplete
+    () => {
+      // onAllComplete - reset autopilot state
+      setAutopilotSessionId(null);
+      setAutopilotTaskIds([]);
+    },
+    undefined // onTaskComplete
+  );
+
+  const handleAutopilotSession = (sessionId: string, taskIds: string[]) => {
+    setAutopilotSessionId(sessionId);
+    setAutopilotTaskIds(taskIds);
+  };
+
+  // Autopilot control handlers (at project level)
+  const handleStartAutopilotStep = async () => {
+    if (!autopilotSessionId || autopilotTaskIds.length === 0) return;
+    await autopilot.start("STEP", autopilotTaskIds);
+  };
+
+  const handleStartAutopilotAuto = async () => {
+    if (!autopilotSessionId || autopilotTaskIds.length === 0) return;
+    await autopilot.start("AUTO", autopilotTaskIds);
+  };
 
   // Expose refresh functions for tests
   useEffect(() => {
@@ -220,6 +255,35 @@ export default function ProjectClient({ projectId, enableAutopilotV2 = false }: 
               // Clear highlight after 1.5s
               setTimeout(() => setHighlightedTaskIds([]), 1500);
             }}
+            onAutopilotSessionCreated={handleAutopilotSession}
+          />
+        </div>
+      )}
+
+      {/* Project-level Autopilot Panel - survives tab switch */}
+      {enableAutopilotV2 && autopilotSessionId && (
+        <div className="fixed bottom-4 right-4 z-50 w-96">
+          <AutopilotPanel
+            status={autopilot.status}
+            mode={autopilot.mode}
+            currentBatch={autopilot.currentBatch}
+            progress={autopilot.progress}
+            totalBatches={autopilot.totalBatches}
+            taskProgress={autopilot.taskProgress}
+            totalTasks={autopilotTaskIds.length}
+            completedTasks={autopilot.completedTasks}
+            currentTaskId={autopilot.currentTaskId}
+            pauseReason={autopilot.pauseReason}
+            error={autopilot.error}
+            isStarting={autopilot.isStarting}
+            isApproving={autopilot.isApproving}
+            isCanceling={autopilot.isCanceling}
+            isExecuting={autopilot.isExecuting}
+            onStartStep={handleStartAutopilotStep}
+            onStartAuto={handleStartAutopilotAuto}
+            onResume={autopilot.resume}
+            onApprove={autopilot.approve}
+            onCancel={autopilot.cancel}
           />
         </div>
       )}

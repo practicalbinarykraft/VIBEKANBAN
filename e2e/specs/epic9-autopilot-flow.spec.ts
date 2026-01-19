@@ -136,19 +136,16 @@ test.describe("EPIC-9 Autopilot Integration", () => {
     // Take screenshot for debugging
     await page.screenshot({ path: "test-results/debug-autopilot-t1.png", fullPage: true });
 
-    // Now wait for phase-tasks-created
-    const phaseMarker = page.locator('[data-testid="phase-tasks-created"]');
-    await expect(phaseMarker).toBeVisible({ timeout: 15000 });
-    console.log("DEBUG T1: phase-tasks-created marker visible");
+    // Wait for tab switch to Tasks (onApplyComplete switches tabs)
+    // The kanban-board appears in Tasks tab
+    const kanbanBoard = page.locator('[data-testid="kanban-board"]');
+    await expect(kanbanBoard).toBeVisible({ timeout: 15000 });
+    console.log("DEBUG T1: kanban-board visible (tab switched to Tasks)");
 
-    // Check autopilot debug markers
-    const autopilotDisabled = await page.locator('[data-testid="debug-autopilot-disabled"]').count();
-    const noSession = await page.locator('[data-testid="debug-no-session"]').count();
-    console.log("DEBUG T1: autopilot-disabled count:", autopilotDisabled, "no-session count:", noSession);
-
-    // Now wait for AutopilotPanel
+    // AutopilotPanel is now at project level - visible in Tasks tab
     const autopilotPanel = page.locator('[data-testid="autopilot-panel"]');
     await expect(autopilotPanel).toBeVisible({ timeout: 10000 });
+    console.log("DEBUG T1: autopilot-panel visible at project level");
 
     // Verify autopilot is in IDLE status
     const statusText = page.locator('[data-testid="autopilot-status"]');
@@ -235,49 +232,19 @@ test.describe("EPIC-9 Autopilot Integration", () => {
     await createTasksBtn.click();
     console.log("DEBUG T2: click executed");
 
-    // Debug: Wait for create-tasks-clicked marker (toBeAttached because class="hidden")
-    await expect(page.locator('[data-testid="debug-create-tasks-clicked"]')).toBeAttached({ timeout: 15000 });
-    console.log("DEBUG T2: create-tasks-clicked marker attached");
-
-    // Wait for loop to start
-    await expect(page.locator('[data-testid="debug-create-tasks-loop-started"]')).toBeAttached({ timeout: 10000 });
-    console.log("DEBUG T2: loop-started marker attached");
-
-    // Wait for first task to be created
-    await expect(
-      page.locator('[data-testid^="debug-create-tasks-status-"], [data-testid="debug-tasks-created-count"]').first()
-    ).toBeAttached({ timeout: 30000 });
-    console.log("DEBUG T2: first task response received");
-
-    // Check status markers
-    const statusMarkers = await page.locator('[data-testid^="debug-create-tasks-status-"]').all();
-    for (const m of statusMarkers) {
-      console.log("DEBUG T2: status marker:", await m.getAttribute("data-testid"));
-    }
-
-    const tasksCreatedMarker = page.locator('[data-testid="debug-tasks-created-count"]');
-    if (await tasksCreatedMarker.count() > 0) {
-      console.log("DEBUG T2: tasks created count:", await tasksCreatedMarker.getAttribute("data-count"));
-    }
-
-    // Check error marker using count() since it has class="hidden"
-    const errorMarker = page.locator('[data-testid="debug-create-tasks-error"]');
-    const errorCount = await errorMarker.count();
-    if (errorCount > 0) {
-      console.log("DEBUG T2: ERROR:", await errorMarker.getAttribute("data-error"));
-    } else {
-      console.log("DEBUG T2: No error marker");
-    }
-
+    // Note: Tab switches to Tasks immediately after tasks created (onApplyComplete callback)
+    // Debug markers are in PlanningTab which gets unmounted, so we skip to waiting for kanban-board
     await page.screenshot({ path: "test-results/debug-autopilot-t2.png", fullPage: true });
 
-    // Wait for phase marker
-    await expect(page.locator('[data-testid="phase-tasks-created"]')).toBeVisible({ timeout: 15000 });
-    console.log("DEBUG T2: phase-tasks-created visible");
+    // Wait for tab switch to Tasks (onApplyComplete switches tabs)
+    const kanbanBoard = page.locator('[data-testid="kanban-board"]');
+    await expect(kanbanBoard).toBeVisible({ timeout: 15000 });
+    console.log("DEBUG T2: kanban-board visible (tab switched to Tasks)");
 
-    // Wait for AutopilotPanel
+    // AutopilotPanel is now at project level - visible in Tasks tab
     const autopilotPanel = page.locator('[data-testid="autopilot-panel"]');
     await expect(autopilotPanel).toBeVisible({ timeout: 10000 });
+    console.log("DEBUG T2: autopilot-panel visible at project level");
 
     // Click "Run All" to start autopilot
     const runAllBtn = page.locator('[data-testid="autopilot-auto-button"]');
@@ -291,8 +258,7 @@ test.describe("EPIC-9 Autopilot Integration", () => {
     // Give autopilot time to process first task
     await page.waitForTimeout(3000);
 
-    // Check Tasks tab for in_progress tasks
-    await page.locator('[data-testid="tasks-tab"]').click();
+    // Already on Tasks tab, just wait for board to be ready
     await waitForBoardReady(page);
 
     // Verify at least one task moved to in_progress
@@ -361,56 +327,21 @@ test.describe("EPIC-9 Autopilot Integration", () => {
     await createTasksBtn.click();
     console.log("DEBUG T3: click executed");
 
-    // Debug: Wait for create-tasks-clicked marker (toBeAttached because class="hidden")
-    await expect(page.locator('[data-testid="debug-create-tasks-clicked"]')).toBeAttached({ timeout: 15000 });
-    console.log("DEBUG T3: create-tasks-clicked marker attached");
-
-    // Wait for loop to start
-    await expect(page.locator('[data-testid="debug-create-tasks-loop-started"]')).toBeAttached({ timeout: 10000 });
-    console.log("DEBUG T3: loop-started marker attached");
-
-    // Wait for first task to be created
-    await expect(
-      page.locator('[data-testid^="debug-create-tasks-status-"], [data-testid="debug-tasks-created-count"]').first()
-    ).toBeAttached({ timeout: 30000 });
-    console.log("DEBUG T3: first task response received");
-
-    // Check status markers
-    const statusMarkers = await page.locator('[data-testid^="debug-create-tasks-status-"]').all();
-    for (const m of statusMarkers) {
-      console.log("DEBUG T3: status marker:", await m.getAttribute("data-testid"));
-    }
-
-    const tasksCreatedMarker = page.locator('[data-testid="debug-tasks-created-count"]');
-    if (await tasksCreatedMarker.count() > 0) {
-      console.log("DEBUG T3: tasks created count:", await tasksCreatedMarker.getAttribute("data-count"));
-    }
-
-    // Check error marker using count() since it has class="hidden"
-    const errorMarker = page.locator('[data-testid="debug-create-tasks-error"]');
-    const errorCount = await errorMarker.count();
-    if (errorCount > 0) {
-      console.log("DEBUG T3: ERROR:", await errorMarker.getAttribute("data-error"));
-    } else {
-      console.log("DEBUG T3: No error marker");
-    }
-
+    // Note: Tab switches to Tasks immediately after tasks created (onApplyComplete callback)
+    // Debug markers are in PlanningTab which gets unmounted, so we skip to waiting for kanban-board
     await page.screenshot({ path: "test-results/debug-autopilot-t3-before-phase.png", fullPage: true });
 
-    // Wait for phase marker
-    await expect(page.locator('[data-testid="phase-tasks-created"]')).toBeVisible({ timeout: 15000 });
-    console.log("DEBUG T3: phase-tasks-created visible");
-
-    // Check autopilot debug markers
-    const autopilotDisabled = await page.locator('[data-testid="debug-autopilot-disabled"]').count();
-    const noSession = await page.locator('[data-testid="debug-no-session"]').count();
-    console.log("DEBUG T3: autopilot-disabled count:", autopilotDisabled, "no-session count:", noSession);
+    // Wait for tab switch to Tasks (onApplyComplete switches tabs)
+    const kanbanBoard = page.locator('[data-testid="kanban-board"]');
+    await expect(kanbanBoard).toBeVisible({ timeout: 15000 });
+    console.log("DEBUG T3: kanban-board visible (tab switched to Tasks)");
 
     await page.screenshot({ path: "test-results/debug-autopilot-t3.png", fullPage: true });
 
-    // Wait for AutopilotPanel
+    // AutopilotPanel is now at project level - visible in Tasks tab
     const autopilotPanel = page.locator('[data-testid="autopilot-panel"]');
     await expect(autopilotPanel).toBeVisible({ timeout: 10000 });
+    console.log("DEBUG T3: autopilot-panel visible at project level");
 
     // Verify task progress indicator shows correct format (e.g., "0/3")
     const taskProgress = page.locator('[data-testid="autopilot-task-progress"]');
