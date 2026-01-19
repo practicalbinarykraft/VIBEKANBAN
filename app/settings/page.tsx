@@ -2,6 +2,7 @@
 
 import { AppShell } from "@/components/app-shell";
 import { AiModeSection } from "@/components/settings/ai-mode-section";
+import { RealAiStatusCard } from "@/components/settings/real-ai-status-card";
 import { Settings } from "lucide-react";
 
 export default function SettingsPage() {
@@ -22,6 +23,7 @@ export default function SettingsPage() {
           </div>
 
           <div className="space-y-6">
+            <RealAiStatusCard />
             <AiModeSection />
 
             <div className="rounded-lg border bg-card p-6">
