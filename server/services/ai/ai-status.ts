@@ -5,24 +5,28 @@
  * Does NOT expose sensitive data (API keys).
  */
 
+import { checkProviderBudget } from "./ai-budget-guard";
+
+export type AiStatusReason =
+  | "FEATURE_REAL_AI_DISABLED"
+  | "MISSING_API_KEY"
+  | "TEST_MODE_FORCED_MOCK"
+  | "BUDGET_LIMIT_EXCEEDED";
+
 export interface AiStatusResponse {
   realAiEligible: boolean;
   provider: "anthropic" | "mock" | "db";
   model: string;
-  reason?: string;
+  reason?: AiStatusReason;
+  limitUSD?: number;
+  spendUSD?: number;
 }
 
 /**
  * Check if test mode is active
  */
-function isTestMode(): { active: boolean; reason?: string } {
-  if (process.env.PLAYWRIGHT === "1") {
-    return { active: true, reason: "Test mode active (PLAYWRIGHT=1)" };
-  }
-  if (process.env.NODE_ENV === "test") {
-    return { active: true, reason: "Test mode active (NODE_ENV=test)" };
-  }
-  return { active: false };
+function isTestMode(): boolean {
+  return process.env.PLAYWRIGHT === "1" || process.env.NODE_ENV === "test";
 }
 
 /**
@@ -45,19 +49,18 @@ function hasAnthropicKey(): boolean {
  *
  * Priority:
  * 1. Test mode → mock provider
- * 2. FEATURE_REAL_AI + ANTHROPIC_API_KEY → anthropic provider
- * 3. Otherwise → db provider (fallback to DB settings)
+ * 2. FEATURE_REAL_AI + ANTHROPIC_API_KEY + within budget → anthropic
+ * 3. FEATURE_REAL_AI + ANTHROPIC_API_KEY + over budget → db (blocked)
+ * 4. Otherwise → db provider (fallback to DB settings)
  */
-export function getAiStatus(): AiStatusResponse {
-  const testMode = isTestMode();
-
+export async function getAiStatus(): Promise<AiStatusResponse> {
   // Test mode always uses mock
-  if (testMode.active) {
+  if (isTestMode()) {
     return {
       realAiEligible: false,
       provider: "mock",
       model: "mock",
-      reason: testMode.reason,
+      reason: "TEST_MODE_FORCED_MOCK",
     };
   }
 
@@ -67,7 +70,7 @@ export function getAiStatus(): AiStatusResponse {
       realAiEligible: false,
       provider: "db",
       model: "configured-in-db",
-      reason: "FEATURE_REAL_AI flag not enabled",
+      reason: "FEATURE_REAL_AI_DISABLED",
     };
   }
 
@@ -77,7 +80,20 @@ export function getAiStatus(): AiStatusResponse {
       realAiEligible: false,
       provider: "db",
       model: "configured-in-db",
-      reason: "ANTHROPIC_API_KEY not configured",
+      reason: "MISSING_API_KEY",
+    };
+  }
+
+  // Check budget
+  const budgetCheck = await checkProviderBudget("anthropic");
+  if (!budgetCheck.allowed) {
+    return {
+      realAiEligible: false,
+      provider: "db",
+      model: "configured-in-db",
+      reason: "BUDGET_LIMIT_EXCEEDED",
+      limitUSD: budgetCheck.limitUSD,
+      spendUSD: budgetCheck.spendUSD,
     };
   }
 
