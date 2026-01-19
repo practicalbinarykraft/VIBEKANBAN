@@ -63,6 +63,14 @@ test.describe("EPIC-9 Autopilot Integration", () => {
     await expect(planStatusMarker).toHaveAttribute("data-status", "approved", { timeout: 10000 });
     console.log("DEBUG T1: plan status is approved");
 
+    // 6.6 Verify plan has tasks array populated (critical for Create Tasks)
+    const planTasksMarker = page.locator('[data-testid="debug-plan-tasks-len"]');
+    await expect(planTasksMarker).toBeAttached({ timeout: 5000 });
+    const tasksLen = await planTasksMarker.getAttribute("data-len");
+    console.log("DEBUG T1: plan.tasks.length =", tasksLen);
+    // Fail fast if tasks not populated (should be > 0 in demo mode)
+    expect(parseInt(tasksLen || "-1")).toBeGreaterThan(0);
+
     // 7. Create tasks - with deterministic checks
     const createTasksBtn = page.locator('[data-testid="create-tasks-btn"]');
 
@@ -90,10 +98,17 @@ test.describe("EPIC-9 Autopilot Integration", () => {
     // 8. Debug: Wait for debug-create-tasks-clicked (confirms handler was called)
     // Use toBeAttached() because marker has class="hidden"
     await expect(page.locator('[data-testid="debug-create-tasks-clicked"]')).toBeAttached({ timeout: 15000 });
-    console.log("DEBUG T1: create-tasks-clicked marker visible");
+    console.log("DEBUG T1: create-tasks-clicked marker attached");
 
-    // Wait a bit for API to complete
-    await page.waitForTimeout(2000);
+    // Wait for loop to start
+    await expect(page.locator('[data-testid="debug-create-tasks-loop-started"]')).toBeAttached({ timeout: 10000 });
+    console.log("DEBUG T1: loop-started marker attached");
+
+    // Wait for first task to be created (status marker or tasks-created-count)
+    await expect(
+      page.locator('[data-testid^="debug-create-tasks-status-"], [data-testid="debug-tasks-created-count"]').first()
+    ).toBeAttached({ timeout: 30000 });
+    console.log("DEBUG T1: first task response received");
 
     // Check all debug markers
     const statusMarkers = await page.locator('[data-testid^="debug-create-tasks-status-"]').all();
@@ -102,8 +117,11 @@ test.describe("EPIC-9 Autopilot Integration", () => {
       console.log("DEBUG T1: Found status marker:", testid);
     }
 
-    const phaseSetVisible = await page.locator('[data-testid="debug-create-tasks-phase-set"]').isVisible();
-    console.log("DEBUG T1: phase-set marker visible:", phaseSetVisible);
+    const tasksCreatedMarker = page.locator('[data-testid="debug-tasks-created-count"]');
+    if (await tasksCreatedMarker.count() > 0) {
+      const count = await tasksCreatedMarker.getAttribute("data-count");
+      console.log("DEBUG T1: tasks created count:", count);
+    }
 
     // Check error marker using count() since it has class="hidden"
     const errorMarker = page.locator('[data-testid="debug-create-tasks-error"]');
@@ -186,6 +204,13 @@ test.describe("EPIC-9 Autopilot Integration", () => {
     await expect(planStatusMarker).toHaveAttribute("data-status", "approved", { timeout: 10000 });
     console.log("DEBUG T2: plan status is approved");
 
+    // Verify plan has tasks array populated (critical for Create Tasks)
+    const planTasksMarker = page.locator('[data-testid="debug-plan-tasks-len"]');
+    await expect(planTasksMarker).toBeAttached({ timeout: 5000 });
+    const tasksLen = await planTasksMarker.getAttribute("data-len");
+    console.log("DEBUG T2: plan.tasks.length =", tasksLen);
+    expect(parseInt(tasksLen || "-1")).toBeGreaterThan(0);
+
     // Create tasks - with deterministic checks
     const createTasksBtn = page.locator('[data-testid="create-tasks-btn"]');
 
@@ -213,12 +238,26 @@ test.describe("EPIC-9 Autopilot Integration", () => {
     // Debug: Wait for create-tasks-clicked marker (toBeAttached because class="hidden")
     await expect(page.locator('[data-testid="debug-create-tasks-clicked"]')).toBeAttached({ timeout: 15000 });
     console.log("DEBUG T2: create-tasks-clicked marker attached");
-    await page.waitForTimeout(2000);
+
+    // Wait for loop to start
+    await expect(page.locator('[data-testid="debug-create-tasks-loop-started"]')).toBeAttached({ timeout: 10000 });
+    console.log("DEBUG T2: loop-started marker attached");
+
+    // Wait for first task to be created
+    await expect(
+      page.locator('[data-testid^="debug-create-tasks-status-"], [data-testid="debug-tasks-created-count"]').first()
+    ).toBeAttached({ timeout: 30000 });
+    console.log("DEBUG T2: first task response received");
 
     // Check status markers
     const statusMarkers = await page.locator('[data-testid^="debug-create-tasks-status-"]').all();
     for (const m of statusMarkers) {
       console.log("DEBUG T2: status marker:", await m.getAttribute("data-testid"));
+    }
+
+    const tasksCreatedMarker = page.locator('[data-testid="debug-tasks-created-count"]');
+    if (await tasksCreatedMarker.count() > 0) {
+      console.log("DEBUG T2: tasks created count:", await tasksCreatedMarker.getAttribute("data-count"));
     }
 
     // Check error marker using count() since it has class="hidden"
@@ -291,6 +330,13 @@ test.describe("EPIC-9 Autopilot Integration", () => {
     await expect(planStatusMarker).toHaveAttribute("data-status", "approved", { timeout: 10000 });
     console.log("DEBUG T3: plan status is approved");
 
+    // Verify plan has tasks array populated (critical for Create Tasks)
+    const planTasksMarker = page.locator('[data-testid="debug-plan-tasks-len"]');
+    await expect(planTasksMarker).toBeAttached({ timeout: 5000 });
+    const tasksLen = await planTasksMarker.getAttribute("data-len");
+    console.log("DEBUG T3: plan.tasks.length =", tasksLen);
+    expect(parseInt(tasksLen || "-1")).toBeGreaterThan(0);
+
     // Create tasks - with deterministic checks
     const createTasksBtn = page.locator('[data-testid="create-tasks-btn"]');
 
@@ -318,12 +364,26 @@ test.describe("EPIC-9 Autopilot Integration", () => {
     // Debug: Wait for create-tasks-clicked marker (toBeAttached because class="hidden")
     await expect(page.locator('[data-testid="debug-create-tasks-clicked"]')).toBeAttached({ timeout: 15000 });
     console.log("DEBUG T3: create-tasks-clicked marker attached");
-    await page.waitForTimeout(2000);
+
+    // Wait for loop to start
+    await expect(page.locator('[data-testid="debug-create-tasks-loop-started"]')).toBeAttached({ timeout: 10000 });
+    console.log("DEBUG T3: loop-started marker attached");
+
+    // Wait for first task to be created
+    await expect(
+      page.locator('[data-testid^="debug-create-tasks-status-"], [data-testid="debug-tasks-created-count"]').first()
+    ).toBeAttached({ timeout: 30000 });
+    console.log("DEBUG T3: first task response received");
 
     // Check status markers
     const statusMarkers = await page.locator('[data-testid^="debug-create-tasks-status-"]').all();
     for (const m of statusMarkers) {
       console.log("DEBUG T3: status marker:", await m.getAttribute("data-testid"));
+    }
+
+    const tasksCreatedMarker = page.locator('[data-testid="debug-tasks-created-count"]');
+    if (await tasksCreatedMarker.count() > 0) {
+      console.log("DEBUG T3: tasks created count:", await tasksCreatedMarker.getAttribute("data-count"));
     }
 
     // Check error marker using count() since it has class="hidden"
@@ -358,8 +418,8 @@ test.describe("EPIC-9 Autopilot Integration", () => {
     const progressText = await taskProgress.textContent();
     expect(progressText).toMatch(/\d+\/\d+/); // Format: "X/Y"
 
-    // Progress bar should be visible
+    // Progress bar element should exist (width may be 0% if no progress yet)
     const progressBar = page.locator('[data-testid="autopilot-progress-bar"]');
-    await expect(progressBar).toBeVisible();
+    await expect(progressBar).toBeAttached();
   });
 });

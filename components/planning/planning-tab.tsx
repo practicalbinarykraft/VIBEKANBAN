@@ -55,10 +55,12 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, onApplyCompl
   // Debug state for E2E diagnostics
   const [debugCreateTasks, setDebugCreateTasks] = useState<{
     clicked: boolean;
+    loopStarted: boolean;
+    tasksCreated: number;
     status: number | null;
     phaseSet: boolean;
     error: string | null;
-  }>({ clicked: false, status: null, phaseSet: false, error: null });
+  }>({ clicked: false, loopStarted: false, tasksCreated: 0, status: null, phaseSet: false, error: null });
 
   // Autopilot hook
   const autopilot = useAutopilot(
@@ -268,46 +270,96 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, onApplyCompl
 
   // Create tasks from approved plan
   const handleCreateTasks = async () => {
-    // Debug marker: clicked
-    setDebugCreateTasks(prev => ({ ...prev, clicked: true, status: null, phaseSet: false, error: null }));
+    // Debug marker: clicked - reset all markers
+    setDebugCreateTasks({ clicked: true, loopStarted: false, tasksCreated: 0, status: null, phaseSet: false, error: null });
     console.log("[DEBUG] handleCreateTasks called, plan:", plan?.id, "status:", plan?.status);
 
+    // Validate plan exists and is approved
     if (!plan || plan.status !== "approved") {
-      console.log("[DEBUG] handleCreateTasks early return - plan:", !!plan, "status:", plan?.status);
-      setDebugCreateTasks(prev => ({ ...prev, error: `early-return:plan=${!!plan}:status=${plan?.status}` }));
+      const errMsg = `PLAN_NOT_APPROVED:plan=${!!plan}:status=${plan?.status}`;
+      console.log("[DEBUG] handleCreateTasks early return -", errMsg);
+      setDebugCreateTasks(prev => ({ ...prev, error: errMsg }));
+      setError("Plan must be approved before creating tasks");
       return;
     }
 
-    console.log("[DEBUG] handleCreateTasks starting task creation for", plan.tasks?.length, "tasks");
+    // Validate plan.tasks is an array
+    const tasks = Array.isArray(plan.tasks) ? plan.tasks : null;
+    console.log("[DEBUG] handleCreateTasks tasks validation:", tasks ? tasks.length : "NOT_ARRAY");
+
+    if (!tasks) {
+      const errMsg = `PLAN_TASKS_NOT_ARRAY:type=${typeof plan.tasks}`;
+      console.log("[DEBUG] handleCreateTasks error -", errMsg);
+      setDebugCreateTasks(prev => ({ ...prev, error: errMsg }));
+      setError("Plan tasks are not available");
+      return;
+    }
+
+    // If no tasks to create, still transition to tasks_created phase
+    if (tasks.length === 0) {
+      console.log("[DEBUG] handleCreateTasks - no tasks to create, setting phase directly");
+      setDebugCreateTasks(prev => ({ ...prev, phaseSet: true }));
+      setPhase("tasks_created");
+      onApplyComplete?.([]);
+      return;
+    }
+
+    console.log("[DEBUG] handleCreateTasks starting task creation for", tasks.length, "tasks");
     setIsCreating(true);
     setError(null);
 
     try {
-      const taskPromises = plan.tasks.map((task) =>
-        fetch(`/api/projects/${projectId}/tasks`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title: task.title,
-            description: task.description,
-            estimate: task.estimate,
-          }),
-        })
-      );
-
-      const responses = await Promise.all(taskPromises);
-
-      // Debug marker: capture first response status
-      if (responses.length > 0) {
-        setDebugCreateTasks(prev => ({ ...prev, status: responses[0].status }));
-      }
-
+      // Use shorter timeout - demo mode API should be fast
+      // Note: process.env.NEXT_PUBLIC_* is available client-side
+      const timeout = 10000; // 10s per task max
       const taskIds: string[] = [];
 
-      for (const res of responses) {
-        if (res.ok) {
-          const data = await res.json();
-          taskIds.push(data.id);
+      // Mark loop started
+      setDebugCreateTasks(prev => ({ ...prev, loopStarted: true }));
+      console.log("[DEBUG] Loop started, about to create", tasks.length, "tasks");
+
+      for (let i = 0; i < tasks.length; i++) {
+        const task = tasks[i];
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+        console.log("[DEBUG] Creating task", i + 1, "of", tasks.length, ":", task.title?.substring(0, 30));
+
+        try {
+          const res = await fetch(`/api/projects/${projectId}/tasks`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title: task.title,
+              description: task.description,
+              estimate: task.estimate,
+            }),
+            signal: controller.signal,
+          });
+
+          clearTimeout(timeoutId);
+
+          // Debug marker: capture response status on first response
+          if (i === 0) {
+            setDebugCreateTasks(prev => ({ ...prev, status: res.status }));
+          }
+
+          if (res.ok) {
+            const data = await res.json();
+            taskIds.push(data.id);
+            // Update progress
+            setDebugCreateTasks(prev => ({ ...prev, tasksCreated: taskIds.length }));
+            console.log("[DEBUG] Task", i + 1, "created successfully, id:", data.id);
+          } else {
+            console.warn("[DEBUG] Task creation failed:", res.status, await res.text());
+          }
+        } catch (fetchErr: any) {
+          clearTimeout(timeoutId);
+          console.error("[DEBUG] Fetch error for task", i + 1, ":", fetchErr.name, fetchErr.message);
+          if (fetchErr.name === "AbortError") {
+            throw new Error("CREATE_TASKS_TIMEOUT");
+          }
+          throw fetchErr;
         }
       }
 
@@ -319,7 +371,7 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, onApplyCompl
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               idea: idea.trim(),
-              taskIds, // Pass created task IDs
+              taskIds,
             }),
           });
           if (sessionRes.ok) {
@@ -333,15 +385,18 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, onApplyCompl
       }
 
       console.log("[DEBUG] Setting phase to tasks_created, taskIds:", taskIds.length);
-      // Debug marker: phase set
       setDebugCreateTasks(prev => ({ ...prev, phaseSet: true }));
       setPhase("tasks_created");
-      onApplyComplete?.(taskIds);
+      // Only call onApplyComplete if autopilot is NOT enabled
+      // When autopilot is enabled, we want to stay on Planning tab to show AutopilotPanel
+      if (!showAutopilot) {
+        onApplyComplete?.(taskIds);
+      }
     } catch (err: any) {
-      console.error("[DEBUG] handleCreateTasks error:", err.message);
-      // Debug marker: error
-      setDebugCreateTasks(prev => ({ ...prev, error: err.message }));
-      setError(err.message);
+      const errMsg = err.message || "UNKNOWN_ERROR";
+      console.error("[DEBUG] handleCreateTasks error:", errMsg);
+      setDebugCreateTasks(prev => ({ ...prev, error: errMsg }));
+      setError(errMsg);
     } finally {
       console.log("[DEBUG] handleCreateTasks finally block");
       setIsCreating(false);
@@ -495,10 +550,24 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, onApplyCompl
             className="hidden"
           />
         )}
+        {/* Plan tasks length marker - for E2E diagnostics */}
+        {plan && (
+          <div
+            data-testid="debug-plan-tasks-len"
+            data-len={Array.isArray(plan.tasks) ? plan.tasks.length : -1}
+            className="hidden"
+          />
+        )}
 
         {/* Debug markers for Create Tasks flow */}
         {debugCreateTasks.clicked && (
           <div data-testid="debug-create-tasks-clicked" className="hidden" />
+        )}
+        {debugCreateTasks.loopStarted && (
+          <div data-testid="debug-create-tasks-loop-started" className="hidden" />
+        )}
+        {debugCreateTasks.tasksCreated > 0 && (
+          <div data-testid="debug-tasks-created-count" data-count={debugCreateTasks.tasksCreated} className="hidden" />
         )}
         {debugCreateTasks.status !== null && (
           <div data-testid={`debug-create-tasks-status-${debugCreateTasks.status}`} className="hidden" />

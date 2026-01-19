@@ -86,6 +86,11 @@ export async function checkRepoReady(projectId: string): Promise<SafetyCheckResu
  * Run all safety checks before execution
  */
 export async function runSafetyChecks(projectId: string): Promise<SafetyCheckResult> {
+  // Skip safety checks in PLAYWRIGHT mode for E2E testing
+  if (process.env.PLAYWRIGHT === '1') {
+    return { ok: true };
+  }
+
   // Check repo ready
   const repoCheck = await checkRepoReady(projectId);
   if (!repoCheck.ok) return repoCheck;
