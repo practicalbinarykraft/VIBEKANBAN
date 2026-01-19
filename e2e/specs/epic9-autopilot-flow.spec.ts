@@ -62,26 +62,41 @@ test.describe("EPIC-9 Autopilot Integration", () => {
     await expect(createTasksBtn).toBeVisible({ timeout: 10000 });
     await createTasksBtn.click();
 
-    // 8. Wait for phase to reach tasks_created FIRST
-    const phaseMarker = page.locator('[data-testid="phase-tasks-created"]');
-    await expect(phaseMarker).toBeVisible({ timeout: 15000 });
-    console.log("DEBUG T1: phase-tasks-created marker visible");
+    // 8. Debug: Wait for debug-create-tasks-clicked first (confirms handler was called)
+    await expect(page.locator('[data-testid="debug-create-tasks-clicked"]')).toBeVisible({ timeout: 5000 });
+    console.log("DEBUG T1: create-tasks-clicked marker visible");
 
-    // Check debug markers to diagnose why autopilot-panel might not appear
-    const autopilotDisabled = await page.locator('[data-testid="debug-autopilot-disabled"]').count();
-    const noSession = await page.locator('[data-testid="debug-no-session"]').count();
-    console.log("DEBUG T1: autopilot-disabled marker count:", autopilotDisabled);
-    console.log("DEBUG T1: no-session marker count:", noSession);
+    // Wait a bit for API to complete
+    await page.waitForTimeout(2000);
 
-    if (autopilotDisabled > 0) {
-      console.log("DEBUG T1: FEATURE_AUTOPILOT_V2 flag is OFF!");
+    // Check all debug markers
+    const statusMarkers = await page.locator('[data-testid^="debug-create-tasks-status-"]').all();
+    for (const marker of statusMarkers) {
+      const testid = await marker.getAttribute("data-testid");
+      console.log("DEBUG T1: Found status marker:", testid);
     }
-    if (noSession > 0) {
-      console.log("DEBUG T1: sessionId is missing!");
+
+    const phaseSetVisible = await page.locator('[data-testid="debug-create-tasks-phase-set"]').isVisible();
+    console.log("DEBUG T1: phase-set marker visible:", phaseSetVisible);
+
+    const errorMarker = page.locator('[data-testid="debug-create-tasks-error"]');
+    if (await errorMarker.isVisible()) {
+      const errorValue = await errorMarker.getAttribute("data-error");
+      console.log("DEBUG T1: ERROR marker found:", errorValue);
     }
 
     // Take screenshot for debugging
     await page.screenshot({ path: "test-results/debug-autopilot-t1.png", fullPage: true });
+
+    // Now wait for phase-tasks-created
+    const phaseMarker = page.locator('[data-testid="phase-tasks-created"]');
+    await expect(phaseMarker).toBeVisible({ timeout: 15000 });
+    console.log("DEBUG T1: phase-tasks-created marker visible");
+
+    // Check autopilot debug markers
+    const autopilotDisabled = await page.locator('[data-testid="debug-autopilot-disabled"]').count();
+    const noSession = await page.locator('[data-testid="debug-no-session"]').count();
+    console.log("DEBUG T1: autopilot-disabled count:", autopilotDisabled, "no-session count:", noSession);
 
     // Now wait for AutopilotPanel
     const autopilotPanel = page.locator('[data-testid="autopilot-panel"]');
@@ -139,16 +154,27 @@ test.describe("EPIC-9 Autopilot Integration", () => {
     await expect(createTasksBtn).toBeVisible({ timeout: 10000 });
     await createTasksBtn.click();
 
-    // Wait for phase marker first
-    await expect(page.locator('[data-testid="phase-tasks-created"]')).toBeVisible({ timeout: 15000 });
-    console.log("DEBUG T2: phase-tasks-created visible");
+    // Debug: Wait for create-tasks-clicked marker
+    await expect(page.locator('[data-testid="debug-create-tasks-clicked"]')).toBeVisible({ timeout: 5000 });
+    console.log("DEBUG T2: create-tasks-clicked visible");
+    await page.waitForTimeout(2000);
 
-    // Check debug markers
-    const autopilotDisabled = await page.locator('[data-testid="debug-autopilot-disabled"]').count();
-    const noSession = await page.locator('[data-testid="debug-no-session"]').count();
-    console.log("DEBUG T2: autopilot-disabled count:", autopilotDisabled, "no-session count:", noSession);
+    // Check status markers
+    const statusMarkers = await page.locator('[data-testid^="debug-create-tasks-status-"]').all();
+    for (const m of statusMarkers) {
+      console.log("DEBUG T2: status marker:", await m.getAttribute("data-testid"));
+    }
+
+    const errorMarker = page.locator('[data-testid="debug-create-tasks-error"]');
+    if (await errorMarker.isVisible()) {
+      console.log("DEBUG T2: ERROR:", await errorMarker.getAttribute("data-error"));
+    }
 
     await page.screenshot({ path: "test-results/debug-autopilot-t2.png", fullPage: true });
+
+    // Wait for phase marker
+    await expect(page.locator('[data-testid="phase-tasks-created"]')).toBeVisible({ timeout: 15000 });
+    console.log("DEBUG T2: phase-tasks-created visible");
 
     // Wait for AutopilotPanel
     const autopilotPanel = page.locator('[data-testid="autopilot-panel"]');
@@ -203,11 +229,29 @@ test.describe("EPIC-9 Autopilot Integration", () => {
     await expect(createTasksBtn).toBeVisible({ timeout: 10000 });
     await createTasksBtn.click();
 
-    // Wait for phase marker first
+    // Debug: Wait for create-tasks-clicked marker
+    await expect(page.locator('[data-testid="debug-create-tasks-clicked"]')).toBeVisible({ timeout: 5000 });
+    console.log("DEBUG T3: create-tasks-clicked visible");
+    await page.waitForTimeout(2000);
+
+    // Check status markers
+    const statusMarkers = await page.locator('[data-testid^="debug-create-tasks-status-"]').all();
+    for (const m of statusMarkers) {
+      console.log("DEBUG T3: status marker:", await m.getAttribute("data-testid"));
+    }
+
+    const errorMarker = page.locator('[data-testid="debug-create-tasks-error"]');
+    if (await errorMarker.isVisible()) {
+      console.log("DEBUG T3: ERROR:", await errorMarker.getAttribute("data-error"));
+    }
+
+    await page.screenshot({ path: "test-results/debug-autopilot-t3-before-phase.png", fullPage: true });
+
+    // Wait for phase marker
     await expect(page.locator('[data-testid="phase-tasks-created"]')).toBeVisible({ timeout: 15000 });
     console.log("DEBUG T3: phase-tasks-created visible");
 
-    // Check debug markers
+    // Check autopilot debug markers
     const autopilotDisabled = await page.locator('[data-testid="debug-autopilot-disabled"]').count();
     const noSession = await page.locator('[data-testid="debug-no-session"]').count();
     console.log("DEBUG T3: autopilot-disabled count:", autopilotDisabled, "no-session count:", noSession);

@@ -52,6 +52,14 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, onApplyCompl
   const [isApproving, setIsApproving] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
 
+  // Debug state for E2E diagnostics
+  const [debugCreateTasks, setDebugCreateTasks] = useState<{
+    clicked: boolean;
+    status: number | null;
+    phaseSet: boolean;
+    error: string | null;
+  }>({ clicked: false, status: null, phaseSet: false, error: null });
+
   // Autopilot hook
   const autopilot = useAutopilot(
     projectId,
@@ -260,9 +268,13 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, onApplyCompl
 
   // Create tasks from approved plan
   const handleCreateTasks = async () => {
+    // Debug marker: clicked
+    setDebugCreateTasks(prev => ({ ...prev, clicked: true, status: null, phaseSet: false, error: null }));
     console.log("[DEBUG] handleCreateTasks called, plan:", plan?.id, "status:", plan?.status);
+
     if (!plan || plan.status !== "approved") {
       console.log("[DEBUG] handleCreateTasks early return - plan:", !!plan, "status:", plan?.status);
+      setDebugCreateTasks(prev => ({ ...prev, error: `early-return:plan=${!!plan}:status=${plan?.status}` }));
       return;
     }
 
@@ -284,6 +296,12 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, onApplyCompl
       );
 
       const responses = await Promise.all(taskPromises);
+
+      // Debug marker: capture first response status
+      if (responses.length > 0) {
+        setDebugCreateTasks(prev => ({ ...prev, status: responses[0].status }));
+      }
+
       const taskIds: string[] = [];
 
       for (const res of responses) {
@@ -315,10 +333,14 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, onApplyCompl
       }
 
       console.log("[DEBUG] Setting phase to tasks_created, taskIds:", taskIds.length);
+      // Debug marker: phase set
+      setDebugCreateTasks(prev => ({ ...prev, phaseSet: true }));
       setPhase("tasks_created");
       onApplyComplete?.(taskIds);
     } catch (err: any) {
       console.error("[DEBUG] handleCreateTasks error:", err.message);
+      // Debug marker: error
+      setDebugCreateTasks(prev => ({ ...prev, error: err.message }));
       setError(err.message);
     } finally {
       console.log("[DEBUG] handleCreateTasks finally block");
@@ -462,6 +484,20 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, onApplyCompl
           >
             Tasks created successfully! Check the Tasks tab.
           </div>
+        )}
+
+        {/* Debug markers for Create Tasks flow - E2E diagnostics */}
+        {debugCreateTasks.clicked && (
+          <div data-testid="debug-create-tasks-clicked" className="hidden" />
+        )}
+        {debugCreateTasks.status !== null && (
+          <div data-testid={`debug-create-tasks-status-${debugCreateTasks.status}`} className="hidden" />
+        )}
+        {debugCreateTasks.phaseSet && (
+          <div data-testid="debug-create-tasks-phase-set" className="hidden" />
+        )}
+        {debugCreateTasks.error && (
+          <div data-testid="debug-create-tasks-error" data-error={debugCreateTasks.error} className="hidden" />
         )}
 
         {/* Debug markers for E2E tests - only rendered when conditions partially met */}
