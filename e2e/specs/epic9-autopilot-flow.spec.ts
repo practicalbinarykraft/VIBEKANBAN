@@ -82,7 +82,8 @@ test.describe("EPIC-9 Autopilot Integration", () => {
     console.log("DEBUG T1: click executed");
 
     // 8. Debug: Wait for debug-create-tasks-clicked (confirms handler was called)
-    await expect(page.locator('[data-testid="debug-create-tasks-clicked"]')).toBeVisible({ timeout: 15000 });
+    // Use toBeAttached() because marker has class="hidden"
+    await expect(page.locator('[data-testid="debug-create-tasks-clicked"]')).toBeAttached({ timeout: 15000 });
     console.log("DEBUG T1: create-tasks-clicked marker visible");
 
     // Wait a bit for API to complete
@@ -193,9 +194,9 @@ test.describe("EPIC-9 Autopilot Integration", () => {
     await createTasksBtn.click();
     console.log("DEBUG T2: click executed");
 
-    // Debug: Wait for create-tasks-clicked marker
-    await expect(page.locator('[data-testid="debug-create-tasks-clicked"]')).toBeVisible({ timeout: 15000 });
-    console.log("DEBUG T2: create-tasks-clicked visible");
+    // Debug: Wait for create-tasks-clicked marker (toBeAttached because class="hidden")
+    await expect(page.locator('[data-testid="debug-create-tasks-clicked"]')).toBeAttached({ timeout: 15000 });
+    console.log("DEBUG T2: create-tasks-clicked marker attached");
     await page.waitForTimeout(2000);
 
     // Check status markers
@@ -288,9 +289,9 @@ test.describe("EPIC-9 Autopilot Integration", () => {
     await createTasksBtn.click();
     console.log("DEBUG T3: click executed");
 
-    // Debug: Wait for create-tasks-clicked marker
-    await expect(page.locator('[data-testid="debug-create-tasks-clicked"]')).toBeVisible({ timeout: 15000 });
-    console.log("DEBUG T3: create-tasks-clicked visible");
+    // Debug: Wait for create-tasks-clicked marker (toBeAttached because class="hidden")
+    await expect(page.locator('[data-testid="debug-create-tasks-clicked"]')).toBeAttached({ timeout: 15000 });
+    console.log("DEBUG T3: create-tasks-clicked marker attached");
     await page.waitForTimeout(2000);
 
     // Check status markers
