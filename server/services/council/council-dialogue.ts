@@ -11,7 +11,7 @@ import { db } from "@/server/db";
 import { councilThreads, councilThreadMessages, planArtifacts } from "@/server/db/schema";
 import { randomUUID } from "crypto";
 import { eq, and, desc } from "drizzle-orm";
-import { getAICompletion, isAIConfigured } from "../ai/ai-provider";
+import { getCouncilAiResponse } from "./council-ai-router";
 
 export type CouncilRole = "product" | "architect" | "backend" | "frontend" | "qa";
 export type MessageKind = "message" | "question" | "concern" | "proposal" | "consensus";
@@ -87,28 +87,6 @@ async function generateKickoffMessages(
     const role = DISCUSSION_ORDER[i];
     const roleInfo = ROLE_PROMPTS[role];
 
-    if (isTestMode()) {
-      // Mock response for test mode
-      messages.push({
-        role,
-        kind: i === DISCUSSION_ORDER.length - 1 ? "question" : "message",
-        content: getMockKickoffMessage(role, idea, language),
-        turnIndex: 0,
-      });
-      continue;
-    }
-
-    const aiConfigured = await isAIConfigured();
-    if (!aiConfigured) {
-      messages.push({
-        role,
-        kind: "message",
-        content: getMockKickoffMessage(role, idea, language),
-        turnIndex: 0,
-      });
-      continue;
-    }
-
     const systemPrompt = `You are ${roleInfo.name} in a software development council.
 Your focus: ${roleInfo.focus}.
 ${langInstruction}
@@ -124,29 +102,21 @@ Keep response concise (3-5 sentences max). Be specific and actionable.`;
 
 Share your initial thoughts, risks, and questions.`;
 
-    try {
-      const result = await getAICompletion({
-        systemPrompt,
-        messages: [{ role: "user", content: userPrompt }],
-        maxTokens: 300,
-        temperature: 0.7,
-      });
+    // getCouncilAiResponse handles mode selection (test/demo/real)
+    const result = await getCouncilAiResponse({
+      systemPrompt,
+      userPrompt,
+      language: language as "en" | "ru",
+      maxTokens: 300,
+    });
 
-      const kind = detectMessageKind(result.content);
-      messages.push({
-        role,
-        kind,
-        content: result.content.trim(),
-        turnIndex: 0,
-      });
-    } catch (error) {
-      messages.push({
-        role,
-        kind: "message",
-        content: getMockKickoffMessage(role, idea, language),
-        turnIndex: 0,
-      });
-    }
+    const kind = detectMessageKind(result.content);
+    messages.push({
+      role,
+      kind,
+      content: result.content.trim(),
+      turnIndex: 0,
+    });
   }
 
   // Product manager summarizes questions at the end
@@ -164,33 +134,6 @@ async function generateProductSummary(
   previousMessages: Omit<CouncilMessage, "id" | "createdAt">[],
   language: string
 ): Promise<Omit<CouncilMessage, "id" | "createdAt">> {
-  if (isTestMode() || !(await isAIConfigured())) {
-    return {
-      role: "product",
-      kind: "question",
-      content: language === "ru"
-        ? `**Вопросы пользователю:**
-- Какова основная целевая аудитория?
-- Есть ли требования по срокам?
-
-**Предварительная гипотеза:**
-Создадим MVP с базовым функционалом.
-
-**Что будет в MVP:** основные функции
-**Что НЕ будет:** расширенные возможности, интеграции`
-        : `**Questions for user:**
-- Who is the target audience?
-- Any timeline requirements?
-
-**Initial hypothesis:**
-We'll build an MVP with core functionality.
-
-**In MVP:** core features
-**NOT in MVP:** advanced features, integrations`,
-      turnIndex: 0,
-    };
-  }
-
   const langInstruction = language === "ru" ? "Respond in Russian." : "Respond in English.";
   const discussionSummary = previousMessages.map(m => `[${m.role}]: ${m.content}`).join("\n");
 
@@ -203,28 +146,22 @@ Your response MUST include exactly these sections:
 3. **In MVP:** - what will be included
 4. **NOT in MVP:** - what will be excluded for now`;
 
-  try {
-    const result = await getAICompletion({
-      systemPrompt,
-      messages: [{ role: "user", content: `Idea: "${idea}"\n\nDiscussion:\n${discussionSummary}` }],
-      maxTokens: 400,
-      temperature: 0.5,
-    });
+  const userPrompt = `Idea: "${idea}"\n\nDiscussion:\n${discussionSummary}`;
 
-    return {
-      role: "product",
-      kind: "question",
-      content: result.content.trim(),
-      turnIndex: 0,
-    };
-  } catch {
-    return {
-      role: "product",
-      kind: "question",
-      content: language === "ru" ? "Нужны уточнения от пользователя." : "Need clarification from user.",
-      turnIndex: 0,
-    };
-  }
+  // getCouncilAiResponse handles mode selection (test/demo/real)
+  const result = await getCouncilAiResponse({
+    systemPrompt,
+    userPrompt,
+    language: language as "en" | "ru",
+    maxTokens: 400,
+  });
+
+  return {
+    role: "product",
+    kind: "question",
+    content: result.content.trim(),
+    turnIndex: 0,
+  };
 }
 
 /**
