@@ -11,6 +11,7 @@ export default defineConfig({
       'hooks/__tests__/**/*.test.{ts,tsx}',
       'lib/__tests__/**/*.test.{ts,tsx}',
       'server/services/__tests__/**/*.test.ts',
+      'components/**/__tests__/**/*.test.{ts,tsx}',
     ],
     exclude: [
       'node_modules/**',
