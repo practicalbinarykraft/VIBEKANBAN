@@ -384,5 +384,21 @@ export function initDB() {
     );
   `);
 
-  console.log("✅ Database initialized");
+  // Add PR-54 columns to provider_accounts (spend_usd_month_to_date, note)
+  try {
+    _sqlite!.exec(`ALTER TABLE provider_accounts ADD COLUMN spend_usd_month_to_date REAL;`);
+  } catch (error: any) {
+    if (!error.message.includes('duplicate column name')) {
+      process.stderr.write(`Warning during migration: ${error.message}\n`);
+    }
+  }
+  try {
+    _sqlite!.exec(`ALTER TABLE provider_accounts ADD COLUMN note TEXT;`);
+  } catch (error: any) {
+    if (!error.message.includes('duplicate column name')) {
+      process.stderr.write(`Warning during migration: ${error.message}\n`);
+    }
+  }
+
+  process.stdout.write("✅ Database initialized\n");
 }

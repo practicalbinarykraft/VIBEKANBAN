@@ -1,11 +1,13 @@
 /**
- * Provider Balance Service (PR-52)
+ * Provider Balance Service (PR-52, PR-54)
  *
  * Refreshes provider balances and stores in provider_accounts table.
  * Logic:
  * 1. Try provider adapter (e.g., anthropic API)
  * 2. If unknown -> fall back to estimator
  * 3. Save to provider_accounts table
+ *
+ * PR-54: Added refreshAllProviderBalances() and spendUsdMonthToDate persistence
  */
 
 import { db } from "@/server/db";
@@ -107,6 +109,7 @@ export async function refreshProviderBalance(
         balanceSource: source,
         balanceUpdatedAt: now,
         monthlyLimitUsd: limitUsd,
+        spendUsdMonthToDate: spendUsd,
         updatedAt: now,
       })
       .where(eq(providerAccounts.provider, provider));
@@ -119,6 +122,7 @@ export async function refreshProviderBalance(
       balanceSource: source,
       balanceUpdatedAt: now,
       monthlyLimitUsd: limitUsd,
+      spendUsdMonthToDate: spendUsd,
       createdAt: now,
       updatedAt: now,
     });
@@ -132,4 +136,23 @@ export async function refreshProviderBalance(
     limitUsd,
     updatedAt: now.toISOString(),
   };
+}
+
+/** All supported providers */
+const ALL_PROVIDERS: Provider[] = ["anthropic", "openai"];
+
+/**
+ * Refresh balances for all providers (PR-54)
+ * @param options - Optional: testSource for testing
+ * @returns Array of RefreshResult for each provider
+ */
+export async function refreshAllProviderBalances(
+  options: RefreshOptions = {}
+): Promise<RefreshResult[]> {
+  const results: RefreshResult[] = [];
+  for (const provider of ALL_PROVIDERS) {
+    const result = await refreshProviderBalance(provider, options);
+    results.push(result);
+  }
+  return results;
 }

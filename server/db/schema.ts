@@ -184,7 +184,7 @@ export const aiCostEvents = sqliteTable("ai_cost_events", {
   metadataJson: text("metadata_json"), // JSON string for additional context
 });
 
-// Provider Accounts (PR-52) - stores provider balances and refresh state
+// Provider Accounts (PR-52, PR-54) - stores provider balances and refresh state
 export const providerAccounts = sqliteTable("provider_accounts", {
   id: text("id").primaryKey(),
   provider: text("provider").notNull(), // anthropic, openai
@@ -193,6 +193,8 @@ export const providerAccounts = sqliteTable("provider_accounts", {
   balanceUpdatedAt: integer("balance_updated_at", { mode: "timestamp" }),
   balanceSource: text("balance_source").notNull().default("unknown"), // provider_api, estimator, unknown
   monthlyLimitUsd: real("monthly_limit_usd"), // From env var
+  spendUsdMonthToDate: real("spend_usd_month_to_date"), // PR-54: spend this month
+  note: text("note"), // PR-54: optional note (e.g., "auto-refresh")
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`CURRENT_TIMESTAMP`),
 });
