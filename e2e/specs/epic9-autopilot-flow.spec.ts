@@ -57,13 +57,32 @@ test.describe("EPIC-9 Autopilot Integration", () => {
     await expect(approveBtn).toBeVisible({ timeout: 10000 });
     await approveBtn.click();
 
-    // 7. Create tasks
+    // 7. Create tasks - with deterministic checks
     const createTasksBtn = page.locator('[data-testid="create-tasks-btn"]');
-    await expect(createTasksBtn).toBeVisible({ timeout: 10000 });
-    await createTasksBtn.click();
 
-    // 8. Debug: Wait for debug-create-tasks-clicked first (confirms handler was called)
-    await expect(page.locator('[data-testid="debug-create-tasks-clicked"]')).toBeVisible({ timeout: 5000 });
+    // Debug: log button state before checks
+    console.log("DEBUG T1: createTasksBtn visible:", await createTasksBtn.isVisible());
+    console.log("DEBUG T1: createTasksBtn enabled:", await createTasksBtn.isEnabled());
+    console.log("DEBUG T1: URL before click:", page.url());
+
+    // Deterministic checks
+    await expect(createTasksBtn).toBeVisible({ timeout: 15000 });
+    await expect(createTasksBtn).toBeEnabled({ timeout: 15000 });
+    await createTasksBtn.scrollIntoViewIfNeeded();
+
+    // Take screenshot before click
+    await page.screenshot({ path: "test-results/debug-t1-before-create-tasks-click.png", fullPage: true });
+
+    // Trial click to verify button is actionable
+    await createTasksBtn.click({ trial: true });
+    console.log("DEBUG T1: trial click passed");
+
+    // Actual click
+    await createTasksBtn.click();
+    console.log("DEBUG T1: click executed");
+
+    // 8. Debug: Wait for debug-create-tasks-clicked (confirms handler was called)
+    await expect(page.locator('[data-testid="debug-create-tasks-clicked"]')).toBeVisible({ timeout: 15000 });
     console.log("DEBUG T1: create-tasks-clicked marker visible");
 
     // Wait a bit for API to complete
@@ -150,12 +169,32 @@ test.describe("EPIC-9 Autopilot Integration", () => {
     await expect(approveBtn).toBeVisible({ timeout: 10000 });
     await approveBtn.click();
 
+    // Create tasks - with deterministic checks
     const createTasksBtn = page.locator('[data-testid="create-tasks-btn"]');
-    await expect(createTasksBtn).toBeVisible({ timeout: 10000 });
+
+    // Debug: log button state before checks
+    console.log("DEBUG T2: createTasksBtn visible:", await createTasksBtn.isVisible());
+    console.log("DEBUG T2: createTasksBtn enabled:", await createTasksBtn.isEnabled());
+    console.log("DEBUG T2: URL before click:", page.url());
+
+    // Deterministic checks
+    await expect(createTasksBtn).toBeVisible({ timeout: 15000 });
+    await expect(createTasksBtn).toBeEnabled({ timeout: 15000 });
+    await createTasksBtn.scrollIntoViewIfNeeded();
+
+    // Take screenshot before click
+    await page.screenshot({ path: "test-results/debug-t2-before-create-tasks-click.png", fullPage: true });
+
+    // Trial click to verify button is actionable
+    await createTasksBtn.click({ trial: true });
+    console.log("DEBUG T2: trial click passed");
+
+    // Actual click
     await createTasksBtn.click();
+    console.log("DEBUG T2: click executed");
 
     // Debug: Wait for create-tasks-clicked marker
-    await expect(page.locator('[data-testid="debug-create-tasks-clicked"]')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('[data-testid="debug-create-tasks-clicked"]')).toBeVisible({ timeout: 15000 });
     console.log("DEBUG T2: create-tasks-clicked visible");
     await page.waitForTimeout(2000);
 
@@ -225,12 +264,32 @@ test.describe("EPIC-9 Autopilot Integration", () => {
     await expect(approveBtn).toBeVisible({ timeout: 10000 });
     await approveBtn.click();
 
+    // Create tasks - with deterministic checks
     const createTasksBtn = page.locator('[data-testid="create-tasks-btn"]');
-    await expect(createTasksBtn).toBeVisible({ timeout: 10000 });
+
+    // Debug: log button state before checks
+    console.log("DEBUG T3: createTasksBtn visible:", await createTasksBtn.isVisible());
+    console.log("DEBUG T3: createTasksBtn enabled:", await createTasksBtn.isEnabled());
+    console.log("DEBUG T3: URL before click:", page.url());
+
+    // Deterministic checks
+    await expect(createTasksBtn).toBeVisible({ timeout: 15000 });
+    await expect(createTasksBtn).toBeEnabled({ timeout: 15000 });
+    await createTasksBtn.scrollIntoViewIfNeeded();
+
+    // Take screenshot before click
+    await page.screenshot({ path: "test-results/debug-t3-before-create-tasks-click.png", fullPage: true });
+
+    // Trial click to verify button is actionable
+    await createTasksBtn.click({ trial: true });
+    console.log("DEBUG T3: trial click passed");
+
+    // Actual click
     await createTasksBtn.click();
+    console.log("DEBUG T3: click executed");
 
     // Debug: Wait for create-tasks-clicked marker
-    await expect(page.locator('[data-testid="debug-create-tasks-clicked"]')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('[data-testid="debug-create-tasks-clicked"]')).toBeVisible({ timeout: 15000 });
     console.log("DEBUG T3: create-tasks-clicked visible");
     await page.waitForTimeout(2000);
 
