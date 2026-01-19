@@ -49,14 +49,32 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
+      - name: Debug env before build
+        run: |
+          echo "AUTOPILOT flags:"
+          echo "  FEATURE_AUTOPILOT_V2=$FEATURE_AUTOPILOT_V2"
+          echo "  NEXT_PUBLIC_FEATURE_AUTOPILOT_V2=$NEXT_PUBLIC_FEATURE_AUTOPILOT_V2"
+        env:
+          FEATURE_AUTOPILOT_V2: "1"
+          NEXT_PUBLIC_FEATURE_AUTOPILOT_V2: "1"
+
       - name: Build for production
         run: npm run build
         env:
           PLAYWRIGHT: "1"
+          NEXT_PUBLIC_PLAYWRIGHT: "1"
+          FEATURE_AUTOPILOT_V2: "1"
+          NEXT_PUBLIC_FEATURE_AUTOPILOT_V2: "1"
+
+      - name: Debug build output
+        run: ls -la .next | head -50
 
       - name: Run E2E tests (deterministic)
         env:
           PLAYWRIGHT: "1"
+          NEXT_PUBLIC_PLAYWRIGHT: "1"
+          FEATURE_AUTOPILOT_V2: "1"
+          NEXT_PUBLIC_FEATURE_AUTOPILOT_V2: "1"
           DEBUG: "pw:webserver,pw:api"
         run: npx playwright test --trace on-first-retry --reporter html --workers=1
 

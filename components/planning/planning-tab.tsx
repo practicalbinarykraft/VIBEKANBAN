@@ -16,19 +16,26 @@ import { Textarea } from "@/components/ui/textarea";
 import { AiModeBanner } from "@/components/banners/ai-mode-banner";
 import { CouncilConsole } from "@/components/council/council-console";
 import { CouncilThread, CouncilMessage, PlanArtifact } from "@/components/council/types";
+import { AutopilotPanel } from "@/components/planning/autopilot-panel";
+import { useAutopilot } from "@/hooks/useAutopilot";
 import { Loader2, Send, RotateCcw } from "lucide-react";
 
 interface PlanningTabProps {
   projectId: string;
+  enableAutopilotV2?: boolean;
   onApplyComplete?: (createdTaskIds: string[]) => void;
   onExecuteComplete?: (createdTaskIds: string[]) => void;
   onPipelineComplete?: (createdTaskIds: string[]) => void;
   onAutopilotComplete?: () => void;
+  onAutopilotSessionCreated?: (sessionId: string, taskIds: string[]) => void;
 }
 
 type Phase = "idle" | "kickoff" | "awaiting_response" | "plan_ready" | "approved" | "tasks_created";
 
-export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
+// E2E mode detection - debug markers only render in Playwright tests
+const isE2E = process.env.NEXT_PUBLIC_PLAYWRIGHT === "1";
+
+export function PlanningTab({ projectId, enableAutopilotV2 = false, onApplyComplete, onAutopilotComplete, onAutopilotSessionCreated }: PlanningTabProps) {
   const [idea, setIdea] = useState("");
   const [response, setResponse] = useState("");
   const [thread, setThread] = useState<CouncilThread | null>(null);
@@ -37,12 +44,36 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
   const [error, setError] = useState<string | null>(null);
   const [canRunAi, setCanRunAi] = useState(true);
 
+  // Autopilot integration (FEATURE_AUTOPILOT_V2)
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [createdTaskIds, setCreatedTaskIds] = useState<string[]>([]);
+  const showAutopilot = enableAutopilotV2;
+
   // Loading states
   const [isLoading, setIsLoading] = useState(false);
   const [isResponding, setIsResponding] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+
+  // E2E-only debug state (only used when PLAYWRIGHT=1)
+  const [debugCreateTasks, setDebugCreateTasks] = useState<{
+    clicked: boolean;
+    loopStarted: boolean;
+    tasksCreated: number;
+    status: number | null;
+    phaseSet: boolean;
+    error: string | null;
+  }>({ clicked: false, loopStarted: false, tasksCreated: 0, status: null, phaseSet: false, error: null });
+
+  // Autopilot hook
+  const autopilot = useAutopilot(
+    projectId,
+    sessionId,
+    undefined, // onBatchComplete
+    onAutopilotComplete, // onAllComplete
+    undefined // onTaskComplete
+  );
 
   // Fetch AI config on mount
   useEffect(() => {
@@ -243,38 +274,125 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
 
   // Create tasks from approved plan
   const handleCreateTasks = async () => {
-    if (!plan || plan.status !== "approved") return;
+    // E2E debug markers (only in Playwright mode)
+    if (isE2E) {
+      setDebugCreateTasks({ clicked: true, loopStarted: false, tasksCreated: 0, status: null, phaseSet: false, error: null });
+    }
+
+    // Validate plan exists and is approved
+    if (!plan || plan.status !== "approved") {
+      if (isE2E) {
+        setDebugCreateTasks(prev => ({ ...prev, error: `PLAN_NOT_APPROVED:plan=${!!plan}:status=${plan?.status}` }));
+      }
+      setError("Plan must be approved before creating tasks");
+      return;
+    }
+
+    // Validate plan.tasks is an array
+    const tasks = Array.isArray(plan.tasks) ? plan.tasks : null;
+
+    if (!tasks) {
+      if (isE2E) {
+        setDebugCreateTasks(prev => ({ ...prev, error: `PLAN_TASKS_NOT_ARRAY:type=${typeof plan.tasks}` }));
+      }
+      setError("Plan tasks are not available");
+      return;
+    }
+
+    // If no tasks to create, still transition to tasks_created phase
+    if (tasks.length === 0) {
+      if (isE2E) {
+        setDebugCreateTasks(prev => ({ ...prev, phaseSet: true }));
+      }
+      setPhase("tasks_created");
+      onApplyComplete?.([]);
+      return;
+    }
 
     setIsCreating(true);
     setError(null);
 
     try {
-      const taskPromises = plan.tasks.map((task) =>
-        fetch(`/api/projects/${projectId}/tasks`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title: task.title,
-            description: task.description,
-            estimate: task.estimate,
-          }),
-        })
-      );
-
-      const responses = await Promise.all(taskPromises);
+      const timeout = 10000; // 10s per task max
       const taskIds: string[] = [];
 
-      for (const res of responses) {
-        if (res.ok) {
-          const data = await res.json();
-          taskIds.push(data.id);
+      if (isE2E) {
+        setDebugCreateTasks(prev => ({ ...prev, loopStarted: true }));
+      }
+
+      for (let i = 0; i < tasks.length; i++) {
+        const task = tasks[i];
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+        try {
+          const res = await fetch(`/api/projects/${projectId}/tasks`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title: task.title,
+              description: task.description,
+              estimate: task.estimate,
+            }),
+            signal: controller.signal,
+          });
+
+          clearTimeout(timeoutId);
+
+          // E2E: capture response status on first response
+          if (isE2E && i === 0) {
+            setDebugCreateTasks(prev => ({ ...prev, status: res.status }));
+          }
+
+          if (res.ok) {
+            const data = await res.json();
+            taskIds.push(data.id);
+            if (isE2E) {
+              setDebugCreateTasks(prev => ({ ...prev, tasksCreated: taskIds.length }));
+            }
+          }
+        } catch (fetchErr: any) {
+          clearTimeout(timeoutId);
+          if (fetchErr.name === "AbortError") {
+            throw new Error("CREATE_TASKS_TIMEOUT");
+          }
+          throw fetchErr;
         }
       }
 
+      // Create planning session for autopilot (if feature enabled)
+      if (showAutopilot && taskIds.length > 0) {
+        try {
+          const sessionRes = await fetch(`/api/projects/${projectId}/planning/start`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              idea: idea.trim(),
+              taskIds,
+            }),
+          });
+          if (sessionRes.ok) {
+            const sessionData = await sessionRes.json();
+            setSessionId(sessionData.sessionId);
+            setCreatedTaskIds(taskIds);
+            onAutopilotSessionCreated?.(sessionData.sessionId, taskIds);
+          }
+        } catch {
+          // Session creation failure is non-critical
+        }
+      }
+
+      if (isE2E) {
+        setDebugCreateTasks(prev => ({ ...prev, phaseSet: true }));
+      }
       setPhase("tasks_created");
       onApplyComplete?.(taskIds);
     } catch (err: any) {
-      setError(err.message);
+      const errMsg = err.message || "UNKNOWN_ERROR";
+      if (isE2E) {
+        setDebugCreateTasks(prev => ({ ...prev, error: errMsg }));
+      }
+      setError(errMsg);
     } finally {
       setIsCreating(false);
     }
@@ -288,6 +406,20 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
     setResponse("");
     setPhase("idle");
     setError(null);
+    // Reset autopilot state
+    setSessionId(null);
+    setCreatedTaskIds([]);
+  };
+
+  // Autopilot handlers
+  const handleStartAutopilotStep = async () => {
+    if (!sessionId || createdTaskIds.length === 0) return;
+    await autopilot.start("STEP", createdTaskIds);
+  };
+
+  const handleStartAutopilotAuto = async () => {
+    if (!sessionId || createdTaskIds.length === 0) return;
+    await autopilot.start("AUTO", createdTaskIds);
   };
 
   const messages = thread?.messages || [];
@@ -396,9 +528,82 @@ export function PlanningTab({ projectId, onApplyComplete }: PlanningTabProps) {
         )}
 
         {phase === "tasks_created" && (
-          <div className="rounded-md bg-green-100 p-3 text-sm text-green-800 dark:bg-green-900/30 dark:text-green-200">
+          <div
+            className="rounded-md bg-green-100 p-3 text-sm text-green-800 dark:bg-green-900/30 dark:text-green-200"
+            data-testid="phase-tasks-created"
+          >
             Tasks created successfully! Check the Tasks tab.
           </div>
+        )}
+
+        {/* E2E-only debug markers (only render in Playwright mode) */}
+        {isE2E && (
+          <>
+            {plan && (
+              <div
+                data-testid="debug-plan-status"
+                data-status={plan.status}
+                className="hidden"
+              />
+            )}
+            {plan && (
+              <div
+                data-testid="debug-plan-tasks-len"
+                data-len={Array.isArray(plan.tasks) ? plan.tasks.length : -1}
+                className="hidden"
+              />
+            )}
+            {debugCreateTasks.clicked && (
+              <div data-testid="debug-create-tasks-clicked" className="hidden" />
+            )}
+            {debugCreateTasks.loopStarted && (
+              <div data-testid="debug-create-tasks-loop-started" className="hidden" />
+            )}
+            {debugCreateTasks.tasksCreated > 0 && (
+              <div data-testid="debug-tasks-created-count" data-count={debugCreateTasks.tasksCreated} className="hidden" />
+            )}
+            {debugCreateTasks.status !== null && (
+              <div data-testid={`debug-create-tasks-status-${debugCreateTasks.status}`} className="hidden" />
+            )}
+            {debugCreateTasks.phaseSet && (
+              <div data-testid="debug-create-tasks-phase-set" className="hidden" />
+            )}
+            {debugCreateTasks.error && (
+              <div data-testid="debug-create-tasks-error" data-error={debugCreateTasks.error} className="hidden" />
+            )}
+            {phase === "tasks_created" && !showAutopilot && (
+              <div data-testid="debug-autopilot-disabled" className="hidden" />
+            )}
+            {phase === "tasks_created" && showAutopilot && !sessionId && (
+              <div data-testid="debug-no-session" className="hidden" />
+            )}
+          </>
+        )}
+
+        {/* Autopilot Panel - shown after tasks created (FEATURE_AUTOPILOT_V2) */}
+        {phase === "tasks_created" && showAutopilot && sessionId && (
+          <AutopilotPanel
+            status={autopilot.status}
+            mode={autopilot.mode}
+            currentBatch={autopilot.currentBatch}
+            progress={autopilot.progress}
+            totalBatches={autopilot.totalBatches}
+            taskProgress={autopilot.taskProgress}
+            totalTasks={createdTaskIds.length}
+            completedTasks={autopilot.completedTasks}
+            currentTaskId={autopilot.currentTaskId}
+            pauseReason={autopilot.pauseReason}
+            error={autopilot.error}
+            isStarting={autopilot.isStarting}
+            isApproving={autopilot.isApproving}
+            isCanceling={autopilot.isCanceling}
+            isExecuting={autopilot.isExecuting}
+            onStartStep={handleStartAutopilotStep}
+            onStartAuto={handleStartAutopilotAuto}
+            onResume={autopilot.resume}
+            onApprove={autopilot.approve}
+            onCancel={autopilot.cancel}
+          />
         )}
       </div>
 

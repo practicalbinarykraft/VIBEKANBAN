@@ -7,5 +7,8 @@ export default async function ProjectPage({
 }) {
   const { id } = await params;
 
-  return <ProjectClient projectId={id} />;
+  // Read feature flag on server (runtime)
+  const enableAutopilotV2 = process.env.FEATURE_AUTOPILOT_V2 === "1";
+
+  return <ProjectClient projectId={id} enableAutopilotV2={enableAutopilotV2} />;
 }
