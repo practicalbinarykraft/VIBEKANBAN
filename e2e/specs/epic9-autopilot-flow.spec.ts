@@ -57,6 +57,12 @@ test.describe("EPIC-9 Autopilot Integration", () => {
     await expect(approveBtn).toBeVisible({ timeout: 10000 });
     await approveBtn.click();
 
+    // 6.5 Wait for plan status to be approved (critical for Create Tasks)
+    const planStatusMarker = page.locator('[data-testid="debug-plan-status"]');
+    await expect(planStatusMarker).toBeAttached({ timeout: 10000 });
+    await expect(planStatusMarker).toHaveAttribute("data-status", "approved", { timeout: 10000 });
+    console.log("DEBUG T1: plan status is approved");
+
     // 7. Create tasks - with deterministic checks
     const createTasksBtn = page.locator('[data-testid="create-tasks-btn"]');
 
@@ -99,10 +105,14 @@ test.describe("EPIC-9 Autopilot Integration", () => {
     const phaseSetVisible = await page.locator('[data-testid="debug-create-tasks-phase-set"]').isVisible();
     console.log("DEBUG T1: phase-set marker visible:", phaseSetVisible);
 
+    // Check error marker using count() since it has class="hidden"
     const errorMarker = page.locator('[data-testid="debug-create-tasks-error"]');
-    if (await errorMarker.isVisible()) {
+    const errorCount = await errorMarker.count();
+    if (errorCount > 0) {
       const errorValue = await errorMarker.getAttribute("data-error");
       console.log("DEBUG T1: ERROR marker found:", errorValue);
+    } else {
+      console.log("DEBUG T1: No error marker");
     }
 
     // Take screenshot for debugging
@@ -170,6 +180,12 @@ test.describe("EPIC-9 Autopilot Integration", () => {
     await expect(approveBtn).toBeVisible({ timeout: 10000 });
     await approveBtn.click();
 
+    // Wait for plan status to be approved
+    const planStatusMarker = page.locator('[data-testid="debug-plan-status"]');
+    await expect(planStatusMarker).toBeAttached({ timeout: 10000 });
+    await expect(planStatusMarker).toHaveAttribute("data-status", "approved", { timeout: 10000 });
+    console.log("DEBUG T2: plan status is approved");
+
     // Create tasks - with deterministic checks
     const createTasksBtn = page.locator('[data-testid="create-tasks-btn"]');
 
@@ -205,9 +221,13 @@ test.describe("EPIC-9 Autopilot Integration", () => {
       console.log("DEBUG T2: status marker:", await m.getAttribute("data-testid"));
     }
 
+    // Check error marker using count() since it has class="hidden"
     const errorMarker = page.locator('[data-testid="debug-create-tasks-error"]');
-    if (await errorMarker.isVisible()) {
+    const errorCount = await errorMarker.count();
+    if (errorCount > 0) {
       console.log("DEBUG T2: ERROR:", await errorMarker.getAttribute("data-error"));
+    } else {
+      console.log("DEBUG T2: No error marker");
     }
 
     await page.screenshot({ path: "test-results/debug-autopilot-t2.png", fullPage: true });
@@ -265,6 +285,12 @@ test.describe("EPIC-9 Autopilot Integration", () => {
     await expect(approveBtn).toBeVisible({ timeout: 10000 });
     await approveBtn.click();
 
+    // Wait for plan status to be approved
+    const planStatusMarker = page.locator('[data-testid="debug-plan-status"]');
+    await expect(planStatusMarker).toBeAttached({ timeout: 10000 });
+    await expect(planStatusMarker).toHaveAttribute("data-status", "approved", { timeout: 10000 });
+    console.log("DEBUG T3: plan status is approved");
+
     // Create tasks - with deterministic checks
     const createTasksBtn = page.locator('[data-testid="create-tasks-btn"]');
 
@@ -300,9 +326,13 @@ test.describe("EPIC-9 Autopilot Integration", () => {
       console.log("DEBUG T3: status marker:", await m.getAttribute("data-testid"));
     }
 
+    // Check error marker using count() since it has class="hidden"
     const errorMarker = page.locator('[data-testid="debug-create-tasks-error"]');
-    if (await errorMarker.isVisible()) {
+    const errorCount = await errorMarker.count();
+    if (errorCount > 0) {
       console.log("DEBUG T3: ERROR:", await errorMarker.getAttribute("data-error"));
+    } else {
+      console.log("DEBUG T3: No error marker");
     }
 
     await page.screenshot({ path: "test-results/debug-autopilot-t3-before-phase.png", fullPage: true });

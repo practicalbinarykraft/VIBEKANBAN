@@ -486,7 +486,17 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, onApplyCompl
           </div>
         )}
 
-        {/* Debug markers for Create Tasks flow - E2E diagnostics */}
+        {/* Debug markers for E2E diagnostics */}
+        {/* Plan status marker - always rendered when plan exists */}
+        {plan && (
+          <div
+            data-testid="debug-plan-status"
+            data-status={plan.status}
+            className="hidden"
+          />
+        )}
+
+        {/* Debug markers for Create Tasks flow */}
         {debugCreateTasks.clicked && (
           <div data-testid="debug-create-tasks-clicked" className="hidden" />
         )}
