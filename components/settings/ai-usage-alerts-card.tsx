@@ -9,8 +9,8 @@ interface AlertData {
   provider: string;
   status: AlertStatus;
   spendUsd: number;
-  limitUsd: number;
-  percentUsed: number;
+  limitUsd: number | null;
+  percentUsed: number | null;
 }
 
 const STATUS_CONFIG: Record<
@@ -43,7 +43,8 @@ const STATUS_CONFIG: Record<
   },
 };
 
-const formatUsd = (val: number): string => `$${val.toFixed(2)}`;
+const formatUsd = (val: number | null): string =>
+  val === null ? "—" : `$${val.toFixed(2)}`;
 
 const StatusBadge = ({ status }: { status: AlertStatus }) => {
   const config = STATUS_CONFIG[status];
@@ -141,7 +142,7 @@ export function AIUsageAlertsCard() {
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">Usage</span>
           <span className="font-medium" data-testid="percent-used">
-            {data.percentUsed.toFixed(1)}%
+            {data.percentUsed !== null ? `${data.percentUsed.toFixed(1)}%` : "—"}
           </span>
         </div>
 
@@ -156,7 +157,7 @@ export function AIUsageAlertsCard() {
                     ? "bg-red-500"
                     : "bg-gray-400"
             }`}
-            style={{ width: `${Math.min(data.percentUsed, 100)}%` }}
+            style={{ width: `${Math.min(data.percentUsed ?? 0, 100)}%` }}
             data-testid="progress-bar"
           />
         </div>
