@@ -32,10 +32,8 @@ export default function SettingsPage() {
             <AiUsageCard />
             <AIProvidersCard />
             <AiUsageHistoryCard />
-            <section data-testid="ai-mode-section">
-              <span className="text-xs text-muted-foreground">Demo</span>
-              <AiModeSection />
-            </section>
+            <div data-testid="ai-mode-section" className="text-xs text-muted-foreground mb-1">Demo</div>
+            <AiModeSection />
 
             <div className="rounded-lg border bg-card p-6">
               <h2 className="mb-2 font-semibold">Coming Soon</h2>
