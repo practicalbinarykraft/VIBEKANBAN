@@ -15,6 +15,7 @@ import { settings } from "@/server/db/schema";
 import { eq } from "drizzle-orm";
 import { callAnthropicWithRetry, callOpenAIWithRetry } from "./provider-adapter";
 import { shouldUseRealAi, getRealAiConfig } from "./real-ai-config";
+import { recordAiCostEvent, createCostEventFromCompletion } from "./ai-cost-events";
 
 export type AIProvider = "demo" | "anthropic" | "openai";
 
@@ -166,14 +167,39 @@ export async function getAICompletion(
   }
 
   try {
+    let result: AICompletionResult;
+
     if (aiSettings.provider === "anthropic") {
-      return await getAnthropicCompletion(aiSettings, params);
+      result = await getAnthropicCompletion(aiSettings, params);
+    } else if (aiSettings.provider === "openai") {
+      result = await getOpenAICompletion(aiSettings, params);
+    } else {
+      throw new AINotConfiguredError("Unknown AI provider");
     }
 
-    if (aiSettings.provider === "openai") {
-      return await getOpenAICompletion(aiSettings, params);
-    }
+    // Record successful AI cost event
+    const costEvent = createCostEventFromCompletion({
+      provider: result.provider,
+      model: result.model,
+      usage: result.usage,
+      source: "other",
+    });
+    recordAiCostEvent(costEvent).catch(() => {
+      // Silently ignore cost recording failures
+    });
+
+    return result;
   } catch (error: any) {
+    // Record failed AI cost event
+    const costEvent = createCostEventFromCompletion({
+      provider: aiSettings.provider,
+      model: aiSettings.model,
+      error: error.message,
+      source: "other",
+    });
+    recordAiCostEvent(costEvent).catch(() => {
+      // Silently ignore cost recording failures
+    });
     // Wrap API errors with more context
     if (error instanceof AINotConfiguredError || error instanceof AIAPIError) {
       throw error;
@@ -207,9 +233,6 @@ export async function getAICompletion(
       error.status
     );
   }
-
-  // Should not reach here
-  throw new AINotConfiguredError("Unknown AI provider");
 }
 
 /**
