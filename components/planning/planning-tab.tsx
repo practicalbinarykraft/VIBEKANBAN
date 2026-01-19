@@ -32,6 +32,9 @@ interface PlanningTabProps {
 
 type Phase = "idle" | "kickoff" | "awaiting_response" | "plan_ready" | "approved" | "tasks_created";
 
+// E2E mode detection - debug markers only render in Playwright tests
+const isE2E = process.env.NEXT_PUBLIC_PLAYWRIGHT === "1";
+
 export function PlanningTab({ projectId, enableAutopilotV2 = false, onApplyComplete, onAutopilotComplete, onAutopilotSessionCreated }: PlanningTabProps) {
   const [idea, setIdea] = useState("");
   const [response, setResponse] = useState("");
@@ -53,7 +56,7 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, onApplyCompl
   const [isApproving, setIsApproving] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
 
-  // Debug state for E2E diagnostics
+  // E2E-only debug state (only used when PLAYWRIGHT=1)
   const [debugCreateTasks, setDebugCreateTasks] = useState<{
     clicked: boolean;
     loopStarted: boolean;
@@ -271,60 +274,56 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, onApplyCompl
 
   // Create tasks from approved plan
   const handleCreateTasks = async () => {
-    // Debug marker: clicked - reset all markers
-    setDebugCreateTasks({ clicked: true, loopStarted: false, tasksCreated: 0, status: null, phaseSet: false, error: null });
-    console.log("[DEBUG] handleCreateTasks called, plan:", plan?.id, "status:", plan?.status);
+    // E2E debug markers (only in Playwright mode)
+    if (isE2E) {
+      setDebugCreateTasks({ clicked: true, loopStarted: false, tasksCreated: 0, status: null, phaseSet: false, error: null });
+    }
 
     // Validate plan exists and is approved
     if (!plan || plan.status !== "approved") {
-      const errMsg = `PLAN_NOT_APPROVED:plan=${!!plan}:status=${plan?.status}`;
-      console.log("[DEBUG] handleCreateTasks early return -", errMsg);
-      setDebugCreateTasks(prev => ({ ...prev, error: errMsg }));
+      if (isE2E) {
+        setDebugCreateTasks(prev => ({ ...prev, error: `PLAN_NOT_APPROVED:plan=${!!plan}:status=${plan?.status}` }));
+      }
       setError("Plan must be approved before creating tasks");
       return;
     }
 
     // Validate plan.tasks is an array
     const tasks = Array.isArray(plan.tasks) ? plan.tasks : null;
-    console.log("[DEBUG] handleCreateTasks tasks validation:", tasks ? tasks.length : "NOT_ARRAY");
 
     if (!tasks) {
-      const errMsg = `PLAN_TASKS_NOT_ARRAY:type=${typeof plan.tasks}`;
-      console.log("[DEBUG] handleCreateTasks error -", errMsg);
-      setDebugCreateTasks(prev => ({ ...prev, error: errMsg }));
+      if (isE2E) {
+        setDebugCreateTasks(prev => ({ ...prev, error: `PLAN_TASKS_NOT_ARRAY:type=${typeof plan.tasks}` }));
+      }
       setError("Plan tasks are not available");
       return;
     }
 
     // If no tasks to create, still transition to tasks_created phase
     if (tasks.length === 0) {
-      console.log("[DEBUG] handleCreateTasks - no tasks to create, setting phase directly");
-      setDebugCreateTasks(prev => ({ ...prev, phaseSet: true }));
+      if (isE2E) {
+        setDebugCreateTasks(prev => ({ ...prev, phaseSet: true }));
+      }
       setPhase("tasks_created");
       onApplyComplete?.([]);
       return;
     }
 
-    console.log("[DEBUG] handleCreateTasks starting task creation for", tasks.length, "tasks");
     setIsCreating(true);
     setError(null);
 
     try {
-      // Use shorter timeout - demo mode API should be fast
-      // Note: process.env.NEXT_PUBLIC_* is available client-side
       const timeout = 10000; // 10s per task max
       const taskIds: string[] = [];
 
-      // Mark loop started
-      setDebugCreateTasks(prev => ({ ...prev, loopStarted: true }));
-      console.log("[DEBUG] Loop started, about to create", tasks.length, "tasks");
+      if (isE2E) {
+        setDebugCreateTasks(prev => ({ ...prev, loopStarted: true }));
+      }
 
       for (let i = 0; i < tasks.length; i++) {
         const task = tasks[i];
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), timeout);
-
-        console.log("[DEBUG] Creating task", i + 1, "of", tasks.length, ":", task.title?.substring(0, 30));
 
         try {
           const res = await fetch(`/api/projects/${projectId}/tasks`, {
@@ -340,23 +339,20 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, onApplyCompl
 
           clearTimeout(timeoutId);
 
-          // Debug marker: capture response status on first response
-          if (i === 0) {
+          // E2E: capture response status on first response
+          if (isE2E && i === 0) {
             setDebugCreateTasks(prev => ({ ...prev, status: res.status }));
           }
 
           if (res.ok) {
             const data = await res.json();
             taskIds.push(data.id);
-            // Update progress
-            setDebugCreateTasks(prev => ({ ...prev, tasksCreated: taskIds.length }));
-            console.log("[DEBUG] Task", i + 1, "created successfully, id:", data.id);
-          } else {
-            console.warn("[DEBUG] Task creation failed:", res.status, await res.text());
+            if (isE2E) {
+              setDebugCreateTasks(prev => ({ ...prev, tasksCreated: taskIds.length }));
+            }
           }
         } catch (fetchErr: any) {
           clearTimeout(timeoutId);
-          console.error("[DEBUG] Fetch error for task", i + 1, ":", fetchErr.name, fetchErr.message);
           if (fetchErr.name === "AbortError") {
             throw new Error("CREATE_TASKS_TIMEOUT");
           }
@@ -379,25 +375,25 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, onApplyCompl
             const sessionData = await sessionRes.json();
             setSessionId(sessionData.sessionId);
             setCreatedTaskIds(taskIds);
-            // Notify parent about session creation (for project-level AutopilotPanel)
             onAutopilotSessionCreated?.(sessionData.sessionId, taskIds);
           }
-        } catch (sessionErr) {
-          console.error("Failed to create autopilot session:", sessionErr);
+        } catch {
+          // Session creation failure is non-critical
         }
       }
 
-      console.log("[DEBUG] Setting phase to tasks_created, taskIds:", taskIds.length);
-      setDebugCreateTasks(prev => ({ ...prev, phaseSet: true }));
+      if (isE2E) {
+        setDebugCreateTasks(prev => ({ ...prev, phaseSet: true }));
+      }
       setPhase("tasks_created");
       onApplyComplete?.(taskIds);
     } catch (err: any) {
       const errMsg = err.message || "UNKNOWN_ERROR";
-      console.error("[DEBUG] handleCreateTasks error:", errMsg);
-      setDebugCreateTasks(prev => ({ ...prev, error: errMsg }));
+      if (isE2E) {
+        setDebugCreateTasks(prev => ({ ...prev, error: errMsg }));
+      }
       setError(errMsg);
     } finally {
-      console.log("[DEBUG] handleCreateTasks finally block");
       setIsCreating(false);
     }
   };
@@ -540,54 +536,48 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, onApplyCompl
           </div>
         )}
 
-        {/* Debug markers for E2E diagnostics */}
-        {/* Plan status marker - always rendered when plan exists */}
-        {plan && (
-          <div
-            data-testid="debug-plan-status"
-            data-status={plan.status}
-            className="hidden"
-          />
-        )}
-        {/* Plan tasks length marker - for E2E diagnostics */}
-        {plan && (
-          <div
-            data-testid="debug-plan-tasks-len"
-            data-len={Array.isArray(plan.tasks) ? plan.tasks.length : -1}
-            className="hidden"
-          />
-        )}
-
-        {/* Debug markers for Create Tasks flow */}
-        {debugCreateTasks.clicked && (
-          <div data-testid="debug-create-tasks-clicked" className="hidden" />
-        )}
-        {debugCreateTasks.loopStarted && (
-          <div data-testid="debug-create-tasks-loop-started" className="hidden" />
-        )}
-        {debugCreateTasks.tasksCreated > 0 && (
-          <div data-testid="debug-tasks-created-count" data-count={debugCreateTasks.tasksCreated} className="hidden" />
-        )}
-        {debugCreateTasks.status !== null && (
-          <div data-testid={`debug-create-tasks-status-${debugCreateTasks.status}`} className="hidden" />
-        )}
-        {debugCreateTasks.phaseSet && (
-          <div data-testid="debug-create-tasks-phase-set" className="hidden" />
-        )}
-        {debugCreateTasks.error && (
-          <div data-testid="debug-create-tasks-error" data-error={debugCreateTasks.error} className="hidden" />
-        )}
-
-        {/* Debug markers for E2E tests - only rendered when conditions partially met */}
-        {phase === "tasks_created" && !showAutopilot && (
-          <div data-testid="debug-autopilot-disabled" className="hidden">
-            Autopilot flag is OFF (enableAutopilotV2={String(showAutopilot)})
-          </div>
-        )}
-        {phase === "tasks_created" && showAutopilot && !sessionId && (
-          <div data-testid="debug-no-session" className="hidden">
-            No sessionId for autopilot
-          </div>
+        {/* E2E-only debug markers (only render in Playwright mode) */}
+        {isE2E && (
+          <>
+            {plan && (
+              <div
+                data-testid="debug-plan-status"
+                data-status={plan.status}
+                className="hidden"
+              />
+            )}
+            {plan && (
+              <div
+                data-testid="debug-plan-tasks-len"
+                data-len={Array.isArray(plan.tasks) ? plan.tasks.length : -1}
+                className="hidden"
+              />
+            )}
+            {debugCreateTasks.clicked && (
+              <div data-testid="debug-create-tasks-clicked" className="hidden" />
+            )}
+            {debugCreateTasks.loopStarted && (
+              <div data-testid="debug-create-tasks-loop-started" className="hidden" />
+            )}
+            {debugCreateTasks.tasksCreated > 0 && (
+              <div data-testid="debug-tasks-created-count" data-count={debugCreateTasks.tasksCreated} className="hidden" />
+            )}
+            {debugCreateTasks.status !== null && (
+              <div data-testid={`debug-create-tasks-status-${debugCreateTasks.status}`} className="hidden" />
+            )}
+            {debugCreateTasks.phaseSet && (
+              <div data-testid="debug-create-tasks-phase-set" className="hidden" />
+            )}
+            {debugCreateTasks.error && (
+              <div data-testid="debug-create-tasks-error" data-error={debugCreateTasks.error} className="hidden" />
+            )}
+            {phase === "tasks_created" && !showAutopilot && (
+              <div data-testid="debug-autopilot-disabled" className="hidden" />
+            )}
+            {phase === "tasks_created" && showAutopilot && !sessionId && (
+              <div data-testid="debug-no-session" className="hidden" />
+            )}
+          </>
         )}
 
         {/* Autopilot Panel - shown after tasks created (FEATURE_AUTOPILOT_V2) */}
