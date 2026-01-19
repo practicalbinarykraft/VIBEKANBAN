@@ -124,7 +124,7 @@ export function AiModeSection() {
       process.env.NEXT_PUBLIC_PLAYWRIGHT === "1";
 
     return (
-      <div className="rounded-lg border bg-card p-6" data-testid="ai-mode-section">
+      <div className="rounded-lg border bg-card p-6">
         <div className="flex items-center gap-2">
           <Loader2 className="h-4 w-4 animate-spin" />
           <span className="text-sm text-muted-foreground">Loading settings...</span>
@@ -144,7 +144,7 @@ export function AiModeSection() {
   );
 
   return (
-    <div className="rounded-lg border bg-card p-6" data-testid="ai-mode-section">
+    <div className="rounded-lg border bg-card p-6">
       <div className="mb-6 flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
           <Bot className="h-5 w-5 text-muted-foreground" />
