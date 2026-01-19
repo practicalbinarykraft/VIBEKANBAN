@@ -260,8 +260,13 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, onApplyCompl
 
   // Create tasks from approved plan
   const handleCreateTasks = async () => {
-    if (!plan || plan.status !== "approved") return;
+    console.log("[DEBUG] handleCreateTasks called, plan:", plan?.id, "status:", plan?.status);
+    if (!plan || plan.status !== "approved") {
+      console.log("[DEBUG] handleCreateTasks early return - plan:", !!plan, "status:", plan?.status);
+      return;
+    }
 
+    console.log("[DEBUG] handleCreateTasks starting task creation for", plan.tasks?.length, "tasks");
     setIsCreating(true);
     setError(null);
 
@@ -309,11 +314,14 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, onApplyCompl
         }
       }
 
+      console.log("[DEBUG] Setting phase to tasks_created, taskIds:", taskIds.length);
       setPhase("tasks_created");
       onApplyComplete?.(taskIds);
     } catch (err: any) {
+      console.error("[DEBUG] handleCreateTasks error:", err.message);
       setError(err.message);
     } finally {
+      console.log("[DEBUG] handleCreateTasks finally block");
       setIsCreating(false);
     }
   };
