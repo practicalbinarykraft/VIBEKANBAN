@@ -350,5 +350,23 @@ export function initDB() {
     console.warn("Warning inserting default settings:", error.message);
   }
 
+  // Create AI Cost Events table (PR-47)
+  _sqlite!.exec(`
+    CREATE TABLE IF NOT EXISTS ai_cost_events (
+      id TEXT PRIMARY KEY,
+      created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+      project_id TEXT,
+      thread_id TEXT,
+      source TEXT NOT NULL,
+      provider TEXT NOT NULL,
+      model TEXT,
+      prompt_tokens INTEGER,
+      completion_tokens INTEGER,
+      total_tokens INTEGER,
+      estimated_cost_usd REAL,
+      metadata_json TEXT
+    );
+  `);
+
   console.log("✅ Database initialized");
 }
