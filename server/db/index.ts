@@ -368,5 +368,21 @@ export function initDB() {
     );
   `);
 
+  // Create Provider Accounts table (PR-52)
+  _sqlite!.exec(`
+    CREATE TABLE IF NOT EXISTS provider_accounts (
+      id TEXT PRIMARY KEY,
+      provider TEXT NOT NULL,
+      account_key TEXT,
+      balance_usd REAL,
+      balance_updated_at INTEGER,
+      balance_source TEXT NOT NULL DEFAULT 'unknown',
+      monthly_limit_usd REAL,
+      created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+      updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+      UNIQUE(provider)
+    );
+  `);
+
   console.log("✅ Database initialized");
 }
