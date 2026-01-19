@@ -1,12 +1,53 @@
 /**
- * POST /api/projects/[id]/attempts
- * Create a new attempt for a task in this project
+ * GET/POST /api/projects/[id]/attempts
+ * GET: List attempts for project (PR-63)
+ * POST: Create a new attempt for a task in this project (PR-62)
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createAttempt } from "@/server/services/attempts/attempt-runner.service";
 import { db } from "@/server/db";
-import { projects, tasks } from "@/server/db/schema";
-import { eq, and } from "drizzle-orm";
+import { projects, tasks, attempts } from "@/server/db/schema";
+import { eq, and, desc, inArray } from "drizzle-orm";
+
+/**
+ * GET /api/projects/[id]/attempts?limit=20
+ * List recent attempts for all tasks in this project
+ */
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id: projectId } = await params;
+    const { searchParams } = new URL(request.url);
+    const limit = Math.min(parseInt(searchParams.get("limit") || "20", 10), 100);
+
+    // Get all task IDs for this project
+    const projectTasks = await db.select({ id: tasks.id })
+      .from(tasks)
+      .where(eq(tasks.projectId, projectId));
+
+    if (projectTasks.length === 0) {
+      return NextResponse.json([]);
+    }
+
+    const taskIds = projectTasks.map((t) => t.id);
+
+    // Get attempts for these tasks
+    const projectAttempts = await db.select()
+      .from(attempts)
+      .where(inArray(attempts.taskId, taskIds))
+      .orderBy(desc(attempts.startedAt))
+      .limit(limit);
+
+    return NextResponse.json(projectAttempts);
+  } catch {
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
 
 interface CreateAttemptBody {
   taskId: string;
