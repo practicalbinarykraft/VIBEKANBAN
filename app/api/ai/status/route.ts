@@ -11,9 +11,11 @@ import { getAiStatus } from "@/server/services/ai/ai-status";
  * - realAiEligible: boolean
  * - provider: "anthropic" | "mock" | "db"
  * - model: string
- * - reason?: string (when realAiEligible is false)
+ * - reason?: AiStatusReason (when realAiEligible is false)
+ * - limitUSD?: number (when BUDGET_LIMIT_EXCEEDED)
+ * - spendUSD?: number (when BUDGET_LIMIT_EXCEEDED)
  */
 export async function GET() {
-  const status = getAiStatus();
+  const status = await getAiStatus();
   return NextResponse.json(status);
 }

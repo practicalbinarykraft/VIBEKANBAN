@@ -16,6 +16,7 @@ import { eq } from "drizzle-orm";
 import { callAnthropicWithRetry, callOpenAIWithRetry } from "./provider-adapter";
 import { shouldUseRealAi, getRealAiConfig } from "./real-ai-config";
 import { recordAiCostEvent, createCostEventFromCompletion } from "./ai-cost-events";
+import { checkProviderBudget } from "./ai-budget-guard";
 
 export type AIProvider = "demo" | "anthropic" | "openai";
 
@@ -79,18 +80,23 @@ function isTestMode(): boolean {
  * Get current AI settings
  *
  * Priority:
- * 1. FEATURE_REAL_AI=1 + ANTHROPIC_API_KEY env vars
+ * 1. FEATURE_REAL_AI=1 + ANTHROPIC_API_KEY env vars (if within budget)
  * 2. Database settings (BYOK)
  */
 export async function getAISettings(): Promise<AISettings> {
   // Check for FEATURE_REAL_AI flag first
   const realAiConfig = getRealAiConfig();
   if (realAiConfig) {
-    return {
-      provider: realAiConfig.provider,
-      model: realAiConfig.model,
-      apiKey: realAiConfig.apiKey,
-    };
+    // Check budget before enabling real AI
+    const budgetCheck = await checkProviderBudget(realAiConfig.provider);
+    if (budgetCheck.allowed) {
+      return {
+        provider: realAiConfig.provider,
+        model: realAiConfig.model,
+        apiKey: realAiConfig.apiKey,
+      };
+    }
+    // Budget exceeded - fall through to DB settings
   }
 
   // Fallback to database settings
