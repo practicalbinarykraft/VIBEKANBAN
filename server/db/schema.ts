@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 export const projects = sqliteTable("projects", {
@@ -166,4 +166,20 @@ export const settings = sqliteTable("settings", {
   openaiApiKey: text("openai_api_key"), // User's OpenAI key
   model: text("model").default("claude-sonnet-4-20250514"), // Selected model
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+// AI Cost Events (PR-47) - tracks AI usage and estimated costs
+export const aiCostEvents = sqliteTable("ai_cost_events", {
+  id: text("id").primaryKey(),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`CURRENT_TIMESTAMP`),
+  projectId: text("project_id"),
+  threadId: text("thread_id"), // council thread if applicable
+  source: text("source").notNull(), // council, plan, autopilot, other
+  provider: text("provider").notNull(), // anthropic, openai, mock, db
+  model: text("model"),
+  promptTokens: integer("prompt_tokens"),
+  completionTokens: integer("completion_tokens"),
+  totalTokens: integer("total_tokens"),
+  estimatedCostUsd: real("estimated_cost_usd"), // USD cost as decimal
+  metadataJson: text("metadata_json"), // JSON string for additional context
 });
