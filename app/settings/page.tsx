@@ -5,6 +5,7 @@ import { AiModeSection } from "@/components/settings/ai-mode-section";
 import { RealAiStatusCard } from "@/components/settings/real-ai-status-card";
 import { AiUsageCard } from "@/components/settings/ai-usage-card";
 import { AIProvidersCard } from "@/components/settings/ai-providers-card";
+import { AiUsageHistoryCard } from "@/components/settings/ai-usage-history-card";
 import { Settings } from "lucide-react";
 
 export default function SettingsPage() {
@@ -28,6 +29,7 @@ export default function SettingsPage() {
             <RealAiStatusCard />
             <AiUsageCard />
             <AIProvidersCard />
+            <AiUsageHistoryCard />
             <AiModeSection />
 
             <div className="rounded-lg border bg-card p-6">
