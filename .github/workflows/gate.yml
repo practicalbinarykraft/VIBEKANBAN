@@ -35,6 +35,9 @@ jobs:
         run: npm run build
         env:
           PLAYWRIGHT: '1'
+          NEXT_PUBLIC_PLAYWRIGHT: '1'
+          FEATURE_AUTOPILOT_V2: '1'
+          NEXT_PUBLIC_FEATURE_AUTOPILOT_V2: '1'
 
       - name: LOC limits check
         run: npm run check:loc
@@ -49,6 +52,9 @@ jobs:
         run: npx playwright test --trace on-first-retry --reporter html --workers=1
         env:
           PLAYWRIGHT: '1'
+          NEXT_PUBLIC_PLAYWRIGHT: '1'
+          FEATURE_AUTOPILOT_V2: '1'
+          NEXT_PUBLIC_FEATURE_AUTOPILOT_V2: '1'
           DEBUG: 'pw:webserver,pw:api'
 
       - name: Upload test results
