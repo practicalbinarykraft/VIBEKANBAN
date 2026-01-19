@@ -6,6 +6,7 @@ import { RealAiStatusCard } from "@/components/settings/real-ai-status-card";
 import { AiUsageCard } from "@/components/settings/ai-usage-card";
 import { AIProvidersCard } from "@/components/settings/ai-providers-card";
 import { AiUsageHistoryCard } from "@/components/settings/ai-usage-history-card";
+import { AIUsageAlertsCard } from "@/components/settings/ai-usage-alerts-card";
 import { Settings } from "lucide-react";
 
 export default function SettingsPage() {
@@ -27,6 +28,7 @@ export default function SettingsPage() {
 
           <div className="space-y-6">
             <RealAiStatusCard />
+            <AIUsageAlertsCard />
             <AiUsageCard />
             <AIProvidersCard />
             <AiUsageHistoryCard />
