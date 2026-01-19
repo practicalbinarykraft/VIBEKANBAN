@@ -119,11 +119,16 @@ export function AiModeSection() {
   }
 
   if (loading) {
+    const isDemoLoading =
+      process.env.NEXT_PUBLIC_VIBE_DEMO_MODE === "1" ||
+      process.env.NEXT_PUBLIC_PLAYWRIGHT === "1";
+
     return (
       <div className="rounded-lg border bg-card p-6" data-testid="ai-mode-section">
         <div className="flex items-center gap-2">
           <Loader2 className="h-4 w-4 animate-spin" />
           <span className="text-sm text-muted-foreground">Loading settings...</span>
+          {isDemoLoading && <span className="text-xs text-muted-foreground">(Demo)</span>}
         </div>
       </div>
     );
