@@ -1,13 +1,4 @@
-/**
- * TDD tests for provider-balance.service.ts (PR-52)
- *
- * Tests:
- * - adapter unknown -> estimator used -> source estimator
- * - limit set -> remaining computed
- * - no limit -> remaining null, source estimator, spend exists
- * - provider_accounts record created/updated
- */
-
+/** TDD tests for provider-balance.service.ts (PR-52, PR-54) */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { db } from "@/server/db";
 import { initDB } from "@/server/db";
@@ -21,28 +12,20 @@ vi.mock("../providers/adapters/anthropic-balance.adapter", () => ({
 }));
 
 import { getAnthropicBalance } from "../providers/adapters/anthropic-balance.adapter";
-import { refreshProviderBalance } from "../providers/provider-balance.service";
+import { refreshProviderBalance, refreshAllProviderBalances } from "../providers/provider-balance.service";
 
 describe("provider-balance.service", () => {
   const originalEnv = { ...process.env };
   let testSource: string;
 
   beforeEach(async () => {
-    // Generate unique testSource per test to ensure isolation
-    testSource = `test-service-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-    vi.clearAllMocks();
-    initDB();
+    testSource = `test-svc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    vi.clearAllMocks(); initDB();
     delete process.env.ANTHROPIC_MONTHLY_LIMIT_USD;
     delete process.env.OPENAI_MONTHLY_LIMIT_USD;
-
-    // Clean up test provider account
     await db.delete(providerAccounts).where(eq(providerAccounts.provider, "anthropic"));
-
-    // Default mock: adapter returns unknown
-    vi.mocked(getAnthropicBalance).mockResolvedValue({
-      availableUsd: null,
-      source: "unknown",
-    });
+    await db.delete(providerAccounts).where(eq(providerAccounts.provider, "openai"));
+    vi.mocked(getAnthropicBalance).mockResolvedValue({ availableUsd: null, source: "unknown" });
   });
 
   afterEach(() => {
@@ -160,6 +143,44 @@ describe("provider-balance.service", () => {
       expect(result.updatedAt).toBeDefined();
       expect(new Date(result.updatedAt).getTime()).toBeGreaterThanOrEqual(before.getTime());
       expect(new Date(result.updatedAt).getTime()).toBeLessThanOrEqual(after.getTime());
+    });
+
+    it("stores spendUsdMonthToDate in provider_accounts (PR-54)", async () => {
+      process.env.ANTHROPIC_MONTHLY_LIMIT_USD = "100";
+      await insertCostEvent("anthropic", 25.0);
+      await refreshProviderBalance("anthropic", { testSource });
+
+      const account = await db.select().from(providerAccounts)
+        .where(eq(providerAccounts.provider, "anthropic")).get();
+
+      expect(account).toBeDefined();
+      expect(account!.spendUsdMonthToDate).toBe(25.0);
+    });
+  });
+
+  describe("refreshAllProviderBalances (PR-54)", () => {
+    it("refreshes all configured providers", async () => {
+      process.env.ANTHROPIC_MONTHLY_LIMIT_USD = "100";
+      process.env.OPENAI_MONTHLY_LIMIT_USD = "50";
+      await insertCostEvent("anthropic", 10.0);
+
+      const results = await refreshAllProviderBalances({ testSource });
+
+      expect(results).toHaveLength(2);
+      expect(results.find((r) => r.provider === "anthropic")).toBeDefined();
+      expect(results.find((r) => r.provider === "openai")).toBeDefined();
+    });
+
+    it("stores all provider balances in provider_accounts", async () => {
+      process.env.ANTHROPIC_MONTHLY_LIMIT_USD = "100";
+      await insertCostEvent("anthropic", 20.0);
+      await refreshAllProviderBalances({ testSource });
+
+      const accounts = await db.select().from(providerAccounts);
+      expect(accounts.length).toBeGreaterThanOrEqual(1);
+      const anthropicAcc = accounts.find((a) => a.provider === "anthropic");
+      expect(anthropicAcc).toBeDefined();
+      expect(anthropicAcc!.balanceUsd).toBe(80.0);
     });
   });
 });
