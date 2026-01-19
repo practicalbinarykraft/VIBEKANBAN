@@ -129,7 +129,9 @@ export function AiModeSection() {
     );
   }
 
-  const isDemoMode = process.env.NEXT_PUBLIC_VIBE_DEMO_MODE === "1";
+  const isDemoMode =
+    process.env.NEXT_PUBLIC_VIBE_DEMO_MODE === "1" ||
+    process.env.NEXT_PUBLIC_PLAYWRIGHT === "1";
   const currentModels = provider === "openai" ? OPENAI_MODELS : ANTHROPIC_MODELS;
   const isRealMode = provider !== "demo" && (
     (provider === "anthropic" && (settings?.hasAnthropicKey || anthropicKey)) ||
