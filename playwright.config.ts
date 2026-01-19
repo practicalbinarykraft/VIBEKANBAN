@@ -22,8 +22,8 @@ export default defineConfig({
   ],
   webServer: {
     command: isCI
-      ? 'PLAYWRIGHT=1 NEXT_PUBLIC_PLAYWRIGHT=1 FEATURE_AUTOPILOT_V2=1 npm start'
-      : 'PLAYWRIGHT=1 NEXT_PUBLIC_PLAYWRIGHT=1 FEATURE_AUTOPILOT_V2=1 npm run dev',
+      ? 'PLAYWRIGHT=1 FEATURE_AUTOPILOT_V2=1 npm start'
+      : 'PLAYWRIGHT=1 FEATURE_AUTOPILOT_V2=1 npm run dev',
     url: 'http://localhost:8000',
     reuseExistingServer: !isCI,
     timeout: 120000,

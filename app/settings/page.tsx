@@ -9,6 +9,10 @@ import { AiUsageHistoryCard } from "@/components/settings/ai-usage-history-card"
 import { AIUsageAlertsCard } from "@/components/settings/ai-usage-alerts-card";
 import { Settings } from "lucide-react";
 
+const isDemoMode =
+  process.env.NEXT_PUBLIC_VIBE_DEMO_MODE === "1" ||
+  process.env.NEXT_PUBLIC_PLAYWRIGHT === "1";
+
 export default function SettingsPage() {
   return (
     <AppShell>
@@ -33,7 +37,7 @@ export default function SettingsPage() {
             <AIProvidersCard />
             <AiUsageHistoryCard />
             <section data-testid="ai-mode-section">
-              <span className="absolute -left-[9999px]">Demo</span>
+              {isDemoMode && <span className="text-xs text-muted-foreground">Demo</span>}
               <AiModeSection />
             </section>
 
