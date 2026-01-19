@@ -14,6 +14,7 @@ import { db } from "@/server/db";
 import { settings } from "@/server/db/schema";
 import { eq } from "drizzle-orm";
 import { callAnthropicWithRetry, callOpenAIWithRetry } from "./provider-adapter";
+import { shouldUseRealAi, getRealAiConfig } from "./real-ai-config";
 
 export type AIProvider = "demo" | "anthropic" | "openai";
 
@@ -74,10 +75,24 @@ function isTestMode(): boolean {
 }
 
 /**
- * Get current AI settings from database
- * Reads directly from global settings table
+ * Get current AI settings
+ *
+ * Priority:
+ * 1. FEATURE_REAL_AI=1 + ANTHROPIC_API_KEY env vars
+ * 2. Database settings (BYOK)
  */
 export async function getAISettings(): Promise<AISettings> {
+  // Check for FEATURE_REAL_AI flag first
+  const realAiConfig = getRealAiConfig();
+  if (realAiConfig) {
+    return {
+      provider: realAiConfig.provider,
+      model: realAiConfig.model,
+      apiKey: realAiConfig.apiKey,
+    };
+  }
+
+  // Fallback to database settings
   const result = await db
     .select()
     .from(settings)
@@ -104,6 +119,11 @@ export async function getAISettings(): Promise<AISettings> {
 export async function isAIConfigured(): Promise<boolean> {
   // Test mode and demo mode always return "configured" for mock
   if (isTestMode() || isDemoModeEnabled()) {
+    return true;
+  }
+
+  // FEATURE_REAL_AI + env key is configured
+  if (shouldUseRealAi()) {
     return true;
   }
 
