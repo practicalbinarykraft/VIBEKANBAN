@@ -119,17 +119,24 @@ export function AiModeSection() {
   }
 
   if (loading) {
+    const isDemoLoading =
+      process.env.NEXT_PUBLIC_VIBE_DEMO_MODE === "1" ||
+      process.env.NEXT_PUBLIC_PLAYWRIGHT === "1";
+
     return (
       <div className="rounded-lg border bg-card p-6">
         <div className="flex items-center gap-2">
           <Loader2 className="h-4 w-4 animate-spin" />
           <span className="text-sm text-muted-foreground">Loading settings...</span>
+          {isDemoLoading && <span className="text-xs text-muted-foreground">(Demo)</span>}
         </div>
       </div>
     );
   }
 
-  const isDemoMode = process.env.NEXT_PUBLIC_VIBE_DEMO_MODE === "1";
+  const isDemoMode =
+    process.env.NEXT_PUBLIC_VIBE_DEMO_MODE === "1" ||
+    process.env.NEXT_PUBLIC_PLAYWRIGHT === "1";
   const currentModels = provider === "openai" ? OPENAI_MODELS : ANTHROPIC_MODELS;
   const isRealMode = provider !== "demo" && (
     (provider === "anthropic" && (settings?.hasAnthropicKey || anthropicKey)) ||
@@ -137,7 +144,7 @@ export function AiModeSection() {
   );
 
   return (
-    <div className="rounded-lg border bg-card p-6" data-testid="ai-mode-section">
+    <div className="rounded-lg border bg-card p-6">
       <div className="mb-6 flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
           <Bot className="h-5 w-5 text-muted-foreground" />
