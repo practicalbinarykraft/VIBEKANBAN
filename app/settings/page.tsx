@@ -4,7 +4,7 @@ import { AppShell } from "@/components/app-shell";
 import { AiModeSection } from "@/components/settings/ai-mode-section";
 import { RealAiStatusCard } from "@/components/settings/real-ai-status-card";
 import { AiUsageCard } from "@/components/settings/ai-usage-card";
-import { ProviderBalanceCard } from "@/components/settings/provider-balance-card";
+import { AIProvidersCard } from "@/components/settings/ai-providers-card";
 import { Settings } from "lucide-react";
 
 export default function SettingsPage() {
@@ -27,7 +27,7 @@ export default function SettingsPage() {
           <div className="space-y-6">
             <RealAiStatusCard />
             <AiUsageCard />
-            <ProviderBalanceCard provider="anthropic" />
+            <AIProvidersCard />
             <AiModeSection />
 
             <div className="rounded-lg border bg-card p-6">
