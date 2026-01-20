@@ -15,7 +15,9 @@ import { AutopilotPanel } from "@/components/planning/autopilot-panel";
 import { AutopilotRunHistory } from "@/components/autopilot/autopilot-run-history";
 import { AutopilotRunSummaryPanel, type SummaryPanelStatus } from "@/components/autopilot/autopilot-run-summary-panel";
 import { AutopilotEntryPanel } from "@/components/autopilot/autopilot-entry-panel";
+import { AutopilotReadinessPanel } from "@/components/autopilot/autopilot-readiness-panel";
 import { useAutopilot } from "@/hooks/useAutopilot";
+import { useAutopilotReadiness } from "@/hooks/useAutopilotReadiness";
 import { useRunHistory } from "@/hooks/useRunHistory";
 import { useAutopilotRunDetails } from "@/hooks/useAutopilotRunDetails";
 
@@ -73,6 +75,9 @@ export default function ProjectClient({ projectId, enableAutopilotV2 = false }: 
 
   // Run history hook (PR-67)
   const runHistory = useRunHistory(projectId);
+
+  // PR-81: Autopilot readiness check (blockers panel)
+  const readiness = useAutopilotReadiness(projectId);
 
   // PR-79: Get latest finished run for summary panel
   const latestRun = runHistory.runs[0];
@@ -225,6 +230,16 @@ export default function ProjectClient({ projectId, enableAutopilotV2 = false }: 
             status={latestRun.status.toUpperCase() as SummaryPanelStatus}
             prUrl={latestRunPrUrl}
             onRunAgain={handleRunAgain}
+          />
+        </div>
+      )}
+
+      {/* PR-81: Autopilot Readiness Panel - shows blockers when not ready */}
+      {enableAutopilotV2 && !readiness.ready && (
+        <div className="mx-4 mt-2">
+          <AutopilotReadinessPanel
+            ready={readiness.ready}
+            blockers={readiness.blockers}
           />
         </div>
       )}
