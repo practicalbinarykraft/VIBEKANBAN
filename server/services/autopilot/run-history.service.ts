@@ -17,20 +17,21 @@ function toISOString(date: Date | null): string | null {
   return date ? date.toISOString() : null;
 }
 
-function mapStatus(status: string): RunStatus {
-  const valid: RunStatus[] = ["idle", "running", "stopped", "failed", "done"];
-  return valid.includes(status as RunStatus) ? (status as RunStatus) : "idle";
-}
-
-// PR-73: Map autopilot_runs.status to RunStatus
-function mapRunStatus(status: string): RunStatus {
-  const mapping: Record<string, RunStatus> = {
-    running: "running",
-    completed: "done",
-    failed: "failed",
-    cancelled: "stopped",
-  };
-  return mapping[status] || "idle";
+// PR-76: Derive run status based on run.status and attempt outcomes
+function deriveRunStatus(runStatus: string, hasFailedAttempts: boolean): RunStatus {
+  switch (runStatus) {
+    case "running":
+      return "running";
+    case "completed":
+      // If completed but has failed attempts → failed
+      return hasFailedAttempts ? "failed" : "completed";
+    case "failed":
+      return "failed";
+    case "cancelled":
+      return "cancelled";
+    default:
+      return "idle";
+  }
 }
 
 function mapAttemptStatus(status: string): AttemptStatus {
@@ -54,7 +55,7 @@ export async function listRuns(projectId: string, limit = 20): Promise<ListRunsR
     result.push({
       runId: run.id,
       projectId: run.projectId,
-      status: mapRunStatus(run.status),
+      status: deriveRunStatus(run.status, failedCount > 0), // PR-76
       startedAt: toISOString(run.startedAt),
       finishedAt: toISOString(run.finishedAt),
       totalTasks: attemptsForRun.length,
@@ -107,7 +108,7 @@ export async function getRunDetails(runId: string): Promise<GetRunResponse> {
   const runDetails: RunDetails = {
     runId: run.id,
     projectId: run.projectId,
-    status: mapRunStatus(run.status),
+    status: deriveRunStatus(run.status, failedCount > 0), // PR-76
     startedAt: toISOString(run.startedAt),
     finishedAt: toISOString(run.finishedAt),
     totalTasks: attemptSummaries.length,

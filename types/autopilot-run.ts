@@ -1,6 +1,7 @@
-/** Autopilot Run Types (PR-65) - Run history and details */
+/** Autopilot Run Types (PR-65, PR-76) - Run history and details */
 
-export type RunStatus = "idle" | "running" | "stopped" | "failed" | "done";
+// PR-76: Derived status - matches DerivedAutopilotStatus (lowercase for API)
+export type RunStatus = "idle" | "running" | "completed" | "failed" | "cancelled";
 
 export type AttemptStatus = "pending" | "queued" | "running" | "completed" | "failed" | "stopped";
 

@@ -1,4 +1,4 @@
-/** Run History Service Tests (PR-65, PR-73) - TDD */
+/** Run History Service Tests (PR-65, PR-73, PR-76) - TDD */
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { db } from "@/server/db";
 import { projects, tasks, attempts, logs, autopilotRuns } from "@/server/db/schema";
@@ -87,7 +87,8 @@ describe("RunHistoryService", () => {
       const result = await listRuns(projectId);
       expect(result.runs).toHaveLength(1);
       expect(result.runs[0].projectId).toBe(projectId);
-      expect(result.runs[0].status).toBe("done");
+      // PR-76: completed run with failed attempts → derived status "failed"
+      expect(result.runs[0].status).toBe("failed");
     });
 
     it("includes attempt counts in summary", async () => {

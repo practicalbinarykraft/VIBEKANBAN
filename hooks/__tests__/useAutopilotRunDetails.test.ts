@@ -1,5 +1,5 @@
 /**
- * useAutopilotRunDetails Tests (PR-75)
+ * useAutopilotRunDetails Tests (PR-75, PR-76)
  * Tests hook fetching behavior
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -7,10 +7,11 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { useAutopilotRunDetails } from "../useAutopilotRunDetails";
 import type { RunDetails } from "@/types/autopilot-run";
 
+// PR-76: Use derived status values
 const mockRunDetails: RunDetails = {
   runId: "run-123",
   projectId: "project-123",
-  status: "done",
+  status: "completed", // PR-76: was "done"
   startedAt: "2026-01-20T10:00:00Z",
   finishedAt: "2026-01-20T10:05:00Z",
   totalTasks: 2,

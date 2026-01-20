@@ -42,6 +42,7 @@ const riskColors: Record<string, string> = {
   high: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
 };
 
+// PR-76: Extended with derived status values
 const statusConfig: Record<AutopilotStatus, { icon: React.ReactNode; label: string }> = {
   IDLE: { icon: <PlayCircle className="h-5 w-5 text-muted-foreground" />, label: "Ready to start" },
   RUNNING: { icon: <Loader2 className="h-5 w-5 animate-spin text-blue-500" />, label: "Executing task..." },
@@ -49,6 +50,8 @@ const statusConfig: Record<AutopilotStatus, { icon: React.ReactNode; label: stri
   WAITING_APPROVAL: { icon: <PauseCircle className="h-5 w-5 text-yellow-500" />, label: "Waiting for approval" },
   DONE: { icon: <CheckCircle className="h-5 w-5 text-green-500" />, label: "All tasks complete" },
   FAILED: { icon: <XCircle className="h-5 w-5 text-red-500" />, label: "Failed" },
+  COMPLETED: { icon: <CheckCircle className="h-5 w-5 text-green-500" />, label: "All tasks complete" },
+  CANCELLED: { icon: <XCircle className="h-5 w-5 text-muted-foreground" />, label: "Cancelled" },
 };
 
 const modeLabels: Record<AutopilotMode, string> = {
@@ -198,7 +201,7 @@ export function AutopilotPanel({
           </>
         )}
 
-        {status === "DONE" && (
+        {(status === "DONE" || status === "COMPLETED") && (
           <div className="flex-1 text-center text-sm text-green-600" data-testid="autopilot-done">
             All {totalTasks} tasks completed!
           </div>
@@ -208,6 +211,12 @@ export function AutopilotPanel({
           <Button onClick={onResume} disabled={isLoading} variant="outline" className="flex-1" data-testid="autopilot-retry-button">
             {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Retrying...</> : "Retry"}
           </Button>
+        )}
+
+        {status === "CANCELLED" && (
+          <div className="flex-1 text-center text-sm text-muted-foreground" data-testid="autopilot-cancelled">
+            Run was cancelled
+          </div>
         )}
       </div>
     </div>

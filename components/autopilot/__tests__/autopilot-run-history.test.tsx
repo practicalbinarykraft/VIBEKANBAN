@@ -1,13 +1,14 @@
-/** AutopilotRunHistory Tests (PR-65, PR-67) */
+/** AutopilotRunHistory Tests (PR-65, PR-67, PR-76) */
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { AutopilotRunHistory } from "../autopilot-run-history";
 import type { RunSummary, RunDetails } from "@/types/autopilot-run";
 
+// PR-76: Use derived status values
 const mockRun: RunSummary = {
   runId: "project-123",
   projectId: "project-123",
-  status: "done",
+  status: "failed", // PR-76: has failedTasks > 0
   startedAt: "2026-01-20T10:00:00Z",
   finishedAt: "2026-01-20T10:05:00Z",
   totalTasks: 5,
@@ -100,7 +101,7 @@ describe("AutopilotRunHistory", () => {
         onCloseDetails={() => {}}
       />
     );
-    expect(screen.getByText("done")).toBeInTheDocument();
+    expect(screen.getByText("failed")).toBeInTheDocument(); // PR-76: derived status
     expect(screen.getByText(/4\/5 done/)).toBeInTheDocument();
   });
 
