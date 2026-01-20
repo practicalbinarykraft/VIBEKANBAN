@@ -6,7 +6,7 @@
  */
 
 /** Status of the autopilot system */
-export type AutopilotStatus = "IDLE" | "RUNNING" | "FAILED" | "DONE";
+export type AutopilotStatus = "IDLE" | "RUNNING" | "FAILED" | "DONE" | "STOPPED";
 
 /** Status of a single attempt */
 export type AutopilotAttemptStatus = "queued" | "running" | "done" | "failed";
@@ -33,6 +33,7 @@ export type AutopilotPanelProps = {
   attempts?: AutopilotAttemptSummary[] | null;
   onStart?: () => void;
   onStop?: () => void;
+  onRetry?: () => void;
   onOpenAttempt?: (attemptId: string) => void;
 };
 

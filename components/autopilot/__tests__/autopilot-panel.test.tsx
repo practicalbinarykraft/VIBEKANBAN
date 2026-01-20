@@ -112,4 +112,53 @@ describe("AutopilotPanel", () => {
 
     expect(screen.queryByTestId("start-btn")).not.toBeInTheDocument();
   });
+
+  // PR-64: STOPPED status and Retry button tests
+  it("renders STOPPED status", () => {
+    render(<AutopilotPanel status="STOPPED" />);
+
+    expect(screen.getByTestId("status-badge")).toHaveTextContent("STOPPED");
+  });
+
+  it("shows Retry button when status is FAILED", () => {
+    render(<AutopilotPanel status="FAILED" />);
+
+    expect(screen.getByTestId("retry-btn")).toBeInTheDocument();
+  });
+
+  it("shows Retry button when status is STOPPED", () => {
+    render(<AutopilotPanel status="STOPPED" />);
+
+    expect(screen.getByTestId("retry-btn")).toBeInTheDocument();
+  });
+
+  it("disables Retry button when no onRetry callback", () => {
+    render(<AutopilotPanel status="FAILED" />);
+
+    const retryBtn = screen.getByTestId("retry-btn");
+    expect(retryBtn).toBeDisabled();
+  });
+
+  it("enables Retry button and calls onRetry when clicked", () => {
+    const onRetry = vi.fn();
+    render(<AutopilotPanel status="FAILED" onRetry={onRetry} />);
+
+    const retryBtn = screen.getByTestId("retry-btn");
+    expect(retryBtn).not.toBeDisabled();
+
+    fireEvent.click(retryBtn);
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it("hides Retry button when status is IDLE", () => {
+    render(<AutopilotPanel status="IDLE" onRetry={() => {}} />);
+
+    expect(screen.queryByTestId("retry-btn")).not.toBeInTheDocument();
+  });
+
+  it("hides Retry button when status is RUNNING", () => {
+    render(<AutopilotPanel status="RUNNING" onRetry={() => {}} />);
+
+    expect(screen.queryByTestId("retry-btn")).not.toBeInTheDocument();
+  });
 });
