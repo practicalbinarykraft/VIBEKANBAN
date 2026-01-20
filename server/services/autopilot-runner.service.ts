@@ -1,8 +1,9 @@
-/** AutopilotRunnerService (PR-64) - Start/Stop/Retry autopilot runs */
+/** AutopilotRunnerService (PR-64, PR-73) - Start/Stop/Retry autopilot runs */
 import { db } from "@/server/db";
 import { projects, tasks } from "@/server/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { runSimpleAttempt } from "@/server/services/execution/simple-runner";
+import { createRun, finishRun } from "@/server/services/autopilot/autopilot-runs.service";
 
 export type RunStatus = "idle" | "running" | "stopped" | "failed" | "done";
 
@@ -21,6 +22,7 @@ export interface RunResult {
 }
 
 const stopRequests = new Map<string, boolean>();
+const activeRuns = new Map<string, string>(); // projectId -> runId (PR-73)
 
 export async function getRunStatus(projectId: string): Promise<RunStatusResult> {
   const project = await db.select().from(projects)
@@ -70,6 +72,11 @@ export async function startRun(projectId: string): Promise<RunResult> {
   // Clear any previous stop request
   stopRequests.delete(projectId);
 
+  // Create autopilot run (PR-73)
+  const runResult = await createRun(projectId);
+  const runId = runResult.ok ? runResult.runId : null;
+  if (runId) activeRuns.set(projectId, runId);
+
   // Get project tasks (todo or in_progress)
   const projectTasks = await db.select().from(tasks)
     .where(and(
@@ -78,7 +85,7 @@ export async function startRun(projectId: string): Promise<RunResult> {
     ));
 
   // Fire-and-forget execution
-  executeTasksAsync(projectId, projectTasks.map(t => t.id));
+  executeTasksAsync(projectId, projectTasks.map(t => t.id), runId);
 
   return { success: true, status: "running" };
 }
@@ -97,6 +104,13 @@ export async function stopRun(projectId: string, _reason?: string): Promise<RunR
 
   // Set stop request flag
   stopRequests.set(projectId, true);
+
+  // Finish the autopilot run as cancelled (PR-73)
+  const runId = activeRuns.get(projectId);
+  if (runId) {
+    await finishRun(runId, "cancelled");
+    activeRuns.delete(projectId);
+  }
 
   // Update project status
   await db.update(projects)
@@ -134,45 +148,45 @@ export function isStopRequested(projectId: string): boolean {
   return stopRequests.get(projectId) === true;
 }
 
-async function executeTasksAsync(projectId: string, taskIds: string[]): Promise<void> {
+async function executeTasksAsync(
+  projectId: string,
+  taskIds: string[],
+  runId: string | null
+): Promise<void> {
   let hasFailure = false;
 
   for (const taskId of taskIds) {
-    // Check for stop request
-    if (isStopRequested(projectId)) {
-      break;
-    }
+    if (isStopRequested(projectId)) break;
 
-    // Create and run attempt
     try {
       const result = await runSimpleAttempt({
         taskId,
         projectId,
         command: ["echo", "Task execution placeholder"],
         timeout: 60000,
+        autopilotRunId: runId ?? undefined, // PR-73
       });
-
-      if (!result.success) {
-        hasFailure = true;
-      }
+      if (!result.success) hasFailure = true;
     } catch {
       hasFailure = true;
     }
   }
 
-  // Check if stopped during execution
+  // If stopped during execution, run is already finished by stopRun
   if (isStopRequested(projectId)) {
     stopRequests.delete(projectId);
     return;
   }
 
-  // Update final status
+  // Finish the autopilot run (PR-73)
   const finalStatus = hasFailure ? "failed" : "done";
+  if (runId) {
+    await finishRun(runId, hasFailure ? "failed" : "completed");
+    activeRuns.delete(projectId);
+  }
+
   await db.update(projects)
-    .set({
-      executionStatus: finalStatus,
-      executionFinishedAt: new Date(),
-    })
+    .set({ executionStatus: finalStatus, executionFinishedAt: new Date() })
     .where(eq(projects.id, projectId));
 
   stopRequests.delete(projectId);

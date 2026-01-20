@@ -400,5 +400,26 @@ export function initDB() {
     }
   }
 
+  // Create autopilot_runs table (PR-73)
+  _sqlite!.exec(`
+    CREATE TABLE IF NOT EXISTS autopilot_runs (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL REFERENCES projects(id),
+      status TEXT NOT NULL DEFAULT 'running',
+      started_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+      finished_at INTEGER,
+      error TEXT
+    );
+  `);
+
+  // Add autopilot_run_id column to attempts (PR-73)
+  try {
+    _sqlite!.exec(`ALTER TABLE attempts ADD COLUMN autopilot_run_id TEXT;`);
+  } catch (error: any) {
+    if (!error.message.includes('duplicate column name')) {
+      process.stderr.write(`Warning during migration: ${error.message}\n`);
+    }
+  }
+
   process.stdout.write("✅ Database initialized\n");
 }
