@@ -1,5 +1,5 @@
 /**
- * RunDetailsClient (PR-75) - Client component for autopilot run details
+ * RunDetailsClient (PR-75, PR-77) - Client component for autopilot run details
  */
 "use client";
 
@@ -7,8 +7,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { useAutopilotRunDetails } from "@/hooks/useAutopilotRunDetails";
 import { RunAttemptRow } from "@/components/autopilot/run-attempt-row";
+import { ErrorGuidancePanel } from "@/components/autopilot/error-guidance-panel";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ArrowLeft, AlertCircle } from "lucide-react";
+import { Loader2, ArrowLeft } from "lucide-react";
 import type { RunStatus } from "@/types/autopilot-run";
 
 interface RunDetailsClientProps {
@@ -107,9 +108,8 @@ export function RunDetailsClient({ projectId, runId }: RunDetailsClientProps) {
         </div>
 
         {run.runError && (
-          <div className="mt-4 flex items-start gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-            <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
-            <span>{run.runError}</span>
+          <div className="mt-4">
+            <ErrorGuidancePanel runError={run.runError} />
           </div>
         )}
       </div>
