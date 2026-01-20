@@ -1,10 +1,11 @@
-/** POST /api/projects/[id]/factory/stop (PR-83) - Stop factory run */
+/** POST /api/projects/[id]/factory/stop (PR-83, PR-85) - Stop factory run */
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/server/db";
 import { autopilotRuns, attempts } from "@/server/db/schema";
 import { eq, desc, and, inArray } from "drizzle-orm";
 import { finishRun } from "@/server/services/autopilot/autopilot-runs.service";
 import { cancelAttempt } from "@/server/services/execution/attempt-canceller";
+import { getGlobalQueue } from "@/server/services/factory/factory-scheduler.service";
 
 export async function POST(
   _request: NextRequest,
@@ -44,6 +45,12 @@ export async function POST(
     const result = await cancelAttempt(attempt.id);
     if (result.ok) cancelledCount++;
     else failedToCancel++;
+  }
+
+  // Clear the in-memory queue (PR-85)
+  const queue = getGlobalQueue();
+  if (queue) {
+    queue.clearAll();
   }
 
   // Mark run as cancelled

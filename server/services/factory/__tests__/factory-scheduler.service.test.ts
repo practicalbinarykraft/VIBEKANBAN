@@ -1,4 +1,4 @@
-/** Factory Scheduler Service Tests (PR-82) - TDD */
+/** Factory Scheduler Service Tests (PR-82, PR-85) - TDD */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { runFactoryScheduler, FactorySchedulerDeps } from "../factory-scheduler.service";
 
