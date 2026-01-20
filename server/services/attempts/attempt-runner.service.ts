@@ -9,14 +9,8 @@ import { eq, asc } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { LocalRunner } from "@/server/services/execution/local-runner";
 import { emitAttemptStatus, emitAttemptLog } from "@/server/services/events-hub";
-import type {
-  StartAttemptParams,
-  StartAttemptResult,
-  AttemptStatusResult,
-  GetLogsParams,
-  GetLogsResult,
-  RunAttemptResult,
-} from "./attempt-runner.types";
+import { registerAttemptRuntime, unregisterAttemptRuntime } from "@/server/services/execution/attempt-runtime-registry";
+import type { StartAttemptParams, StartAttemptResult, AttemptStatusResult, GetLogsParams, GetLogsResult, RunAttemptResult } from "./attempt-runner.types";
 
 /**
  * Create a new attempt in queued status
@@ -99,6 +93,12 @@ async function executeAsync(
 ): Promise<void> {
   const runner = new LocalRunner();
 
+  // Register runtime handle for cancellation support (PR-72)
+  registerAttemptRuntime(attemptId, {
+    kind: "local",
+    stop: () => runner.stop(),
+  });
+
   // Store logs as they come
   runner.on("log", async (entry) => {
     try {
@@ -126,6 +126,8 @@ async function executeAsync(
     exitCode = result.exitCode;
   } catch {
     exitCode = 1;
+  } finally {
+    unregisterAttemptRuntime(attemptId);
   }
 
   const finishedAt = new Date();
