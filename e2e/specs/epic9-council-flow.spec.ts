@@ -1,31 +1,38 @@
 import { test, expect } from "@playwright/test";
 import { waitForBoardReady, getTaskCountInColumn } from "../helpers/board";
 import { resetProjectStatus } from "../helpers/api";
+import {
+  trackConsoleAndPageErrors,
+  clickNoNav,
+  expectHealthy,
+  waitVisible,
+} from "../helpers/e2e-critical";
 
 /**
- * EPIC-9: Council-based Planning Flow E2E tests
+ * EPIC-9: Council-based Planning Flow E2E tests (Critical Path)
  *
- * Tests the new council dialogue → plan → approve flow:
- * - Council dialogue appears after starting
- * - Plan is generated as separate artifact
- * - Approve + create tasks adds to backlog
+ * Tests critical path only:
+ * - Page loads without crash
+ * - Buttons are clickable
+ * - No 5xx errors
  *
- * Phases: idle → kickoff → awaiting_response → plan_ready → approved → tasks_created
+ * NO text assertions, NO navigation waits, NO env-var dependencies
  */
 
 test.describe("EPIC-9 Council Planning Flow", () => {
   test.beforeEach(async ({ page, request }) => {
-    // Reset project state including council threads
     await resetProjectStatus(request, "1");
-
     await page.goto("/projects/1");
     await waitForBoardReady(page);
-    await page.locator('[data-testid="planning-tab"]').click();
-    await expect(page.locator('[data-testid="planning-idea-input"]')).toBeVisible();
-    await expect(page.locator('[data-testid="planning-idea-input"]')).toBeEnabled();
   });
 
   test("T_EPIC9_1: Council dialogue appears after start", async ({ page }) => {
+    const tracked = trackConsoleAndPageErrors(page);
+
+    // Navigate to Planning tab
+    await page.locator('[data-testid="planning-tab"]').click();
+    await waitVisible(page.locator('[data-testid="planning-idea-input"]'));
+
     // Enter idea
     const ideaInput = page.locator('[data-testid="planning-idea-input"]');
     await ideaInput.fill("Build a todo app with React and TypeScript");
@@ -33,109 +40,126 @@ test.describe("EPIC-9 Council Planning Flow", () => {
     // Start council
     const startButton = page.locator('[data-testid="planning-start-button"]');
     await expect(startButton).toBeEnabled();
-    await startButton.click();
+    await clickNoNav(startButton);
 
     // Wait for council console to appear
     const councilConsole = page.locator('[data-testid="council-console"]');
-    await expect(councilConsole).toBeVisible({ timeout: 15000 });
+    await waitVisible(councilConsole, 15000);
 
     // Council dialogue should be visible
     const councilDialogue = page.locator('[data-testid="council-dialogue"]');
-    await expect(councilDialogue).toBeVisible({ timeout: 10000 });
+    await waitVisible(councilDialogue, 10000);
 
-    // Should have at least one council message
+    // Should have at least one council message (element exists)
     const messages = page.locator('[data-testid^="council-msg-"]');
-    await expect(messages.first()).toBeVisible({ timeout: 10000 });
+    await waitVisible(messages.first(), 10000);
+
+    // Health check
+    await expectHealthy(page, tracked);
   });
 
-  test("T_EPIC9_2: Generate plan produces plan artifact view", async ({ page }) => {
+  test("T_EPIC9_2: Generate plan produces plan artifact view", async ({
+    page,
+  }) => {
+    const tracked = trackConsoleAndPageErrors(page);
+
+    // Navigate to Planning tab
+    await page.locator('[data-testid="planning-tab"]').click();
+    await waitVisible(page.locator('[data-testid="planning-idea-input"]'));
+
     // Enter idea
     const ideaInput = page.locator('[data-testid="planning-idea-input"]');
     await ideaInput.fill("Build a simple blog with posts and comments");
 
     // Start council
-    await page.locator('[data-testid="planning-start-button"]').click();
+    await clickNoNav(page.locator('[data-testid="planning-start-button"]'));
 
     // Wait for council dialogue
-    await expect(page.locator('[data-testid="council-dialogue"]')).toBeVisible({ timeout: 15000 });
+    await waitVisible(page.locator('[data-testid="council-dialogue"]'), 15000);
 
-    // Wait for response input to appear (awaiting_response phase)
+    // Wait for response input (awaiting_response phase)
     const responseInput = page.locator('[data-testid="response-input"]');
-    await expect(responseInput).toBeVisible({ timeout: 15000 });
+    await waitVisible(responseInput, 15000);
 
-    // Enter response to move to plan_ready phase
+    // Enter response
     await responseInput.fill("Yes, let's focus on the core blog functionality first.");
-    await page.locator('[data-testid="submit-response-btn"]').click();
+    await clickNoNav(page.locator('[data-testid="submit-response-btn"]'));
 
-    // Wait for Generate Plan button to appear (plan_ready phase)
+    // Wait for Generate Plan button (plan_ready phase)
     const generateBtn = page.locator('[data-testid="generate-plan-btn"]');
-    await expect(generateBtn).toBeVisible({ timeout: 30000 });
+    await waitVisible(generateBtn, 30000);
 
-    // Click Generate Plan to create the plan
-    await generateBtn.click();
+    // Click Generate Plan
+    await clickNoNav(generateBtn);
 
-    // Wait for Plan tab to become enabled (plan generated, text changes to "Plan v1")
+    // Wait for Plan tab to become enabled
     const planTabBtn = page.getByRole("button", { name: /Plan v/i });
     await expect(planTabBtn).toBeEnabled({ timeout: 30000 });
 
-    // Click Plan tab to see plan view
-    await planTabBtn.click();
+    // Click Plan tab
+    await clickNoNav(planTabBtn);
 
     // Approve Plan button should be visible
     const approveBtn = page.locator('[data-testid="approve-plan-btn"]');
-    await expect(approveBtn).toBeVisible({ timeout: 10000 });
+    await waitVisible(approveBtn, 10000);
+
+    // Health check
+    await expectHealthy(page, tracked);
   });
 
-  test("T_EPIC9_3: Approve plan and create tasks adds to backlog", async ({ page }) => {
-    // Count TODO tasks before (we're already on Tasks tab from beforeEach → waitForBoardReady)
+  test("T_EPIC9_3: Approve plan and create tasks adds to backlog", async ({
+    page,
+  }) => {
+    const tracked = trackConsoleAndPageErrors(page);
+
+    // Count TODO tasks before
     await page.locator('[data-testid="tasks-tab"]').click();
     await waitForBoardReady(page);
     const countBefore = await getTaskCountInColumn(page, "todo");
 
     // Go back to Planning tab
     await page.locator('[data-testid="planning-tab"]').click();
-    await expect(page.locator('[data-testid="planning-idea-input"]')).toBeVisible();
-    await expect(page.locator('[data-testid="planning-idea-input"]')).toBeEnabled();
+    await waitVisible(page.locator('[data-testid="planning-idea-input"]'));
 
     // Enter idea
     const ideaInput = page.locator('[data-testid="planning-idea-input"]');
     await ideaInput.fill("Build user authentication with login and signup");
 
     // Start council
-    await page.locator('[data-testid="planning-start-button"]').click();
+    await clickNoNav(page.locator('[data-testid="planning-start-button"]'));
 
     // Wait for council dialogue
-    await expect(page.locator('[data-testid="council-dialogue"]')).toBeVisible({ timeout: 15000 });
+    await waitVisible(page.locator('[data-testid="council-dialogue"]'), 15000);
 
-    // Wait for response input and submit response
+    // Wait for response input and submit
     const responseInput = page.locator('[data-testid="response-input"]');
-    await expect(responseInput).toBeVisible({ timeout: 15000 });
+    await waitVisible(responseInput, 15000);
     await responseInput.fill("Let's start with basic JWT authentication.");
-    await page.locator('[data-testid="submit-response-btn"]').click();
+    await clickNoNav(page.locator('[data-testid="submit-response-btn"]'));
 
-    // Wait for Generate Plan button to appear (plan_ready phase)
+    // Wait for Generate Plan button
     const generateBtn = page.locator('[data-testid="generate-plan-btn"]');
-    await expect(generateBtn).toBeVisible({ timeout: 30000 });
+    await waitVisible(generateBtn, 30000);
 
-    // Click Generate Plan to create the plan
-    await generateBtn.click();
+    // Click Generate Plan
+    await clickNoNav(generateBtn);
 
-    // Wait for Plan tab to become enabled (plan generated)
+    // Wait for Plan tab to become enabled
     const planTabBtn = page.getByRole("button", { name: /Plan v/i });
     await expect(planTabBtn).toBeEnabled({ timeout: 30000 });
 
-    // Click Plan tab to see plan view
-    await planTabBtn.click();
+    // Click Plan tab
+    await clickNoNav(planTabBtn);
 
     // Click approve
     const approveBtn = page.locator('[data-testid="approve-plan-btn"]');
-    await expect(approveBtn).toBeVisible({ timeout: 10000 });
-    await approveBtn.click();
+    await waitVisible(approveBtn, 10000);
+    await clickNoNav(approveBtn);
 
     // Click create tasks
     const createTasksBtn = page.locator('[data-testid="create-tasks-btn"]');
-    await expect(createTasksBtn).toBeVisible({ timeout: 10000 });
-    await createTasksBtn.click();
+    await waitVisible(createTasksBtn, 10000);
+    await clickNoNav(createTasksBtn);
 
     // Wait for board ready (should switch to Tasks tab)
     await waitForBoardReady(page);
@@ -143,9 +167,20 @@ test.describe("EPIC-9 Council Planning Flow", () => {
     // Verify TODO count increased
     const countAfter = await getTaskCountInColumn(page, "todo");
     expect(countAfter).toBeGreaterThan(countBefore);
+
+    // Health check
+    await expectHealthy(page, tracked);
   });
 
-  test("should disable start button when textarea is empty", async ({ page }) => {
+  test("should disable start button when textarea is empty", async ({
+    page,
+  }) => {
+    const tracked = trackConsoleAndPageErrors(page);
+
+    // Navigate to Planning tab
+    await page.locator('[data-testid="planning-tab"]').click();
+    await waitVisible(page.locator('[data-testid="planning-idea-input"]'));
+
     // Verify button is disabled when textarea is empty
     const startButton = page.locator('[data-testid="planning-start-button"]');
     await expect(startButton).toBeDisabled();
@@ -156,5 +191,8 @@ test.describe("EPIC-9 Council Planning Flow", () => {
 
     // Button should now be enabled
     await expect(startButton).toBeEnabled();
+
+    // Health check
+    await expectHealthy(page, tracked);
   });
 });
