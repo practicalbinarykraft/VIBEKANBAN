@@ -1,8 +1,8 @@
-/** Autopilot Run History (PR-65) - Display run history and details */
+/** Autopilot Run History (PR-65, PR-67) - Display run history, details, and stop control */
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ChevronDown, ChevronUp, AlertCircle } from "lucide-react";
+import { Loader2, ChevronDown, ChevronUp, AlertCircle, Square } from "lucide-react";
 import type { RunSummary, RunDetails, RunError, RunStatus } from "@/types/autopilot-run";
 
 interface AutopilotRunHistoryProps {
@@ -12,6 +12,8 @@ interface AutopilotRunHistoryProps {
   selectedRunLoading: boolean;
   onSelectRun: (runId: string) => void;
   onCloseDetails: () => void;
+  onStopRun?: (runId: string) => void;
+  stoppingRunId?: string;
 }
 
 const statusVariants: Record<RunStatus, "default" | "secondary" | "destructive" | "outline"> = {
@@ -64,6 +66,8 @@ function RunItem({
   detailsLoading,
   onSelect,
   onClose,
+  onStop,
+  isStopping,
 }: {
   run: RunSummary;
   isSelected: boolean;
@@ -71,26 +75,48 @@ function RunItem({
   detailsLoading: boolean;
   onSelect: () => void;
   onClose: () => void;
+  onStop?: () => void;
+  isStopping?: boolean;
 }) {
+  const canStop = run.status === "running" && onStop;
+
   return (
-    <div className="border-b last:border-b-0">
-      <button
-        className="flex w-full items-center justify-between px-3 py-2 text-left hover:bg-muted/50"
-        onClick={isSelected ? onClose : onSelect}
-        data-testid={`run-item-${run.runId}`}
-      >
-        <div className="flex items-center gap-3">
-          <Badge variant={statusVariants[run.status]}>{run.status}</Badge>
-          <span className="text-sm text-muted-foreground">{formatTime(run.startedAt)}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">
-            {run.doneTasks}/{run.totalTasks} done
-            {run.failedTasks > 0 && <span className="text-destructive"> • {run.failedTasks} failed</span>}
-          </span>
-          {isSelected ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-        </div>
-      </button>
+    <div className="border-b last:border-b-0" data-testid="autopilot-run-item">
+      <div className="flex items-center">
+        <button
+          className="flex flex-1 items-center justify-between px-3 py-2 text-left hover:bg-muted/50"
+          onClick={isSelected ? onClose : onSelect}
+          data-testid={`run-item-${run.runId}`}
+        >
+          <div className="flex items-center gap-3">
+            <Badge variant={statusVariants[run.status]}>{run.status}</Badge>
+            <span className="text-sm text-muted-foreground">{formatTime(run.startedAt)}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">
+              {run.doneTasks}/{run.totalTasks} done
+              {run.failedTasks > 0 && <span className="text-destructive"> • {run.failedTasks} failed</span>}
+            </span>
+            {isSelected ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </div>
+        </button>
+        {canStop && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="mr-2"
+            onClick={onStop}
+            disabled={isStopping}
+            data-testid="autopilot-run-stop"
+          >
+            {isStopping ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Square className="h-4 w-4" />
+            )}
+          </Button>
+        )}
+      </div>
       {isSelected && (
         <div className="bg-muted/30 px-3 py-2">
           {detailsLoading ? (
@@ -116,24 +142,13 @@ function RunItem({
 }
 
 export function AutopilotRunHistory({
-  runs,
-  isLoading,
-  selectedRun,
-  selectedRunLoading,
-  onSelectRun,
-  onCloseDetails,
+  runs, isLoading, selectedRun, selectedRunLoading,
+  onSelectRun, onCloseDetails, onStopRun, stoppingRunId,
 }: AutopilotRunHistoryProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const handleSelect = (runId: string) => {
-    setSelectedId(runId);
-    onSelectRun(runId);
-  };
-
-  const handleClose = () => {
-    setSelectedId(null);
-    onCloseDetails();
-  };
+  const handleSelect = (runId: string) => { setSelectedId(runId); onSelectRun(runId); };
+  const handleClose = () => { setSelectedId(null); onCloseDetails(); };
 
   if (isLoading) {
     return (
@@ -148,14 +163,14 @@ export function AutopilotRunHistory({
 
   if (runs.length === 0) {
     return (
-      <div className="rounded-lg border bg-card p-4 text-sm text-muted-foreground">
+      <div className="rounded-lg border bg-card p-4 text-sm text-muted-foreground" data-testid="autopilot-runs-panel">
         No runs yet
       </div>
     );
   }
 
   return (
-    <div className="rounded-lg border bg-card">
+    <div className="rounded-lg border bg-card" data-testid="autopilot-runs-panel">
       <div className="border-b px-4 py-3">
         <h3 className="font-medium">Run History</h3>
       </div>
@@ -169,6 +184,8 @@ export function AutopilotRunHistory({
             detailsLoading={selectedId === run.runId && selectedRunLoading}
             onSelect={() => handleSelect(run.runId)}
             onClose={handleClose}
+            onStop={onStopRun ? () => onStopRun(run.runId) : undefined}
+            isStopping={stoppingRunId === run.runId}
           />
         ))}
       </div>
