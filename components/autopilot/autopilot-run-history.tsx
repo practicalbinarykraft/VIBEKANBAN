@@ -1,4 +1,4 @@
-/** Autopilot Run History (PR-65, PR-67, PR-75) - Display run history, details, and stop control */
+/** Autopilot Run History (PR-65, PR-67, PR-75, PR-76) - Display run history with derived status */
 import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -18,12 +18,13 @@ interface AutopilotRunHistoryProps {
   stoppingRunId?: string;
 }
 
+// PR-76: Status variants for derived status values
 const statusVariants: Record<RunStatus, "default" | "secondary" | "destructive" | "outline"> = {
   idle: "secondary",
   running: "default",
-  stopped: "secondary",
+  completed: "outline",
   failed: "destructive",
-  done: "outline",
+  cancelled: "secondary",
 };
 
 function formatTime(iso: string | null): string {

@@ -12,13 +12,16 @@ import { Batch } from './backlog-chunker';
 
 export type AutopilotMode = 'OFF' | 'STEP' | 'AUTO';
 
+// PR-76: Extended with derived status values (COMPLETED, CANCELLED)
 export type AutopilotStatus =
   | 'IDLE'
   | 'RUNNING'
   | 'PAUSED'
   | 'WAITING_APPROVAL'
   | 'DONE'
-  | 'FAILED';
+  | 'FAILED'
+  | 'COMPLETED'  // PR-76: Derived status
+  | 'CANCELLED'; // PR-76: Derived status
 
 export interface TaskExecution {
   taskId: string;

@@ -16,20 +16,21 @@ interface RunDetailsClientProps {
   runId: string;
 }
 
+// PR-76: Use derived status values
 const statusVariants: Record<RunStatus, "default" | "secondary" | "destructive" | "outline"> = {
   idle: "secondary",
   running: "default",
-  stopped: "secondary",
+  completed: "outline",
   failed: "destructive",
-  done: "outline",
+  cancelled: "secondary",
 };
 
 const statusLabels: Record<RunStatus, string> = {
   idle: "Idle",
   running: "Running",
-  stopped: "Stopped",
+  completed: "Completed",
   failed: "Failed",
-  done: "Completed",
+  cancelled: "Cancelled",
 };
 
 function formatDateTime(iso: string | null): string {
