@@ -7,7 +7,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Play, Square } from "lucide-react";
+import { Bot, Play, Square, RefreshCw } from "lucide-react";
 import type { AutopilotPanelProps, AutopilotStatus } from "@/types/autopilot";
 
 const statusVariants: Record<AutopilotStatus, "default" | "secondary" | "destructive" | "outline"> = {
@@ -15,6 +15,7 @@ const statusVariants: Record<AutopilotStatus, "default" | "secondary" | "destruc
   RUNNING: "default",
   FAILED: "destructive",
   DONE: "outline",
+  STOPPED: "secondary",
 };
 
 export function AutopilotPanel({
@@ -24,9 +25,11 @@ export function AutopilotPanel({
   attemptCount,
   onStart,
   onStop,
+  onRetry,
 }: AutopilotPanelProps) {
-  const showStart = status !== "RUNNING";
+  const showStart = status === "IDLE";
   const showStop = status === "RUNNING";
+  const showRetry = status === "FAILED" || status === "STOPPED";
 
   return (
     <div className="rounded-lg border bg-card p-6">
@@ -81,6 +84,18 @@ export function AutopilotPanel({
           >
             <Square className="mr-1 h-4 w-4" />
             Stop
+          </Button>
+        )}
+        {showRetry && (
+          <Button
+            data-testid="retry-btn"
+            onClick={onRetry}
+            disabled={!onRetry}
+            variant="secondary"
+            size="sm"
+          >
+            <RefreshCw className="mr-1 h-4 w-4" />
+            Retry
           </Button>
         )}
       </div>
