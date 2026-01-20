@@ -1,9 +1,12 @@
-/** AutopilotRunnerService (PR-64, PR-73) - Start/Stop/Retry autopilot runs */
+/** AutopilotRunnerService (PR-64, PR-73, PR-77) - Start/Stop/Retry autopilot runs */
 import { db } from "@/server/db";
 import { projects, tasks } from "@/server/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { runSimpleAttempt } from "@/server/services/execution/simple-runner";
 import { createRun, finishRun } from "@/server/services/autopilot/autopilot-runs.service";
+import { normalizeAutopilotError } from "@/server/services/autopilot/autopilot-error-normalizer";
+import { serializeRunError } from "@/server/services/autopilot/autopilot-run-error.store";
+import type { AutopilotError } from "@/types/autopilot-errors";
 
 export type RunStatus = "idle" | "running" | "stopped" | "failed" | "done";
 
@@ -105,10 +108,11 @@ export async function stopRun(projectId: string, _reason?: string): Promise<RunR
   // Set stop request flag
   stopRequests.set(projectId, true);
 
-  // Finish the autopilot run as cancelled (PR-73)
+  // Finish the autopilot run as cancelled (PR-73, PR-77)
   const runId = activeRuns.get(projectId);
   if (runId) {
-    await finishRun(runId, "cancelled");
+    const err: AutopilotError = { code: "CANCELLED_BY_USER", message: "Run stopped by user" };
+    await finishRun(runId, "cancelled", serializeRunError(err));
     activeRuns.delete(projectId);
   }
 
@@ -154,6 +158,7 @@ async function executeTasksAsync(
   runId: string | null
 ): Promise<void> {
   let hasFailure = false;
+  let lastError: unknown = null;
 
   for (const taskId of taskIds) {
     if (isStopRequested(projectId)) break;
@@ -166,9 +171,10 @@ async function executeTasksAsync(
         timeout: 60000,
         autopilotRunId: runId ?? undefined, // PR-73
       });
-      if (!result.success) hasFailure = true;
-    } catch {
+      if (!result.success) { hasFailure = true; lastError = result.error ?? "Task failed"; }
+    } catch (e) {
       hasFailure = true;
+      lastError = e;
     }
   }
 
@@ -178,16 +184,15 @@ async function executeTasksAsync(
     return;
   }
 
-  // Finish the autopilot run (PR-73)
+  // Finish the autopilot run (PR-73, PR-77)
   const finalStatus = hasFailure ? "failed" : "done";
   if (runId) {
-    await finishRun(runId, hasFailure ? "failed" : "completed");
+    const errStr = hasFailure && lastError ? serializeRunError(normalizeAutopilotError(lastError)) : undefined;
+    await finishRun(runId, hasFailure ? "failed" : "completed", errStr);
     activeRuns.delete(projectId);
   }
 
-  await db.update(projects)
-    .set({ executionStatus: finalStatus, executionFinishedAt: new Date() })
+  await db.update(projects).set({ executionStatus: finalStatus, executionFinishedAt: new Date() })
     .where(eq(projects.id, projectId));
-
   stopRequests.delete(projectId);
 }
