@@ -1,6 +1,6 @@
-/** Factory Scheduler Service Tests (PR-82, PR-85) - TDD */
+/** Factory Scheduler Service Tests (PR-82, PR-85, PR-86) - TDD */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { runFactoryScheduler, FactorySchedulerDeps } from "../factory-scheduler.service";
+import { runFactoryScheduler, tickOnce, FactorySchedulerDeps, TickOnceDeps } from "../factory-scheduler.service";
 
 function createMockDeps(overrides: Partial<FactorySchedulerDeps> = {}): FactorySchedulerDeps {
   return {
@@ -152,5 +152,88 @@ describe("runFactoryScheduler", () => {
     );
     expect(result.failed).toBe(1);
     expect(result.attemptIds).toHaveLength(0);
+  });
+});
+
+function createTickOnceDeps(overrides: Partial<TickOnceDeps> = {}): TickOnceDeps {
+  return {
+    getResumeState: vi.fn().mockResolvedValue({
+      runId: "run-1", status: "running", maxParallel: 3, queuedTaskIds: [], runningTaskIds: [],
+    }),
+    runTaskAttempt: vi.fn().mockResolvedValue({ attemptId: "att-1", success: true, taskId: "t1" }),
+    ...overrides,
+  };
+}
+
+describe("tickOnce (PR-86)", () => {
+  beforeEach(() => { vi.clearAllMocks(); });
+
+  it("respects maxParallel - starts only available slots", async () => {
+    const runTaskAttempt = vi.fn().mockImplementation(async (taskId: string) => {
+      // Simulate async work (but don't block)
+      return { attemptId: `att-${taskId}`, success: true, taskId };
+    });
+    const deps = createTickOnceDeps({
+      getResumeState: vi.fn().mockResolvedValue({
+        runId: "run-1", status: "running", maxParallel: 2,
+        queuedTaskIds: ["t1", "t2", "t3", "t4"], runningTaskIds: [],
+      }),
+      runTaskAttempt,
+    });
+
+    await tickOnce({ projectId: "p1", runId: "run-1", maxParallel: 2 }, deps);
+    // Should start up to maxParallel tasks
+    expect(runTaskAttempt).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns without waiting for attempt completion", async () => {
+    let attemptStarted = false;
+    let attemptCompleted = false;
+    const runTaskAttempt = vi.fn().mockImplementation(async () => {
+      attemptStarted = true;
+      await new Promise((r) => setTimeout(r, 100)); // Slow task
+      attemptCompleted = true;
+      return { attemptId: "att-1", success: true, taskId: "t1" };
+    });
+    const deps = createTickOnceDeps({
+      getResumeState: vi.fn().mockResolvedValue({
+        runId: "run-1", status: "running", maxParallel: 1,
+        queuedTaskIds: ["t1"], runningTaskIds: [],
+      }),
+      runTaskAttempt,
+    });
+
+    await tickOnce({ projectId: "p1", runId: "run-1", maxParallel: 1 }, deps);
+    expect(attemptStarted).toBe(true);
+    expect(attemptCompleted).toBe(false); // Should not wait
+  });
+
+  it("accounts for already running tasks", async () => {
+    const runTaskAttempt = vi.fn().mockResolvedValue({ attemptId: "att-1", success: true, taskId: "t1" });
+    const deps = createTickOnceDeps({
+      getResumeState: vi.fn().mockResolvedValue({
+        runId: "run-1", status: "running", maxParallel: 2,
+        queuedTaskIds: ["t3", "t4"], runningTaskIds: ["t1", "t2"], // Already 2 running
+      }),
+      runTaskAttempt,
+    });
+
+    await tickOnce({ projectId: "p1", runId: "run-1", maxParallel: 2 }, deps);
+    // Should not start any new tasks (already at max)
+    expect(runTaskAttempt).not.toHaveBeenCalled();
+  });
+
+  it("does nothing when no queued tasks", async () => {
+    const runTaskAttempt = vi.fn();
+    const deps = createTickOnceDeps({
+      getResumeState: vi.fn().mockResolvedValue({
+        runId: "run-1", status: "running", maxParallel: 3,
+        queuedTaskIds: [], runningTaskIds: [],
+      }),
+      runTaskAttempt,
+    });
+
+    await tickOnce({ projectId: "p1", runId: "run-1", maxParallel: 3 }, deps);
+    expect(runTaskAttempt).not.toHaveBeenCalled();
   });
 });

@@ -1,10 +1,13 @@
-/** Factory Dependencies (PR-82) - Real implementations for scheduler */
+/** Factory Dependencies (PR-82, PR-86) - Real implementations for scheduler/worker */
 import { db } from "@/server/db";
 import { tasks } from "@/server/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { runSimpleAttempt } from "@/server/services/execution/simple-runner";
 import { getRun, finishRun } from "@/server/services/autopilot/autopilot-runs.service";
-import type { FactorySchedulerDeps } from "./factory-scheduler.service";
+import { getResumeState } from "./factory-resume.service";
+import { tickOnce, type FactorySchedulerDeps, type TickOnceDeps } from "./factory-scheduler.service";
+import { getGlobalWorkerRegistry, type FactoryWorkerHandle } from "./factory-worker-registry";
+import type { FactoryWorkerDeps } from "./factory-worker.service";
 import type { AttemptResult } from "@/types/factory";
 
 /**
@@ -84,5 +87,23 @@ export function createFactoryDeps(): FactorySchedulerDeps {
     getRunStatus,
     markRunCompleted,
     markRunFailed,
+  };
+}
+
+/**
+ * Create deps for worker service (PR-86)
+ */
+export function createWorkerDeps(): FactoryWorkerDeps {
+  const tickOnceDeps: TickOnceDeps = {
+    getResumeState,
+    runTaskAttempt,
+  };
+
+  return {
+    registry: getGlobalWorkerRegistry(),
+    getResumeState,
+    tickOnce: (params) => tickOnce(params, tickOnceDeps),
+    markRunFailed,
+    sleepMs: (ms) => new Promise((r) => setTimeout(r, ms)),
   };
 }
