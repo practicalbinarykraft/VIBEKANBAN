@@ -432,8 +432,10 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, onApplyCompl
       <div className="flex w-1/2 flex-col space-y-4 overflow-y-auto">
         <AiModeBanner />
 
-        {/* PR-78: Autopilot Entry Point */}
-        <AutopilotEntryPanel projectId={projectId} />
+        {/* PR-78: Autopilot Entry Point - show only at idle/approved/tasks_created phases */}
+        {(phase === "idle" || phase === "approved" || phase === "tasks_created") && (
+          <AutopilotEntryPanel projectId={projectId} />
+        )}
 
         <div className="rounded-lg border bg-card p-4">
           <div className="mb-2 flex items-center justify-between">
