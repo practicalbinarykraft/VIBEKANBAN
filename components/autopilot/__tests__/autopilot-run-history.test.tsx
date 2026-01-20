@@ -1,4 +1,4 @@
-/** AutopilotRunHistory Tests (PR-65) */
+/** AutopilotRunHistory Tests (PR-65, PR-67) */
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { AutopilotRunHistory } from "../autopilot-run-history";
@@ -13,6 +13,17 @@ const mockRun: RunSummary = {
   totalTasks: 5,
   doneTasks: 4,
   failedTasks: 1,
+};
+
+const mockRunningRun: RunSummary = {
+  runId: "project-456",
+  projectId: "project-456",
+  status: "running",
+  startedAt: "2026-01-20T11:00:00Z",
+  finishedAt: null,
+  totalTasks: 10,
+  doneTasks: 3,
+  failedTasks: 0,
 };
 
 const mockDetails: RunDetails = {
@@ -161,5 +172,100 @@ describe("AutopilotRunHistory", () => {
       />
     );
     expect(screen.getByText(/1 failed/)).toBeInTheDocument();
+  });
+
+  // PR-67: Stop button tests
+  describe("Stop functionality (PR-67)", () => {
+    it("shows Stop button for running run", () => {
+      render(
+        <AutopilotRunHistory
+          runs={[mockRunningRun]}
+          isLoading={false}
+          selectedRun={null}
+          selectedRunLoading={false}
+          onSelectRun={() => {}}
+          onCloseDetails={() => {}}
+          onStopRun={() => {}}
+        />
+      );
+      expect(screen.getByTestId("autopilot-run-stop")).toBeInTheDocument();
+    });
+
+    it("does not show Stop button for completed run", () => {
+      render(
+        <AutopilotRunHistory
+          runs={[mockRun]}
+          isLoading={false}
+          selectedRun={null}
+          selectedRunLoading={false}
+          onSelectRun={() => {}}
+          onCloseDetails={() => {}}
+          onStopRun={() => {}}
+        />
+      );
+      expect(screen.queryByTestId("autopilot-run-stop")).not.toBeInTheDocument();
+    });
+
+    it("calls onStopRun when Stop clicked", () => {
+      const onStopRun = vi.fn();
+      render(
+        <AutopilotRunHistory
+          runs={[mockRunningRun]}
+          isLoading={false}
+          selectedRun={null}
+          selectedRunLoading={false}
+          onSelectRun={() => {}}
+          onCloseDetails={() => {}}
+          onStopRun={onStopRun}
+        />
+      );
+      fireEvent.click(screen.getByTestId("autopilot-run-stop"));
+      expect(onStopRun).toHaveBeenCalledWith("project-456");
+    });
+
+    it("shows Stopping state when isStopping is true", () => {
+      render(
+        <AutopilotRunHistory
+          runs={[mockRunningRun]}
+          isLoading={false}
+          selectedRun={null}
+          selectedRunLoading={false}
+          onSelectRun={() => {}}
+          onCloseDetails={() => {}}
+          onStopRun={() => {}}
+          stoppingRunId="project-456"
+        />
+      );
+      const stopButton = screen.getByTestId("autopilot-run-stop");
+      expect(stopButton).toBeDisabled();
+    });
+
+    it("has autopilot-runs-panel data-testid", () => {
+      render(
+        <AutopilotRunHistory
+          runs={[mockRun]}
+          isLoading={false}
+          selectedRun={null}
+          selectedRunLoading={false}
+          onSelectRun={() => {}}
+          onCloseDetails={() => {}}
+        />
+      );
+      expect(screen.getByTestId("autopilot-runs-panel")).toBeInTheDocument();
+    });
+
+    it("has autopilot-run-item data-testid on each run", () => {
+      render(
+        <AutopilotRunHistory
+          runs={[mockRun, mockRunningRun]}
+          isLoading={false}
+          selectedRun={null}
+          selectedRunLoading={false}
+          onSelectRun={() => {}}
+          onCloseDetails={() => {}}
+        />
+      );
+      expect(screen.getAllByTestId("autopilot-run-item")).toHaveLength(2);
+    });
   });
 });

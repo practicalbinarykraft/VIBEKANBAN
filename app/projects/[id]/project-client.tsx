@@ -12,7 +12,9 @@ import { ProjectTabs } from "@/components/project/project-tabs";
 import { TasksView } from "@/components/project/tasks-view";
 import { PlanningTab } from "@/components/planning/planning-tab";
 import { AutopilotPanel } from "@/components/planning/autopilot-panel";
+import { AutopilotRunHistory } from "@/components/autopilot/autopilot-run-history";
 import { useAutopilot } from "@/hooks/useAutopilot";
+import { useRunHistory } from "@/hooks/useRunHistory";
 
 interface ProjectClientProps {
   projectId: string;
@@ -65,6 +67,9 @@ export default function ProjectClient({ projectId, enableAutopilotV2 = false }: 
     handlePause,
     handleResume,
   } = useProjectExecution(projectId, { onTasksChanged: refreshTasks });
+
+  // Run history hook (PR-67)
+  const runHistory = useRunHistory(projectId);
 
   // Autopilot hook (at project level so it survives tab switch)
   const autopilot = useAutopilot(
@@ -284,6 +289,22 @@ export default function ProjectClient({ projectId, enableAutopilotV2 = false }: 
             onResume={autopilot.resume}
             onApprove={autopilot.approve}
             onCancel={autopilot.cancel}
+          />
+        </div>
+      )}
+
+      {/* Autopilot Run History Panel (PR-67) */}
+      {enableAutopilotV2 && (
+        <div className="fixed bottom-4 left-4 z-50 w-80">
+          <AutopilotRunHistory
+            runs={runHistory.runs}
+            isLoading={runHistory.isLoading}
+            selectedRun={runHistory.selectedRun}
+            selectedRunLoading={runHistory.selectedRunLoading}
+            onSelectRun={runHistory.selectRun}
+            onCloseDetails={runHistory.closeDetails}
+            onStopRun={runHistory.stopRun}
+            stoppingRunId={runHistory.stoppingRunId}
           />
         </div>
       )}
