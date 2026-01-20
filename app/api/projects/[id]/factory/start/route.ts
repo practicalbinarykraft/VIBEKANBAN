@@ -1,9 +1,9 @@
-/** POST /api/projects/[id]/factory/start (PR-82) - Start parallel factory scheduler */
+/** POST /api/projects/[id]/factory/start (PR-82, PR-86) - Start factory worker */
 import { NextRequest, NextResponse } from "next/server";
 import { getAiStatus } from "@/server/services/ai/ai-status";
 import { createRun } from "@/server/services/autopilot/autopilot-runs.service";
-import { runFactoryScheduler } from "@/server/services/factory/factory-scheduler.service";
-import { createFactoryDeps } from "@/server/services/factory/factory-deps";
+import { FactoryWorkerService } from "@/server/services/factory/factory-worker.service";
+import { createWorkerDeps } from "@/server/services/factory/factory-deps";
 
 interface StartRequestBody {
   maxParallel?: number;
@@ -51,12 +51,10 @@ export async function POST(
 
   const { runId: autopilotRunId } = runResult;
 
-  // Fire-and-forget: start scheduler in background
-  const deps = createFactoryDeps();
-  runFactoryScheduler({ projectId, autopilotRunId, maxParallel }, deps).catch((err) => {
-    // Log error but don't block response
-    console.error(`Factory scheduler error for run ${autopilotRunId}:`, err);
-  });
+  // Start worker in background (PR-86)
+  const workerDeps = createWorkerDeps();
+  const worker = new FactoryWorkerService(workerDeps);
+  const { started } = await worker.startOrAttach({ projectId, runId: autopilotRunId, maxParallel });
 
-  return NextResponse.json({ autopilotRunId, started: true });
+  return NextResponse.json({ autopilotRunId, started });
 }

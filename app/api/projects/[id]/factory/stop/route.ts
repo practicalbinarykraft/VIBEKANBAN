@@ -1,4 +1,4 @@
-/** POST /api/projects/[id]/factory/stop (PR-83, PR-85) - Stop factory run */
+/** POST /api/projects/[id]/factory/stop (PR-83, PR-85, PR-86) - Stop factory run */
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/server/db";
 import { autopilotRuns, attempts } from "@/server/db/schema";
@@ -6,6 +6,7 @@ import { eq, desc, and, inArray } from "drizzle-orm";
 import { finishRun } from "@/server/services/autopilot/autopilot-runs.service";
 import { cancelAttempt } from "@/server/services/execution/attempt-canceller";
 import { getGlobalQueue } from "@/server/services/factory/factory-scheduler.service";
+import { getGlobalWorkerRegistry } from "@/server/services/factory/factory-worker-registry";
 
 export async function POST(
   _request: NextRequest,
@@ -51,6 +52,13 @@ export async function POST(
   const queue = getGlobalQueue();
   if (queue) {
     queue.clearAll();
+  }
+
+  // Stop the worker loop (PR-86)
+  const registry = getGlobalWorkerRegistry();
+  const handle = registry.get(projectId);
+  if (handle) {
+    handle.requestStop();
   }
 
   // Mark run as cancelled

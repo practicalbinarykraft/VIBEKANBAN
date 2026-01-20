@@ -1,6 +1,7 @@
-/** Factory Scheduler Service (PR-82, PR-85) - Queue-based parallel execution */
+/** Factory Scheduler Service (PR-82, PR-85, PR-86) - Queue-based parallel execution */
 import type { FactoryRunResult, FactorySchedulerOptions, AttemptResult } from "@/types/factory";
 import { FactoryQueueService, type FactoryQueueDeps } from "./factory-queue.service";
+import type { ResumeState } from "./factory-resume.service";
 
 export interface FactorySchedulerDeps {
   getRunnableTasks: (projectId: string) => Promise<string[]>;
@@ -133,4 +134,41 @@ export function getGlobalQueue(): FactoryQueueService | null {
 
 export function setGlobalQueue(queue: FactoryQueueService | null): void {
   globalQueue = queue;
+}
+
+// PR-86: tickOnce for worker mode (non-blocking)
+export interface TickOnceDeps {
+  getResumeState: (projectId: string) => Promise<ResumeState>;
+  runTaskAttempt: (taskId: string, runId: string) => Promise<AttemptResult>;
+}
+
+/**
+ * Execute one tick: start tasks up to available slots (non-blocking)
+ * Returns immediately after starting tasks, does not wait for completion
+ */
+export async function tickOnce(
+  params: { projectId: string; runId: string; maxParallel: number },
+  deps: TickOnceDeps
+): Promise<void> {
+  const { projectId, runId, maxParallel } = params;
+
+  // Get current state from DB
+  const state = await deps.getResumeState(projectId);
+
+  // Calculate available slots
+  const runningCount = state.runningTaskIds.length;
+  const availableSlots = Math.max(0, maxParallel - runningCount);
+
+  if (availableSlots === 0 || state.queuedTaskIds.length === 0) {
+    return;
+  }
+
+  // Start tasks up to available slots (fire-and-forget)
+  const tasksToStart = state.queuedTaskIds.slice(0, availableSlots);
+  for (const taskId of tasksToStart) {
+    // Fire-and-forget: don't await
+    deps.runTaskAttempt(taskId, runId).catch(() => {
+      // Errors handled by attempt runner
+    });
+  }
 }
