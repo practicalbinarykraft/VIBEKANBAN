@@ -12,6 +12,7 @@ export default defineConfig({
       'lib/__tests__/**/*.test.{ts,tsx}',
       'server/services/__tests__/**/*.test.ts',
       'server/services/execution/__tests__/**/*.test.ts',
+      'server/services/autopilot/__tests__/**/*.test.ts',
       'server/jobs/__tests__/**/*.test.ts',
       'components/**/__tests__/**/*.test.{ts,tsx}',
     ],

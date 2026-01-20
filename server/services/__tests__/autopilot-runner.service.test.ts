@@ -4,7 +4,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { db } from "@/server/db";
-import { projects, tasks, attempts } from "@/server/db/schema";
+import { projects, tasks, attempts, autopilotRuns } from "@/server/db/schema";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
@@ -59,6 +59,8 @@ describe("AutopilotRunnerService", () => {
       await db.delete(attempts).where(eq(attempts.taskId, taskId));
     }
     await db.delete(tasks).where(eq(tasks.projectId, testProjectId));
+    // PR-73: Clean up autopilot runs before deleting project
+    await db.delete(autopilotRuns).where(eq(autopilotRuns.projectId, testProjectId));
     await db.delete(projects).where(eq(projects.id, testProjectId));
     vi.clearAllMocks();
   });

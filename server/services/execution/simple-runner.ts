@@ -25,6 +25,7 @@ export interface SimpleRunOptions {
   cwd?: string;
   env?: Record<string, string>;
   timeout?: number;
+  autopilotRunId?: string; // PR-73: link to autopilot session
 }
 
 export interface SimpleRunResult {
@@ -38,7 +39,7 @@ export interface SimpleRunResult {
  * Run a simple attempt: create record, execute command, store results
  */
 export async function runSimpleAttempt(options: SimpleRunOptions): Promise<SimpleRunResult> {
-  const { taskId, projectId, command, cwd, env, timeout } = options;
+  const { taskId, projectId, command, cwd, env, timeout, autopilotRunId } = options;
 
   // Generate attempt ID
   const attemptId = randomUUID();
@@ -53,6 +54,7 @@ export async function runSimpleAttempt(options: SimpleRunOptions): Promise<Simpl
     baseBranch: "main",
     worktreePath: cwd || process.cwd(),
     status: "running",
+    autopilotRunId: autopilotRunId ?? null, // PR-73: link to run
   });
 
   // Emit running status

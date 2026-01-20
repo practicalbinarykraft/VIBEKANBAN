@@ -35,6 +35,7 @@ export const tasks = sqliteTable("tasks", {
 export const attempts = sqliteTable("attempts", {
   id: text("id").primaryKey(),
   taskId: text("task_id").notNull().references(() => tasks.id),
+  autopilotRunId: text("autopilot_run_id"), // PR-73: link to autopilot session
   queuedAt: integer("queued_at", { mode: "timestamp" }), // When attempt was queued
   startedAt: integer("started_at", { mode: "timestamp" }).notNull(),
   finishedAt: integer("finished_at", { mode: "timestamp" }),
@@ -182,6 +183,16 @@ export const aiCostEvents = sqliteTable("ai_cost_events", {
   totalTokens: integer("total_tokens"),
   estimatedCostUsd: real("estimated_cost_usd"), // USD cost as decimal
   metadataJson: text("metadata_json"), // JSON string for additional context
+});
+
+// Autopilot Runs (PR-73) - tracks autopilot execution sessions
+export const autopilotRuns = sqliteTable("autopilot_runs", {
+  id: text("id").primaryKey(),
+  projectId: text("project_id").notNull().references(() => projects.id),
+  status: text("status").notNull().default("running"), // running, completed, failed, cancelled
+  startedAt: integer("started_at", { mode: "timestamp" }).notNull().default(sql`CURRENT_TIMESTAMP`),
+  finishedAt: integer("finished_at", { mode: "timestamp" }),
+  error: text("error"),
 });
 
 // Provider Accounts (PR-52, PR-54) - stores provider balances and refresh state
