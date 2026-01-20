@@ -24,6 +24,7 @@ export interface AttemptSummary {
   finishedAt: string | null;
   exitCode: number | null;
   error: string | null;
+  prUrl: string | null; // PR-75: GitHub PR URL
 }
 
 export interface RunError {
@@ -36,6 +37,7 @@ export interface RunError {
 export interface RunDetails extends RunSummary {
   attempts: AttemptSummary[];
   errors: RunError[];
+  runError?: string | null; // PR-75: Error from autopilot_runs table
 }
 
 export interface ListRunsResponse {

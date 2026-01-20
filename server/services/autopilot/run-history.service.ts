@@ -97,6 +97,7 @@ export async function getRunDetails(runId: string): Promise<GetRunResponse> {
     finishedAt: toISOString(a.finishedAt),
     exitCode: a.exitCode,
     error: a.applyError || null,
+    prUrl: a.prUrl || null, // PR-75
   }));
 
   const errors = await getRunErrorsForAttempts(runAttempts, taskMap);
@@ -114,6 +115,7 @@ export async function getRunDetails(runId: string): Promise<GetRunResponse> {
     failedTasks: failedCount,
     attempts: attemptSummaries,
     errors,
+    runError: run.error || null, // PR-75
   };
 
   return { run: runDetails };
