@@ -9,6 +9,7 @@ import { eq, asc } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { LocalRunner } from "@/server/services/execution/local-runner";
 import { emitAttemptStatus, emitAttemptLog } from "@/server/services/events-hub";
+import { cleanupAttemptWithLogging } from "@/server/services/execution/attempt-cleanup";
 import type {
   StartAttemptParams,
   StartAttemptResult,
@@ -137,6 +138,7 @@ async function executeAsync(
 
   emitAttemptStatus({ attemptId, status: finalStatus, exitCode });
   await runner.cleanup();
+  await cleanupAttemptWithLogging(attemptId);
 }
 
 /**
