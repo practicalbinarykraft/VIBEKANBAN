@@ -1,69 +1,66 @@
+/**
+ * Cancel Attempt API (PR-72)
+ * POST /api/attempts/[id]/cancel
+ * Cancels queued, pending, or running attempts.
+ */
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/server/db";
 import { attempts } from "@/server/db/schema";
 import { eq } from "drizzle-orm";
+import { cancelAttempt } from "@/server/services/execution/attempt-canceller";
 import { scheduleProject } from "@/server/services/attempt-queue";
-import { getCurrentUserId, canPerformTaskAction, permissionDeniedError } from "@/server/services/permissions";
+import {
+  getCurrentUserId,
+  canPerformTaskAction,
+  permissionDeniedError,
+} from "@/server/services/permissions";
 
-/**
- * POST /api/attempts/:id/cancel
- *
- * Cancels a queued attempt by marking it as stopped
- */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-) {
+): Promise<NextResponse> {
   const { id: attemptId } = await params;
 
-  try {
-    const attempt = await db
-      .select()
-      .from(attempts)
-      .where(eq(attempts.id, attemptId))
-      .get();
+  // Get attempt for permission check
+  const attempt = await db
+    .select()
+    .from(attempts)
+    .where(eq(attempts.id, attemptId))
+    .get();
 
-    if (!attempt) {
-      return NextResponse.json({ error: "Attempt not found" }, { status: 404 });
-    }
+  if (!attempt) {
+    return NextResponse.json(
+      { ok: false, code: "NOT_FOUND", message: "Attempt not found" },
+      { status: 404 }
+    );
+  }
 
-    // Check permissions
-    const userId = await getCurrentUserId(request);
-    const canPerform = await canPerformTaskAction(attempt.taskId, userId);
-    if (!canPerform) {
-      return NextResponse.json(permissionDeniedError(), { status: 403 });
-    }
+  // Check permissions
+  const userId = await getCurrentUserId(request);
+  const canPerform = await canPerformTaskAction(attempt.taskId, userId);
+  if (!canPerform) {
+    return NextResponse.json(permissionDeniedError(), { status: 403 });
+  }
 
-    if (attempt.status !== "queued") {
-      return NextResponse.json(
-        { error: "Only queued attempts can be cancelled" },
-        { status: 400 }
-      );
-    }
+  const result = await cancelAttempt(attemptId);
 
-    await db.update(attempts)
-      .set({
-        status: "stopped",
-        finishedAt: new Date(),
-      })
-      .where(eq(attempts.id, attemptId));
-
-    // Get projectId to schedule next attempt
+  if (result.ok) {
+    // Schedule next attempt in project queue
     const task = await db.query.tasks.findFirst({
-      where: (tasks: any, { eq }: any) => eq(tasks.id, attempt.taskId),
+      where: (tasks: any, { eq: eqFn }: any) => eqFn(tasks.id, attempt.taskId),
     });
-
     if (task) {
       await scheduleProject(task.projectId);
     }
-
-    return NextResponse.json({
-      success: true,
-      status: "stopped",
-      message: "Attempt cancelled successfully",
-    });
-  } catch (error: any) {
-    console.error("Error cancelling attempt:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(result);
   }
+
+  const statusCode =
+    result.code === "NOT_FOUND"
+      ? 404
+      : result.code === "ALREADY_FINISHED"
+        ? 409
+        : 500;
+
+  return NextResponse.json(result, { status: statusCode });
 }
