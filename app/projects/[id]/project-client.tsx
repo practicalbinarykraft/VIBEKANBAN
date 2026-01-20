@@ -13,8 +13,10 @@ import { TasksView } from "@/components/project/tasks-view";
 import { PlanningTab } from "@/components/planning/planning-tab";
 import { AutopilotPanel } from "@/components/planning/autopilot-panel";
 import { AutopilotRunHistory } from "@/components/autopilot/autopilot-run-history";
+import { AutopilotRunSummaryPanel, type SummaryPanelStatus } from "@/components/autopilot/autopilot-run-summary-panel";
 import { useAutopilot } from "@/hooks/useAutopilot";
 import { useRunHistory } from "@/hooks/useRunHistory";
+import { useAutopilotRunDetails } from "@/hooks/useAutopilotRunDetails";
 
 interface ProjectClientProps {
   projectId: string;
@@ -71,6 +73,14 @@ export default function ProjectClient({ projectId, enableAutopilotV2 = false }: 
   // Run history hook (PR-67)
   const runHistory = useRunHistory(projectId);
 
+  // PR-79: Get latest finished run for summary panel
+  const latestRun = runHistory.runs[0];
+  const finishedStatuses = ["completed", "failed", "cancelled"];
+  const isFinishedRun = latestRun && finishedStatuses.includes(latestRun.status);
+  const latestRunDetails = useAutopilotRunDetails(isFinishedRun ? latestRun.runId : null);
+  // Get first prUrl from attempts (if any)
+  const latestRunPrUrl = latestRunDetails.run?.attempts?.find(a => a.prUrl)?.prUrl ?? null;
+
   // Autopilot hook (at project level so it survives tab switch)
   const autopilot = useAutopilot(
     projectId,
@@ -98,6 +108,16 @@ export default function ProjectClient({ projectId, enableAutopilotV2 = false }: 
   const handleStartAutopilotAuto = async () => {
     if (!autopilotSessionId || autopilotTaskIds.length === 0) return;
     await autopilot.start("AUTO", autopilotTaskIds);
+  };
+
+  // PR-79: Handle "Run again" from summary panel
+  const handleRunAgain = async () => {
+    try {
+      await fetch(`/api/autopilot/runs/${projectId}/start`, { method: "POST" });
+      runHistory.refresh();
+    } catch {
+      // Error handling is done by the runner
+    }
   };
 
   // Expose refresh functions for tests
@@ -194,6 +214,19 @@ export default function ProjectClient({ projectId, enableAutopilotV2 = false }: 
       )}
 
       <ProjectTabs activeTab={activeTab} onTabChange={setActiveTab} />
+
+      {/* PR-79: Autopilot Run Summary Panel - shows when last run finished */}
+      {enableAutopilotV2 && isFinishedRun && latestRun && (
+        <div className="mx-4 mt-2">
+          <AutopilotRunSummaryPanel
+            projectId={projectId}
+            runId={latestRun.runId}
+            status={latestRun.status.toUpperCase() as SummaryPanelStatus}
+            prUrl={latestRunPrUrl}
+            onRunAgain={handleRunAgain}
+          />
+        </div>
+      )}
 
       {/* Tasks View */}
       {activeTab === "tasks" && (
