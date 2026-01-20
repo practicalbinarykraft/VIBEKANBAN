@@ -1,204 +1,123 @@
-/**
- * AutopilotEntryPanel Component Tests (PR-78)
- * Tests the autopilot entry button with various states.
- */
+/** AutopilotEntryPanel Tests (PR-80) */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { AutopilotEntryPanel } from "../autopilot-entry-panel";
 
-// Mock fetch globally
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
-// Helper to set up fetch responses
-function setupFetchMocks(options: {
+interface MockOptions {
   aiStatus?: { realAiEligible: boolean; reason?: string };
-  autopilotStatus?: { status: string };
-  startResponse?: { success: boolean; error?: string };
-}) {
+  autopilotStatus?: { status: string; runId?: string };
+  tasksReady?: boolean;
+  startResponse?: { success: boolean };
+  stopResponse?: { success: boolean };
+}
+
+function setupFetchMocks(opts: MockOptions = {}) {
   mockFetch.mockImplementation((url: string) => {
-    if (url.includes("/api/ai/status")) {
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve(options.aiStatus ?? { realAiEligible: true }),
-      });
+    if (url.includes("/api/ai/status"))
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(opts.aiStatus ?? { realAiEligible: true }) });
+    if (url.includes("/planning/autopilot/status"))
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(opts.autopilotStatus ?? { status: "IDLE" }) });
+    if (url.includes("/api/projects/") && url.includes("/tasks")) {
+      const tasks = opts.tasksReady !== false ? [{ id: "1", status: "todo" }] : [];
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ tasks }) });
     }
-    if (url.includes("/planning/autopilot/status")) {
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve(options.autopilotStatus ?? { status: "IDLE" }),
-      });
-    }
-    if (url.includes("/autopilot/runs/") && url.includes("/start")) {
-      return Promise.resolve({
-        ok: options.startResponse?.success !== false,
-        json: () => Promise.resolve(options.startResponse ?? { success: true }),
-      });
-    }
+    if (url.includes("/autopilot/runs/") && url.includes("/start"))
+      return Promise.resolve({ ok: opts.startResponse?.success !== false, json: () => Promise.resolve(opts.startResponse ?? { success: true }) });
+    if (url.includes("/autopilot/runs/") && url.includes("/stop"))
+      return Promise.resolve({ ok: opts.stopResponse?.success !== false, json: () => Promise.resolve(opts.stopResponse ?? { success: true }) });
     return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
   });
 }
 
 describe("AutopilotEntryPanel", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+  beforeEach(() => vi.clearAllMocks());
+
+  it("renders autopilot-entry-panel", async () => {
+    setupFetchMocks();
+    render(<AutopilotEntryPanel projectId="test-project" />);
+    await waitFor(() => expect(screen.getByTestId("autopilot-entry-panel")).toBeInTheDocument());
   });
 
-  it("renders Run Autopilot button in enabled state", async () => {
-    setupFetchMocks({
-      aiStatus: { realAiEligible: true },
-      autopilotStatus: { status: "IDLE" },
+  describe("Start Autopilot button", () => {
+    it.each(["IDLE", "COMPLETED", "FAILED", "CANCELLED"])("shows start button when %s", async (status) => {
+      setupFetchMocks({ autopilotStatus: { status } });
+      render(<AutopilotEntryPanel projectId="test-project" />);
+      await waitFor(() => expect(screen.getByTestId("autopilot-start-button")).toBeInTheDocument());
     });
 
-    render(<AutopilotEntryPanel projectId="test-project" />);
-
-    await waitFor(() => {
-      const button = screen.getByTestId("run-autopilot-btn");
-      expect(button).toBeInTheDocument();
-      expect(button).not.toBeDisabled();
-    });
-  });
-
-  it("shows button text as Run Autopilot", async () => {
-    setupFetchMocks({
-      aiStatus: { realAiEligible: true },
-      autopilotStatus: { status: "IDLE" },
-    });
-
-    render(<AutopilotEntryPanel projectId="test-project" />);
-
-    await waitFor(() => {
-      expect(screen.getByText("Run Autopilot")).toBeInTheDocument();
-    });
-  });
-
-  it("disables button when autopilot is running", async () => {
-    setupFetchMocks({
-      aiStatus: { realAiEligible: true },
-      autopilotStatus: { status: "RUNNING" },
-    });
-
-    render(<AutopilotEntryPanel projectId="test-project" />);
-
-    await waitFor(() => {
-      const button = screen.getByTestId("run-autopilot-btn");
-      expect(button).toBeDisabled();
-    });
-  });
-
-  it("shows running text when autopilot is running", async () => {
-    setupFetchMocks({
-      aiStatus: { realAiEligible: true },
-      autopilotStatus: { status: "RUNNING" },
-    });
-
-    render(<AutopilotEntryPanel projectId="test-project" />);
-
-    await waitFor(() => {
-      expect(screen.getByText("Autopilot is running")).toBeInTheDocument();
-    });
-  });
-
-  it("disables button when AI is not configured", async () => {
-    setupFetchMocks({
-      aiStatus: { realAiEligible: false, reason: "MISSING_API_KEY" },
-      autopilotStatus: { status: "IDLE" },
-    });
-
-    render(<AutopilotEntryPanel projectId="test-project" />);
-
-    await waitFor(() => {
-      const button = screen.getByTestId("run-autopilot-btn");
-      expect(button).toBeDisabled();
-    });
-  });
-
-  it("disables button when budget is exceeded", async () => {
-    setupFetchMocks({
-      aiStatus: { realAiEligible: false, reason: "BUDGET_LIMIT_EXCEEDED" },
-      autopilotStatus: { status: "IDLE" },
-    });
-
-    render(<AutopilotEntryPanel projectId="test-project" />);
-
-    await waitFor(() => {
-      const button = screen.getByTestId("run-autopilot-btn");
-      expect(button).toBeDisabled();
-    });
-  });
-
-  it("calls start API when button is clicked", async () => {
-    setupFetchMocks({
-      aiStatus: { realAiEligible: true },
-      autopilotStatus: { status: "IDLE" },
-      startResponse: { success: true },
-    });
-
-    render(<AutopilotEntryPanel projectId="test-project" />);
-
-    await waitFor(() => {
-      const button = screen.getByTestId("run-autopilot-btn");
-      expect(button).not.toBeDisabled();
-    });
-
-    const button = screen.getByTestId("run-autopilot-btn");
-    fireEvent.click(button);
-
-    await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledWith(
+    it("calls start API when clicked", async () => {
+      setupFetchMocks({ autopilotStatus: { status: "IDLE" }, startResponse: { success: true } });
+      render(<AutopilotEntryPanel projectId="test-project" />);
+      await waitFor(() => expect(screen.getByTestId("autopilot-start-button")).not.toBeDisabled());
+      fireEvent.click(screen.getByTestId("autopilot-start-button"));
+      await waitFor(() => expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining("/autopilot/runs/test-project/start"),
         expect.objectContaining({ method: "POST" })
-      );
+      ));
     });
   });
 
-  it("shows loading state during start", async () => {
-    // Make start call hang
-    mockFetch.mockImplementation((url: string) => {
-      if (url.includes("/api/ai/status")) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ realAiEligible: true }),
-        });
-      }
-      if (url.includes("/planning/autopilot/status")) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ status: "IDLE" }),
-        });
-      }
-      if (url.includes("/autopilot/runs/") && url.includes("/start")) {
-        return new Promise(() => {}); // Never resolves
-      }
-      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+  describe("Stop Autopilot button", () => {
+    it("shows stop button when RUNNING", async () => {
+      setupFetchMocks({ autopilotStatus: { status: "RUNNING", runId: "run-1" } });
+      render(<AutopilotEntryPanel projectId="test-project" />);
+      await waitFor(() => expect(screen.getByTestId("autopilot-stop-button")).toBeInTheDocument());
+      expect(screen.queryByTestId("autopilot-start-button")).not.toBeInTheDocument();
     });
 
-    render(<AutopilotEntryPanel projectId="test-project" />);
-
-    await waitFor(() => {
-      const button = screen.getByTestId("run-autopilot-btn");
-      expect(button).not.toBeDisabled();
-    });
-
-    fireEvent.click(screen.getByTestId("run-autopilot-btn"));
-
-    await waitFor(() => {
-      expect(screen.getByText("Starting...")).toBeInTheDocument();
+    it("calls stop API when clicked", async () => {
+      setupFetchMocks({ autopilotStatus: { status: "RUNNING", runId: "run-1" }, stopResponse: { success: true } });
+      render(<AutopilotEntryPanel projectId="test-project" />);
+      await waitFor(() => expect(screen.getByTestId("autopilot-stop-button")).toBeInTheDocument());
+      fireEvent.click(screen.getByTestId("autopilot-stop-button"));
+      await waitFor(() => expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("/autopilot/runs/run-1/stop"),
+        expect.objectContaining({ method: "POST" })
+      ));
     });
   });
 
-  it("renders description text", async () => {
-    setupFetchMocks({
-      aiStatus: { realAiEligible: true },
-      autopilotStatus: { status: "IDLE" },
+  describe("disabled states", () => {
+    it("disables when budget exceeded", async () => {
+      setupFetchMocks({ aiStatus: { realAiEligible: false, reason: "BUDGET_LIMIT_EXCEEDED" }, autopilotStatus: { status: "IDLE" } });
+      render(<AutopilotEntryPanel projectId="test-project" />);
+      await waitFor(() => expect(screen.getByTestId("autopilot-start-button")).toBeDisabled());
     });
 
-    render(<AutopilotEntryPanel projectId="test-project" />);
+    it("disables when no tasks ready", async () => {
+      setupFetchMocks({ autopilotStatus: { status: "IDLE" }, tasksReady: false });
+      render(<AutopilotEntryPanel projectId="test-project" />);
+      await waitFor(() => expect(screen.getByTestId("autopilot-start-button")).toBeDisabled());
+    });
 
-    await waitFor(() => {
-      expect(
-        screen.getByText("Autopilot will execute the current plan automatically")
-      ).toBeInTheDocument();
+    it("disables when AI not configured", async () => {
+      setupFetchMocks({ aiStatus: { realAiEligible: false, reason: "MISSING_API_KEY" }, autopilotStatus: { status: "IDLE" } });
+      render(<AutopilotEntryPanel projectId="test-project" />);
+      await waitFor(() => expect(screen.getByTestId("autopilot-start-button")).toBeDisabled());
+    });
+  });
+
+  describe("hints", () => {
+    it("shows hint when budget exceeded", async () => {
+      setupFetchMocks({ aiStatus: { realAiEligible: false, reason: "BUDGET_LIMIT_EXCEEDED" }, autopilotStatus: { status: "IDLE" } });
+      render(<AutopilotEntryPanel projectId="test-project" />);
+      await waitFor(() => expect(screen.getByTestId("autopilot-hint")).toBeInTheDocument());
+    });
+
+    it("shows hint when no tasks ready", async () => {
+      setupFetchMocks({ autopilotStatus: { status: "IDLE" }, tasksReady: false });
+      render(<AutopilotEntryPanel projectId="test-project" />);
+      await waitFor(() => expect(screen.getByTestId("autopilot-hint")).toBeInTheDocument());
+    });
+
+    it("no hint when RUNNING", async () => {
+      setupFetchMocks({ autopilotStatus: { status: "RUNNING", runId: "run-1" } });
+      render(<AutopilotEntryPanel projectId="test-project" />);
+      await waitFor(() => expect(screen.getByTestId("autopilot-stop-button")).toBeInTheDocument());
+      expect(screen.queryByTestId("autopilot-hint")).not.toBeInTheDocument();
     });
   });
 });

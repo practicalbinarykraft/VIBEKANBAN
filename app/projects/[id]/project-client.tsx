@@ -14,6 +14,7 @@ import { PlanningTab } from "@/components/planning/planning-tab";
 import { AutopilotPanel } from "@/components/planning/autopilot-panel";
 import { AutopilotRunHistory } from "@/components/autopilot/autopilot-run-history";
 import { AutopilotRunSummaryPanel, type SummaryPanelStatus } from "@/components/autopilot/autopilot-run-summary-panel";
+import { AutopilotEntryPanel } from "@/components/autopilot/autopilot-entry-panel";
 import { useAutopilot } from "@/hooks/useAutopilot";
 import { useRunHistory } from "@/hooks/useRunHistory";
 import { useAutopilotRunDetails } from "@/hooks/useAutopilotRunDetails";
@@ -224,6 +225,17 @@ export default function ProjectClient({ projectId, enableAutopilotV2 = false }: 
             status={latestRun.status.toUpperCase() as SummaryPanelStatus}
             prUrl={latestRunPrUrl}
             onRunAgain={handleRunAgain}
+          />
+        </div>
+      )}
+
+      {/* PR-80: Autopilot Entry Panel - start/stop autopilot */}
+      {enableAutopilotV2 && (
+        <div className="mx-4 mt-2">
+          <AutopilotEntryPanel
+            projectId={projectId}
+            onStarted={runHistory.refresh}
+            onStopped={runHistory.refresh}
           />
         </div>
       )}

@@ -1,120 +1,101 @@
-/**
- * AutopilotEntryPanel (PR-78) - Entry point for starting autopilot
- *
- * Single button to start autopilot from Planning tab.
- * Disabled when: running, AI not configured, budget exceeded, repo not ready.
- */
+/** AutopilotEntryPanel (PR-80) - Entry point for starting/stopping autopilot */
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, Play, AlertCircle } from "lucide-react";
+import { Loader2, Play, Square, AlertCircle } from "lucide-react";
 
 interface AutopilotEntryPanelProps {
   projectId: string;
   onStarted?: () => void;
+  onStopped?: () => void;
 }
 
-type DisabledReason =
-  | "running"
-  | "ai_not_configured"
-  | "budget_exceeded"
-  | "repo_not_ready"
-  | null;
+type AutopilotStatus = "IDLE" | "RUNNING" | "COMPLETED" | "FAILED" | "CANCELLED";
+type DisabledReason = "ai_not_configured" | "budget_exceeded" | "no_tasks" | null;
 
-const DISABLED_MESSAGES: Record<Exclude<DisabledReason, null>, string> = {
-  running: "Autopilot is currently running",
-  ai_not_configured: "Configure AI provider in Settings to run Autopilot",
-  budget_exceeded: "AI budget limit reached. Increase limit in Settings",
-  repo_not_ready: "Repository is not ready for execution",
+const HINT_MESSAGES: Record<Exclude<DisabledReason, null>, string> = {
+  ai_not_configured: "AI not configured",
+  budget_exceeded: "AI budget exceeded",
+  no_tasks: "No tasks ready to run",
 };
 
-export function AutopilotEntryPanel({ projectId, onStarted }: AutopilotEntryPanelProps) {
+export function AutopilotEntryPanel({ projectId, onStarted, onStopped }: AutopilotEntryPanelProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
+  const [isStopping, setIsStopping] = useState(false);
+  const [status, setStatus] = useState<AutopilotStatus>("IDLE");
+  const [runId, setRunId] = useState<string | null>(null);
   const [disabledReason, setDisabledReason] = useState<DisabledReason>(null);
   const [error, setError] = useState<string | null>(null);
 
   const fetchStatus = useCallback(async () => {
     try {
-      const [aiRes, autopilotRes] = await Promise.all([
+      const [aiRes, autopilotRes, tasksRes] = await Promise.all([
         fetch("/api/ai/status"),
         fetch(`/api/projects/${projectId}/planning/autopilot/status`),
+        fetch(`/api/projects/${projectId}/tasks`),
       ]);
-
       const aiData = await aiRes.json();
       const autopilotData = await autopilotRes.json();
-
-      // Check autopilot running first
-      if (autopilotData.status === "RUNNING") {
-        setDisabledReason("running");
-        return;
-      }
-
-      // Check AI configuration
+      const tasksData = await tasksRes.json();
+      setStatus(autopilotData.status as AutopilotStatus || "IDLE");
+      setRunId(autopilotData.runId || null);
+      if (autopilotData.status === "RUNNING") { setDisabledReason(null); return; }
+      const tasks = tasksData.tasks || [];
+      const readyTasks = tasks.filter((t: any) => t.status === "todo" || t.status === "in_progress");
+      if (readyTasks.length === 0) { setDisabledReason("no_tasks"); return; }
       if (!aiData.realAiEligible) {
-        if (aiData.reason === "BUDGET_LIMIT_EXCEEDED") {
-          setDisabledReason("budget_exceeded");
-        } else if (aiData.reason === "MISSING_API_KEY") {
-          setDisabledReason("ai_not_configured");
-        } else {
-          setDisabledReason("ai_not_configured");
-        }
+        setDisabledReason(aiData.reason === "BUDGET_LIMIT_EXCEEDED" ? "budget_exceeded" : "ai_not_configured");
         return;
       }
-
-      // All checks passed
       setDisabledReason(null);
-    } catch {
-      setError("Failed to fetch status");
-    } finally {
-      setIsLoading(false);
-    }
+    } catch { setError("Failed to fetch status"); }
+    finally { setIsLoading(false); }
   }, [projectId]);
 
   useEffect(() => {
     fetchStatus();
-    // Poll status every 5 seconds when running
     const interval = setInterval(fetchStatus, 5000);
     return () => clearInterval(interval);
   }, [fetchStatus]);
 
   const handleStart = async () => {
     if (disabledReason || isStarting) return;
-
     setIsStarting(true);
     setError(null);
-    // Optimistic UI: show as running immediately
-    setDisabledReason("running");
-
     try {
       const res = await fetch(`/api/autopilot/runs/${projectId}/start`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" },
       });
-
       const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to start autopilot");
-      }
-
+      if (!res.ok) throw new Error(data.error || "Failed to start autopilot");
+      setStatus("RUNNING");
       onStarted?.();
-    } catch (err: any) {
-      setError(err.message);
-      // Revert optimistic UI on error
-      await fetchStatus();
-    } finally {
-      setIsStarting(false);
-    }
+    } catch (err: any) { setError(err.message); await fetchStatus(); }
+    finally { setIsStarting(false); }
   };
 
-  const isDisabled = isLoading || isStarting || disabledReason !== null;
-  const buttonText = isStarting
-    ? "Starting..."
-    : disabledReason === "running"
-      ? "Autopilot is running"
-      : "Run Autopilot";
+  const handleStop = async () => {
+    if (!runId || isStopping) return;
+    setIsStopping(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/autopilot/runs/${runId}/stop`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to stop autopilot");
+      onStopped?.();
+      await fetchStatus();
+    } catch (err: any) { setError(err.message); }
+    finally { setIsStopping(false); }
+  };
+
+  const isRunning = status === "RUNNING";
+  const canRerun = ["COMPLETED", "FAILED", "CANCELLED"].includes(status);
+  const startButtonText = isStarting ? "Starting..." : canRerun ? "Run Again" : "Start Autopilot";
+  const isStartDisabled = isLoading || isStarting || disabledReason !== null;
 
   return (
     <div className="rounded-lg border bg-card p-4" data-testid="autopilot-entry-panel">
@@ -122,29 +103,49 @@ export function AutopilotEntryPanel({ projectId, onStarted }: AutopilotEntryPane
         <div>
           <h3 className="font-medium">Autopilot</h3>
           <p className="text-sm text-muted-foreground">
-            Autopilot will execute the current plan automatically
+            Run AI agents to execute tasks automatically
           </p>
         </div>
 
-        <Button
-          onClick={handleStart}
-          disabled={isDisabled}
-          data-testid="run-autopilot-btn"
-          className="w-full sm:w-auto"
-        >
-          {isStarting || isLoading ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Play className="mr-2 h-4 w-4" />
-          )}
-          {buttonText}
-        </Button>
+        {isRunning ? (
+          <Button
+            onClick={handleStop}
+            disabled={isStopping}
+            variant="destructive"
+            data-testid="autopilot-stop-button"
+            className="w-full sm:w-auto"
+          >
+            {isStopping ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Square className="mr-2 h-4 w-4" />
+            )}
+            {isStopping ? "Stopping..." : "Stop Autopilot"}
+          </Button>
+        ) : (
+          <Button
+            onClick={handleStart}
+            disabled={isStartDisabled}
+            data-testid="autopilot-start-button"
+            className="w-full sm:w-auto"
+          >
+            {isStarting || isLoading ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Play className="mr-2 h-4 w-4" />
+            )}
+            {startButtonText}
+          </Button>
+        )}
       </div>
 
-      {disabledReason && disabledReason !== "running" && (
-        <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
+      {!isRunning && disabledReason && (
+        <div
+          className="mt-3 flex items-center gap-2 text-sm text-muted-foreground"
+          data-testid="autopilot-hint"
+        >
           <AlertCircle className="h-4 w-4" />
-          <span>{DISABLED_MESSAGES[disabledReason]}</span>
+          <span>{HINT_MESSAGES[disabledReason]}</span>
         </div>
       )}
 
