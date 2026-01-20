@@ -29,13 +29,13 @@ describe("AutopilotStatusPanel", () => {
 
   it("shows start button when idle with sessionId", () => {
     render(<AutopilotStatusPanel {...defaultProps} sessionId="s-1" />);
-    expect(screen.getByTestId("autopilot-start-button")).toBeInTheDocument();
+    expect(screen.getByTestId("autopilot-auto-button")).toBeInTheDocument();
   });
 
   it("calls onStart when start clicked", () => {
     const onStart = vi.fn();
     render(<AutopilotStatusPanel {...defaultProps} sessionId="s-1" onStart={onStart} />);
-    fireEvent.click(screen.getByTestId("autopilot-start-button"));
+    fireEvent.click(screen.getByTestId("autopilot-auto-button"));
     expect(onStart).toHaveBeenCalled();
   });
 
@@ -63,7 +63,7 @@ describe("AutopilotStatusPanel", () => {
 
   it("disables start button while starting", () => {
     render(<AutopilotStatusPanel {...defaultProps} sessionId="s-1" isStarting={true} />);
-    expect(screen.getByTestId("autopilot-start-button")).toBeDisabled();
+    expect(screen.getByTestId("autopilot-auto-button")).toBeDisabled();
     expect(screen.getByText("Starting...")).toBeInTheDocument();
   });
 
@@ -75,7 +75,7 @@ describe("AutopilotStatusPanel", () => {
 
   it("shows start button for stopped status with sessionId", () => {
     render(<AutopilotStatusPanel {...defaultProps} status="stopped" sessionId="s-1" />);
-    expect(screen.getByTestId("autopilot-start-button")).toBeInTheDocument();
+    expect(screen.getByTestId("autopilot-auto-button")).toBeInTheDocument();
   });
 
   it("has autopilot-status-panel data-testid", () => {

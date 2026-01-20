@@ -66,6 +66,11 @@ export function AutopilotPanel({
   // Panel always shows when rendered - parent controls visibility based on plan steps
   const taskProgressPercent = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
   const isLoading = isStarting || isExecuting;
+  // Defensive: fallback to IDLE config if status is undefined or invalid
+  const validStatuses = Object.keys(statusConfig) as AutopilotStatus[];
+  const normalizedStatus: AutopilotStatus = validStatuses.includes(status) ? status : "IDLE";
+  const statusCfg = statusConfig[normalizedStatus];
+  const modeCfg = modeLabels[mode] || modeLabels.OFF;
 
   return (
     <div className="rounded-lg border border-border bg-card p-6" data-testid="autopilot-panel">
@@ -75,14 +80,14 @@ export function AutopilotPanel({
           <h3 className="text-lg font-semibold">Autopilot</h3>
           {mode !== "OFF" && (
             <Badge variant="outline" className="text-xs">
-              {modeLabels[mode]}
+              {modeCfg}
             </Badge>
           )}
         </div>
         <div className="flex items-center gap-2">
-          {statusConfig[status].icon}
+          {statusCfg.icon}
           <span className="text-sm text-muted-foreground" data-testid="autopilot-status">
-            {statusConfig[status].label}
+            {statusCfg.label}
           </span>
         </div>
       </div>
@@ -103,7 +108,7 @@ export function AutopilotPanel({
       </div>
 
       {/* Current Task Info */}
-      {currentTaskId && status === "RUNNING" && (
+      {currentTaskId && normalizedStatus === "RUNNING" && (
         <div className="mb-4 rounded-md border border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950 p-3">
           <p className="text-xs text-blue-600 dark:text-blue-400">Executing task:</p>
           <p className="text-sm font-medium text-blue-800 dark:text-blue-200 truncate">
@@ -113,7 +118,7 @@ export function AutopilotPanel({
       )}
 
       {/* Pause Reason */}
-      {pauseReason && status === "PAUSED" && (
+      {pauseReason && normalizedStatus === "PAUSED" && (
         <div className="mb-4 rounded-md border border-yellow-200 bg-yellow-50 dark:border-yellow-900 dark:bg-yellow-950 p-3 flex items-start gap-2">
           <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
           <p className="text-sm text-yellow-700 dark:text-yellow-300">{pauseReason}</p>
@@ -129,7 +134,7 @@ export function AutopilotPanel({
 
       {/* Action Buttons */}
       <div className="flex gap-2">
-        {status === "IDLE" && (
+        {normalizedStatus === "IDLE" && (
           <>
             <Button
               onClick={onStartStep}
@@ -161,7 +166,7 @@ export function AutopilotPanel({
           </>
         )}
 
-        {status === "PAUSED" && (
+        {normalizedStatus === "PAUSED" && (
           <>
             <Button
               onClick={onResume}
@@ -181,13 +186,13 @@ export function AutopilotPanel({
           </>
         )}
 
-        {status === "RUNNING" && (
+        {normalizedStatus === "RUNNING" && (
           <Button onClick={onCancel} disabled={isCanceling} variant="outline" className="flex-1" data-testid="autopilot-cancel-button">
             {isCanceling ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Stopping...</> : "Stop"}
           </Button>
         )}
 
-        {status === "WAITING_APPROVAL" && (
+        {normalizedStatus === "WAITING_APPROVAL" && (
           <>
             <Button onClick={onApprove} disabled={isApproving} className="flex-1" data-testid="autopilot-approve-button">
               {isApproving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Approving...</> : "Approve & Continue"}
@@ -198,13 +203,13 @@ export function AutopilotPanel({
           </>
         )}
 
-        {status === "DONE" && (
+        {normalizedStatus === "DONE" && (
           <div className="flex-1 text-center text-sm text-green-600" data-testid="autopilot-done">
             All {totalTasks} tasks completed!
           </div>
         )}
 
-        {status === "FAILED" && (
+        {normalizedStatus === "FAILED" && (
           <Button onClick={onResume} disabled={isLoading} variant="outline" className="flex-1" data-testid="autopilot-retry-button">
             {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Retrying...</> : "Retry"}
           </Button>

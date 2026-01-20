@@ -270,12 +270,12 @@ export default function ProjectClient({ projectId, enableAutopilotV2 = false }: 
         </div>
       )}
 
-      {/* Project-level Autopilot Status Panel (PR-68) - always visible when feature enabled */}
-      {enableAutopilotV2 && (
+      {/* Project-level Autopilot Status Panel (PR-68) - visible on Tasks tab when legacy panel not active */}
+      {enableAutopilotV2 && activeTab === "tasks" && !(autopilotSessionId && autopilot.status && autopilot.status !== "IDLE") && (
         <div className="fixed bottom-4 right-4 z-50 w-80">
           <AutopilotStatusPanel
             status={autopilotStatus.status}
-            sessionId={autopilotStatus.sessionId}
+            sessionId={autopilotStatus.sessionId || autopilotSessionId}
             currentTaskId={autopilotStatus.currentTaskId}
             errorCode={autopilotStatus.errorCode}
             isLoading={autopilotStatus.isLoading}
@@ -288,7 +288,7 @@ export default function ProjectClient({ projectId, enableAutopilotV2 = false }: 
       )}
 
       {/* Legacy Autopilot Panel - for batch-based workflow when sessionId exists */}
-      {enableAutopilotV2 && autopilotSessionId && autopilot.status !== "IDLE" && (
+      {enableAutopilotV2 && activeTab === "tasks" && autopilotSessionId && autopilot.status && autopilot.status !== "IDLE" && (
         <div className="fixed bottom-24 right-4 z-50 w-96">
           <AutopilotPanel
             status={autopilot.status}

@@ -101,7 +101,8 @@ describe("useAutopilotStatus", () => {
       });
 
     const { result } = renderHook(() => useAutopilotStatus("project-1"));
-    await waitFor(() => expect(result.current.status).toBe("idle"));
+    // Wait for sessionId to be set (start() requires sessionId)
+    await waitFor(() => expect(result.current.sessionId).toBe("s-1"));
 
     await act(async () => { await result.current.start(); });
 
