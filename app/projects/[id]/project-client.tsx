@@ -17,7 +17,9 @@ import { AutopilotRunSummaryPanel, type SummaryPanelStatus } from "@/components/
 import { AutopilotEntryPanel } from "@/components/autopilot/autopilot-entry-panel";
 import { AutopilotReadinessPanel } from "@/components/autopilot/autopilot-readiness-panel";
 import { FactoryControlsPanel } from "@/components/factory/factory-controls-panel";
+import { FactoryConsolePanel } from "@/components/factory/factory-console-panel";
 import { useAutopilot } from "@/hooks/useAutopilot";
+import { useFactoryStream } from "@/hooks/useFactoryStream";
 import { useAutopilotReadiness } from "@/hooks/useAutopilotReadiness";
 import { useFactoryStatus } from "@/hooks/useFactoryStatus";
 import { useRunHistory } from "@/hooks/useRunHistory";
@@ -83,6 +85,10 @@ export default function ProjectClient({ projectId, enableAutopilotV2 = false }: 
 
   // PR-83: Factory status and controls
   const factory = useFactoryStatus(projectId);
+
+  // PR-84: Factory stream for console panel
+  const factoryStream = useFactoryStream(projectId);
+  const showFactoryConsole = factory.status === "running" || !!factory.runId;
 
   // PR-79: Get latest finished run for summary panel
   const latestRun = runHistory.runs[0];
@@ -277,6 +283,20 @@ export default function ProjectClient({ projectId, enableAutopilotV2 = false }: 
             isStopping={factory.isStopping}
             error={factory.error}
             onStart={factory.start}
+            onStop={factory.stop}
+          />
+        </div>
+      )}
+
+      {/* PR-84: Factory Console Panel - live attempts timeline */}
+      {enableAutopilotV2 && activeTab === "tasks" && showFactoryConsole && (
+        <div className="mx-4 mt-2">
+          <FactoryConsolePanel
+            isConnected={factoryStream.isConnected}
+            runId={factoryStream.runId}
+            runStatus={factoryStream.runStatus}
+            attempts={factoryStream.attempts}
+            counts={factoryStream.counts}
             onStop={factory.stop}
           />
         </div>
