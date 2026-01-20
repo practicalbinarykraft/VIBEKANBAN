@@ -17,6 +17,7 @@ import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { LocalRunner, LogEntry } from "./local-runner";
 import { emitAttemptStatus, emitAttemptLog } from "@/server/services/events-hub";
+import { checkProviderBudget } from "@/server/services/ai/ai-budget-guard";
 
 export interface SimpleRunOptions {
   taskId: string;
@@ -33,6 +34,9 @@ export interface SimpleRunResult {
   attemptId: string | null;
   exitCode: number;
   error?: string;
+  budgetRejected?: boolean; // PR-74: true if budget check failed
+  limitUSD?: number; // PR-74: budget limit when rejected
+  spendUSD?: number; // PR-74: current spend when rejected
 }
 
 /**
@@ -40,6 +44,20 @@ export interface SimpleRunResult {
  */
 export async function runSimpleAttempt(options: SimpleRunOptions): Promise<SimpleRunResult> {
   const { taskId, projectId, command, cwd, env, timeout, autopilotRunId } = options;
+
+  // PR-74: Check budget BEFORE creating attempt
+  const budgetCheck = await checkProviderBudget("anthropic");
+  if (!budgetCheck.allowed) {
+    return {
+      success: false,
+      attemptId: null,
+      exitCode: -1,
+      error: `Budget limit exceeded: spent $${budgetCheck.spendUSD?.toFixed(2)} of $${budgetCheck.limitUSD?.toFixed(2)} budget`,
+      budgetRejected: true,
+      limitUSD: budgetCheck.limitUSD,
+      spendUSD: budgetCheck.spendUSD,
+    };
+  }
 
   // Generate attempt ID
   const attemptId = randomUUID();

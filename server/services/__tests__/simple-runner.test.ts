@@ -4,8 +4,8 @@
  */
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from "vitest";
 import { db, initDB } from "@/server/db";
-import { tasks, attempts, logs, artifacts, projects } from "@/server/db/schema";
-import { eq, and } from "drizzle-orm";
+import { tasks, attempts, logs, artifacts, projects, aiCostEvents } from "@/server/db/schema";
+import { eq, and, gte } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { runSimpleAttempt } from "../execution/simple-runner";
 
@@ -175,6 +175,96 @@ describe("SimpleRunner", () => {
       expect(new Date(attempt!.finishedAt!).getTime()).toBeGreaterThanOrEqual(
         new Date(attempt!.startedAt).getTime()
       );
+    });
+  });
+
+  describe("runSimpleAttempt() - budget guard enforcement (PR-74)", () => {
+    const originalEnv = { ...process.env };
+
+    beforeEach(async () => {
+      // Clean up cost events to ensure clean budget state
+      const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+      await db.delete(aiCostEvents).where(gte(aiCostEvents.createdAt, monthStart));
+    });
+
+    afterEach(() => {
+      process.env = { ...originalEnv };
+    });
+
+    it("rejects execution when budget is exceeded", async () => {
+      // Set a limit of $0 so any execution would exceed budget
+      process.env.ANTHROPIC_MONTHLY_LIMIT_USD = "0";
+
+      const result = await runSimpleAttempt({
+        taskId: TEST_TASK_ID,
+        projectId: TEST_PROJECT_ID,
+        command: ["node", "-e", "console.log('ok')"],
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.attemptId).toBeNull();
+      expect(result.error).toContain("budget");
+    });
+
+    it("does not create attempt record when budget exceeded", async () => {
+      process.env.ANTHROPIC_MONTHLY_LIMIT_USD = "0";
+
+      const beforeCount = await db.select({ id: attempts.id })
+        .from(attempts)
+        .where(eq(attempts.taskId, TEST_TASK_ID));
+
+      await runSimpleAttempt({
+        taskId: TEST_TASK_ID,
+        projectId: TEST_PROJECT_ID,
+        command: ["node", "-e", "console.log('ok')"],
+      });
+
+      const afterCount = await db.select({ id: attempts.id })
+        .from(attempts)
+        .where(eq(attempts.taskId, TEST_TASK_ID));
+
+      expect(afterCount.length).toBe(beforeCount.length);
+    });
+
+    it("includes budget details in error response", async () => {
+      process.env.ANTHROPIC_MONTHLY_LIMIT_USD = "0";
+
+      const result = await runSimpleAttempt({
+        taskId: TEST_TASK_ID,
+        projectId: TEST_PROJECT_ID,
+        command: ["node", "-e", "console.log('ok')"],
+      });
+
+      expect(result.budgetRejected).toBe(true);
+      expect(result.limitUSD).toBeDefined();
+      expect(typeof result.limitUSD).toBe("number");
+    });
+
+    it("proceeds with execution when no budget limit set", async () => {
+      delete process.env.ANTHROPIC_MONTHLY_LIMIT_USD;
+
+      const result = await runSimpleAttempt({
+        taskId: TEST_TASK_ID,
+        projectId: TEST_PROJECT_ID,
+        command: ["node", "-e", "console.log('ok')"],
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.attemptId).toBeDefined();
+      expect(result.budgetRejected).toBeFalsy();
+    });
+
+    it("proceeds with execution when within budget limit", async () => {
+      process.env.ANTHROPIC_MONTHLY_LIMIT_USD = "1000";
+
+      const result = await runSimpleAttempt({
+        taskId: TEST_TASK_ID,
+        projectId: TEST_PROJECT_ID,
+        command: ["node", "-e", "console.log('ok')"],
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.attemptId).toBeDefined();
     });
   });
 });
