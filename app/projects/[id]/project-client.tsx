@@ -24,6 +24,8 @@ import { useAutopilotReadiness } from "@/hooks/useAutopilotReadiness";
 import { useFactoryStatus } from "@/hooks/useFactoryStatus";
 import { useRunHistory } from "@/hooks/useRunHistory";
 import { useAutopilotRunDetails } from "@/hooks/useAutopilotRunDetails";
+import { useFactoryBatchStart } from "@/hooks/useFactoryBatchStart";
+import type { BatchStartRequest } from "@/components/factory/factory-batch-start-panel";
 
 interface ProjectClientProps {
   projectId: string;
@@ -42,6 +44,10 @@ export default function ProjectClient({ projectId, enableAutopilotV2 = false }: 
   const [deleteTaskOpen, setDeleteTaskOpen] = useState(false);
   const [createPROpen, setCreatePROpen] = useState(false);
   const [highlightedTaskIds, setHighlightedTaskIds] = useState<string[]>([]);
+
+  // Batch start state (PR-87)
+  const [checkedTaskIds, setCheckedTaskIds] = useState<string[]>([]);
+  const [showCheckboxes, setShowCheckboxes] = useState(false);
 
   // Autopilot state (lifted from PlanningTab to survive tab switch)
   const [autopilotSessionId, setAutopilotSessionId] = useState<string | null>(null);
@@ -89,6 +95,15 @@ export default function ProjectClient({ projectId, enableAutopilotV2 = false }: 
   // PR-84: Factory stream for console panel
   const factoryStream = useFactoryStream(projectId);
   const showFactoryConsole = factory.status === "running" || !!factory.runId;
+
+  // PR-87: Batch start hook
+  const batchStart = useFactoryBatchStart();
+
+  // PR-87: Compute tasksByStatus for batch panel
+  const tasksByStatus = tasks.reduce((acc, task) => {
+    acc[task.status] = (acc[task.status] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
 
   // PR-79: Get latest finished run for summary panel
   const latestRun = runHistory.runs[0];
@@ -176,6 +191,28 @@ export default function ProjectClient({ projectId, enableAutopilotV2 = false }: 
 
   const handleCloseDetails = () => {
     router.push(`/projects/${projectId}`);
+  };
+
+  // PR-87: Batch start handlers
+  const handleTaskCheckChange = (taskId: string, checked: boolean) => {
+    setCheckedTaskIds((prev) =>
+      checked ? [...prev, taskId] : prev.filter((id) => id !== taskId)
+    );
+  };
+
+  const handleToggleCheckboxes = () => {
+    setShowCheckboxes((prev) => !prev);
+    if (showCheckboxes) {
+      setCheckedTaskIds([]);
+    }
+  };
+
+  const handleBatchStart = async (params: BatchStartRequest) => {
+    const result = await batchStart.startBatch(projectId, params);
+    if (result) {
+      factory.refresh();
+      setCheckedTaskIds([]);
+    }
   };
 
   const handleCreateTask = async (
@@ -326,6 +363,15 @@ export default function ProjectClient({ projectId, enableAutopilotV2 = false }: 
           selectedAttemptId={selectedAttemptId}
           attemptsLoading={attemptsLoading}
           highlightedTaskIds={highlightedTaskIds}
+          showBatchPanel={enableAutopilotV2}
+          checkedTaskIds={checkedTaskIds}
+          showCheckboxes={showCheckboxes}
+          tasksByStatus={tasksByStatus}
+          isFactoryRunning={factory.status === "running"}
+          isBatchStarting={batchStart.isStarting}
+          onBatchStart={handleBatchStart}
+          onTaskCheckChange={handleTaskCheckChange}
+          onToggleCheckboxes={handleToggleCheckboxes}
         />
       )}
 

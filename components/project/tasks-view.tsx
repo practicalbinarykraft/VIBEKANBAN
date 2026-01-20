@@ -6,9 +6,10 @@ import { KanbanBoard } from "@/components/kanban/kanban-board";
 import { TaskDetailsPanel } from "@/components/task-details/task-details-panel";
 import { ExecutionControls } from "@/components/project/execution-controls";
 import { RepoStatus } from "@/components/project/repo-status";
+import { FactoryBatchStartPanel, type BatchStartRequest } from "@/components/factory/factory-batch-start-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, CheckSquare } from "lucide-react";
 
 interface TasksViewProps {
   projectId: string;
@@ -32,6 +33,16 @@ interface TasksViewProps {
   selectedAttemptId: string | null;
   attemptsLoading: boolean;
   highlightedTaskIds?: string[];
+  // Batch start props (PR-87)
+  showBatchPanel?: boolean;
+  checkedTaskIds?: string[];
+  showCheckboxes?: boolean;
+  tasksByStatus?: Record<string, number>;
+  isFactoryRunning?: boolean;
+  isBatchStarting?: boolean;
+  onBatchStart?: (params: BatchStartRequest) => void;
+  onTaskCheckChange?: (taskId: string, checked: boolean) => void;
+  onToggleCheckboxes?: () => void;
 }
 
 export function TasksView({
@@ -56,6 +67,15 @@ export function TasksView({
   selectedAttemptId,
   attemptsLoading,
   highlightedTaskIds = [],
+  showBatchPanel = false,
+  checkedTaskIds = [],
+  showCheckboxes = false,
+  tasksByStatus = {},
+  isFactoryRunning = false,
+  isBatchStarting = false,
+  onBatchStart,
+  onTaskCheckChange,
+  onToggleCheckboxes,
 }: TasksViewProps) {
   return (
     <div className="flex h-[calc(100vh-7rem)]">
@@ -80,6 +100,18 @@ export function TasksView({
                 className="h-8 pl-8 text-xs"
               />
             </div>
+            {showBatchPanel && onToggleCheckboxes && (
+              <Button
+                onClick={onToggleCheckboxes}
+                size="sm"
+                variant={showCheckboxes ? "secondary" : "outline"}
+                className="h-8 text-xs"
+                data-testid="toggle-checkboxes-button"
+              >
+                <CheckSquare className="mr-1 h-3.5 w-3.5" />
+                Select
+              </Button>
+            )}
             <Button onClick={onCreateTaskClick} size="sm" className="h-8 text-xs">
               <Plus className="mr-1 h-3.5 w-3.5" />
               Add Task
@@ -89,6 +121,19 @@ export function TasksView({
           <div className="mt-2 flex items-center">
             <RepoStatus projectId={projectId} />
           </div>
+          {/* Batch Start Panel (PR-87) */}
+          {showBatchPanel && onBatchStart && (
+            <div className="mt-2">
+              <FactoryBatchStartPanel
+                projectId={projectId}
+                selectedTaskIds={checkedTaskIds}
+                tasksByStatus={tasksByStatus}
+                isFactoryRunning={isFactoryRunning}
+                isStarting={isBatchStarting}
+                onStart={onBatchStart}
+              />
+            </div>
+          )}
         </div>
 
         {/* Kanban Board */}
@@ -99,6 +144,9 @@ export function TasksView({
             onTaskClick={onTaskClick}
             isRefreshing={isRefreshing}
             highlightedTaskIds={highlightedTaskIds}
+            checkedTaskIds={checkedTaskIds}
+            showCheckboxes={showCheckboxes}
+            onTaskCheckChange={onTaskCheckChange}
           />
         </div>
       </div>

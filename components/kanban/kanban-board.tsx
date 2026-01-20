@@ -9,6 +9,9 @@ interface KanbanBoardProps {
   onTaskClick: (taskId: string) => void;
   isRefreshing?: boolean;
   highlightedTaskIds?: string[];
+  checkedTaskIds?: string[];
+  showCheckboxes?: boolean;
+  onTaskCheckChange?: (taskId: string, checked: boolean) => void;
 }
 
 const columns: Array<{ title: string; status: TaskStatus }> = [
@@ -25,6 +28,9 @@ export function KanbanBoard({
   onTaskClick,
   isRefreshing = false,
   highlightedTaskIds = [],
+  checkedTaskIds = [],
+  showCheckboxes = false,
+  onTaskCheckChange,
 }: KanbanBoardProps) {
   const tasksByStatus = columns.map((column) => ({
     ...column,
@@ -55,6 +61,9 @@ export function KanbanBoard({
             selectedTaskId={selectedTaskId}
             onTaskClick={onTaskClick}
             highlightedTaskIds={highlightedTaskIds}
+            checkedTaskIds={checkedTaskIds}
+            showCheckboxes={showCheckboxes}
+            onTaskCheckChange={onTaskCheckChange}
           />
         ))}
       </div>
