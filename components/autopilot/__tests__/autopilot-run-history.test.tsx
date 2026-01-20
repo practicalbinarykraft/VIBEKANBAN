@@ -38,6 +38,7 @@ const mockDetails: RunDetails = {
       finishedAt: "2026-01-20T10:02:00Z",
       exitCode: 0,
       error: null,
+      prUrl: null,
     },
     {
       attemptId: "att-2",
@@ -48,6 +49,7 @@ const mockDetails: RunDetails = {
       finishedAt: "2026-01-20T10:03:00Z",
       exitCode: 1,
       error: "Command failed",
+      prUrl: null,
     },
   ],
   errors: [
@@ -59,6 +61,7 @@ describe("AutopilotRunHistory", () => {
   it("shows loading state", () => {
     render(
       <AutopilotRunHistory
+        projectId="test-project"
         runs={[]}
         isLoading={true}
         selectedRun={null}
@@ -73,6 +76,7 @@ describe("AutopilotRunHistory", () => {
   it("shows empty state when no runs", () => {
     render(
       <AutopilotRunHistory
+        projectId="test-project"
         runs={[]}
         isLoading={false}
         selectedRun={null}
@@ -87,6 +91,7 @@ describe("AutopilotRunHistory", () => {
   it("renders run list", () => {
     render(
       <AutopilotRunHistory
+        projectId="test-project"
         runs={[mockRun]}
         isLoading={false}
         selectedRun={null}
@@ -103,6 +108,7 @@ describe("AutopilotRunHistory", () => {
     const onSelectRun = vi.fn();
     render(
       <AutopilotRunHistory
+        projectId="test-project"
         runs={[mockRun]}
         isLoading={false}
         selectedRun={null}
@@ -118,6 +124,7 @@ describe("AutopilotRunHistory", () => {
   it("shows details loading state", () => {
     render(
       <AutopilotRunHistory
+        projectId="test-project"
         runs={[mockRun]}
         isLoading={false}
         selectedRun={null}
@@ -133,6 +140,7 @@ describe("AutopilotRunHistory", () => {
   it("shows run details when selected", () => {
     render(
       <AutopilotRunHistory
+        projectId="test-project"
         runs={[mockRun]}
         isLoading={false}
         selectedRun={mockDetails}
@@ -148,6 +156,7 @@ describe("AutopilotRunHistory", () => {
   it("shows errors in details", () => {
     render(
       <AutopilotRunHistory
+        projectId="test-project"
         runs={[mockRun]}
         isLoading={false}
         selectedRun={mockDetails}
@@ -163,6 +172,7 @@ describe("AutopilotRunHistory", () => {
   it("displays failed count in run summary", () => {
     render(
       <AutopilotRunHistory
+        projectId="test-project"
         runs={[mockRun]}
         isLoading={false}
         selectedRun={null}
@@ -179,6 +189,7 @@ describe("AutopilotRunHistory", () => {
     it("shows Stop button for running run", () => {
       render(
         <AutopilotRunHistory
+          projectId="test-project"
           runs={[mockRunningRun]}
           isLoading={false}
           selectedRun={null}
@@ -194,6 +205,7 @@ describe("AutopilotRunHistory", () => {
     it("does not show Stop button for completed run", () => {
       render(
         <AutopilotRunHistory
+          projectId="test-project"
           runs={[mockRun]}
           isLoading={false}
           selectedRun={null}
@@ -210,6 +222,7 @@ describe("AutopilotRunHistory", () => {
       const onStopRun = vi.fn();
       render(
         <AutopilotRunHistory
+          projectId="test-project"
           runs={[mockRunningRun]}
           isLoading={false}
           selectedRun={null}
@@ -226,6 +239,7 @@ describe("AutopilotRunHistory", () => {
     it("shows Stopping state when isStopping is true", () => {
       render(
         <AutopilotRunHistory
+          projectId="test-project"
           runs={[mockRunningRun]}
           isLoading={false}
           selectedRun={null}
@@ -243,6 +257,7 @@ describe("AutopilotRunHistory", () => {
     it("has autopilot-runs-panel data-testid", () => {
       render(
         <AutopilotRunHistory
+          projectId="test-project"
           runs={[mockRun]}
           isLoading={false}
           selectedRun={null}
@@ -257,6 +272,7 @@ describe("AutopilotRunHistory", () => {
     it("has autopilot-run-item data-testid on each run", () => {
       render(
         <AutopilotRunHistory
+          projectId="test-project"
           runs={[mockRun, mockRunningRun]}
           isLoading={false}
           selectedRun={null}

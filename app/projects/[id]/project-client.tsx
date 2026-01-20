@@ -297,6 +297,7 @@ export default function ProjectClient({ projectId, enableAutopilotV2 = false }: 
       {enableAutopilotV2 && (
         <div className="fixed bottom-4 left-4 z-50 w-80">
           <AutopilotRunHistory
+            projectId={projectId}
             runs={runHistory.runs}
             isLoading={runHistory.isLoading}
             selectedRun={runHistory.selectedRun}

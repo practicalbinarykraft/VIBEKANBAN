@@ -1,11 +1,13 @@
-/** Autopilot Run History (PR-65, PR-67) - Display run history, details, and stop control */
+/** Autopilot Run History (PR-65, PR-67, PR-75) - Display run history, details, and stop control */
 import { useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ChevronDown, ChevronUp, AlertCircle, Square } from "lucide-react";
+import { Loader2, ChevronDown, ChevronUp, AlertCircle, Square, ExternalLink } from "lucide-react";
 import type { RunSummary, RunDetails, RunError, RunStatus } from "@/types/autopilot-run";
 
 interface AutopilotRunHistoryProps {
+  projectId: string; // PR-75: needed for navigation
   runs: RunSummary[];
   isLoading: boolean;
   selectedRun: RunDetails | null;
@@ -31,11 +33,8 @@ function formatTime(iso: string | null): string {
 
 function ErrorList({ errors, maxShow = 3 }: { errors: RunError[]; maxShow?: number }) {
   const [showAll, setShowAll] = useState(false);
-  const displayed = showAll ? errors : errors.slice(0, maxShow);
-  const hasMore = errors.length > maxShow;
-
   if (errors.length === 0) return null;
-
+  const displayed = showAll ? errors : errors.slice(0, maxShow);
   return (
     <div className="mt-3 space-y-2">
       <div className="flex items-center gap-2 text-sm font-medium text-destructive">
@@ -49,7 +48,7 @@ function ErrorList({ errors, maxShow = 3 }: { errors: RunError[]; maxShow?: numb
             {err.message}
           </div>
         ))}
-        {hasMore && !showAll && (
+        {errors.length > maxShow && !showAll && (
           <Button variant="ghost" size="sm" onClick={() => setShowAll(true)}>
             Show {errors.length - maxShow} more...
           </Button>
@@ -61,6 +60,7 @@ function ErrorList({ errors, maxShow = 3 }: { errors: RunError[]; maxShow?: numb
 
 function RunItem({
   run,
+  projectId,
   isSelected,
   details,
   detailsLoading,
@@ -70,6 +70,7 @@ function RunItem({
   isStopping,
 }: {
   run: RunSummary;
+  projectId: string;
   isSelected: boolean;
   details: RunDetails | null;
   detailsLoading: boolean;
@@ -126,9 +127,18 @@ function RunItem({
             </div>
           ) : details ? (
             <div>
-              <div className="mb-2 text-sm">
-                <span className="text-muted-foreground">Attempts: </span>
-                {details.attempts.length}
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-sm">
+                  <span className="text-muted-foreground">Attempts: </span>
+                  {details.attempts.length}
+                </span>
+                <Link
+                  href={`/projects/${projectId}/autopilot/runs/${run.runId}`}
+                  className="flex items-center gap-1 text-sm text-blue-500 hover:underline"
+                  data-testid="view-run-details"
+                >
+                  View Details <ExternalLink className="h-3 w-3" />
+                </Link>
               </div>
               <ErrorList errors={details.errors} />
             </div>
@@ -142,7 +152,7 @@ function RunItem({
 }
 
 export function AutopilotRunHistory({
-  runs, isLoading, selectedRun, selectedRunLoading,
+  projectId, runs, isLoading, selectedRun, selectedRunLoading,
   onSelectRun, onCloseDetails, onStopRun, stoppingRunId,
 }: AutopilotRunHistoryProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -179,6 +189,7 @@ export function AutopilotRunHistory({
           <RunItem
             key={run.runId}
             run={run}
+            projectId={projectId}
             isSelected={selectedId === run.runId}
             details={selectedId === run.runId ? selectedRun : null}
             detailsLoading={selectedId === run.runId && selectedRunLoading}
