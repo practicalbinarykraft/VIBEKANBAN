@@ -16,8 +16,10 @@ import { AutopilotRunHistory } from "@/components/autopilot/autopilot-run-histor
 import { AutopilotRunSummaryPanel, type SummaryPanelStatus } from "@/components/autopilot/autopilot-run-summary-panel";
 import { AutopilotEntryPanel } from "@/components/autopilot/autopilot-entry-panel";
 import { AutopilotReadinessPanel } from "@/components/autopilot/autopilot-readiness-panel";
+import { FactoryControlsPanel } from "@/components/factory/factory-controls-panel";
 import { useAutopilot } from "@/hooks/useAutopilot";
 import { useAutopilotReadiness } from "@/hooks/useAutopilotReadiness";
+import { useFactoryStatus } from "@/hooks/useFactoryStatus";
 import { useRunHistory } from "@/hooks/useRunHistory";
 import { useAutopilotRunDetails } from "@/hooks/useAutopilotRunDetails";
 
@@ -78,6 +80,9 @@ export default function ProjectClient({ projectId, enableAutopilotV2 = false }: 
 
   // PR-81: Autopilot readiness check (blockers panel)
   const readiness = useAutopilotReadiness(projectId);
+
+  // PR-83: Factory status and controls
+  const factory = useFactoryStatus(projectId);
 
   // PR-79: Get latest finished run for summary panel
   const latestRun = runHistory.runs[0];
@@ -251,6 +256,28 @@ export default function ProjectClient({ projectId, enableAutopilotV2 = false }: 
             projectId={projectId}
             onStarted={runHistory.refresh}
             onStopped={runHistory.refresh}
+          />
+        </div>
+      )}
+
+      {/* PR-83: Factory Controls Panel - parallel task execution (Tasks tab only) */}
+      {enableAutopilotV2 && activeTab === "tasks" && (
+        <div className="mx-4 mt-2">
+          <FactoryControlsPanel
+            status={factory.status}
+            total={factory.total}
+            completed={factory.completed}
+            failed={factory.failed}
+            cancelled={factory.cancelled}
+            running={factory.running}
+            queued={factory.queued}
+            runId={factory.runId}
+            isLoading={factory.isLoading}
+            isStarting={factory.isStarting}
+            isStopping={factory.isStopping}
+            error={factory.error}
+            onStart={factory.start}
+            onStop={factory.stop}
           />
         </div>
       )}
