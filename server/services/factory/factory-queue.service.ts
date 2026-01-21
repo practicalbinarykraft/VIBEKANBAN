@@ -1,4 +1,4 @@
-/** Factory Queue Service (PR-85) - In-memory queue with slot management */
+/** Factory Queue Service (PR-85, PR-92) - In-memory queue with slot management */
 
 export interface FactoryQueueDeps {
   now(): Date;
@@ -18,13 +18,14 @@ export interface QueueState {
 
 /**
  * Manages factory task queue with strict maxParallel enforcement,
- * FIFO ordering, and deduplication.
+ * FIFO ordering, deduplication, and hard-stop support.
  */
 export class FactoryQueueService {
   private queued: string[] = [];
   private running: Set<string> = new Set();
   private maxParallel: number = 1;
   private runId: string | null = null;
+  private stopped: boolean = false;
 
   constructor(private deps: FactoryQueueDeps) {}
 
@@ -62,9 +63,12 @@ export class FactoryQueueService {
 
   /**
    * Take next task from queue if a slot is available
-   * Returns null if queue empty or running >= maxParallel
+   * Returns null if queue empty, running >= maxParallel, or stopped (PR-92)
    */
   popNext(): string | null {
+    if (this.stopped) {
+      return null;
+    }
     if (this.running.size >= this.maxParallel) {
       return null;
     }
@@ -72,6 +76,21 @@ export class FactoryQueueService {
       return null;
     }
     return this.queued.shift()!;
+  }
+
+  /**
+   * Stop the queue - popNext will return null (PR-92)
+   * Tasks remain in queue but won't be started
+   */
+  stop(): void {
+    this.stopped = true;
+  }
+
+  /**
+   * Check if queue is stopped (PR-92)
+   */
+  isStopped(): boolean {
+    return this.stopped;
   }
 
   /**

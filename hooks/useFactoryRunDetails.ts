@@ -1,7 +1,9 @@
-/** useFactoryRunDetails hook (PR-91) - Fetch factory run details */
+/** useFactoryRunDetails hook (PR-91, PR-92) - Fetch factory run details */
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import type { FactoryError } from "@/types/factory-errors";
+import type { FactoryGuidance } from "@/server/services/factory/factory-error-guidance";
 
 export interface FactoryRunAttempt {
   id: string;
@@ -29,7 +31,8 @@ export interface FactoryRunDetails {
   columnId: string | null;
   startedAt: string;
   finishedAt: string | null;
-  error: string | null;
+  error: FactoryError | null;
+  guidance: FactoryGuidance | null;
   counts: FactoryRunCounts;
   attempts: FactoryRunAttempt[];
 }

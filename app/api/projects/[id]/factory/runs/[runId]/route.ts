@@ -1,6 +1,7 @@
-/** GET /api/projects/[id]/factory/runs/[runId] (PR-91) - Factory run details */
+/** GET /api/projects/[id]/factory/runs/[runId] (PR-91, PR-92) - Factory run details */
 import { NextRequest, NextResponse } from "next/server";
 import { getFactoryRun, finishFactoryRun } from "@/server/services/factory/factory-runs.service";
+import { getStoredError } from "@/server/services/factory/factory-run-error.store";
 
 export async function GET(
   _request: NextRequest,
@@ -14,6 +15,9 @@ export async function GET(
     return NextResponse.json({ error: "Run not found" }, { status: 404 });
   }
 
+  // PR-92: Parse error and get guidance
+  const storedError = getStoredError(run.error);
+
   return NextResponse.json({
     id: run.id,
     projectId: run.projectId,
@@ -24,7 +28,8 @@ export async function GET(
     columnId: run.columnId,
     startedAt: run.startedAt.toISOString(),
     finishedAt: run.finishedAt?.toISOString() ?? null,
-    error: run.error,
+    error: storedError?.error ?? null,
+    guidance: storedError?.guidance ?? null,
     counts: run.counts,
     attempts: run.attempts.map((a) => ({
       id: a.id,

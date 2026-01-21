@@ -1,4 +1,4 @@
-/** FactoryRunDetailsClient Tests (PR-91) */
+/** FactoryRunDetailsClient Tests (PR-91, PR-92) */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { FactoryRunDetailsClient } from "@/app/projects/[id]/factory/runs/[runId]/factory-run-details-client";
@@ -16,6 +16,7 @@ const mockRun: FactoryRunDetails = {
   startedAt: "2024-01-15T10:00:00Z",
   finishedAt: null,
   error: null,
+  guidance: null,
   counts: { total: 5, completed: 2, failed: 1, running: 1, queued: 1 },
   attempts: [
     { id: "att-1", taskId: "task-1", status: "completed", prUrl: "https://github.com/pr/1", updatedAt: "2024-01-15T10:05:00Z" },
