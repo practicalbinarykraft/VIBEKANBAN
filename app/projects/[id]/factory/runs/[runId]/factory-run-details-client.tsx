@@ -1,5 +1,5 @@
 /**
- * FactoryRunDetailsClient (PR-91, PR-92, PR-93, PR-94, PR-95) - Client component for factory run details
+ * FactoryRunDetailsClient (PR-91, PR-92, PR-93, PR-94, PR-95, PR-107) - Client component for factory run details
  */
 "use client";
 
@@ -7,6 +7,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useFactoryRunDetails } from "@/hooks/useFactoryRunDetails";
 import { useFactoryRunMetrics } from "@/hooks/useFactoryRunMetrics";
+import { useFactoryLogStream } from "@/hooks/useFactoryLogStream";
+import { FactoryLiveConsole } from "@/components/factory/factory-live-console";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -134,6 +136,7 @@ export function FactoryRunDetailsClient({ projectId, runId }: FactoryRunDetailsC
   const { run, loading, error } = useFactoryRunDetails(projectId, runId);
   const isRunning = run?.status === "running";
   const { data: metrics, loading: metricsLoading } = useFactoryRunMetrics(projectId, runId, isRunning);
+  const { lines: logLines, connected: logConnected } = useFactoryLogStream(projectId, runId, isRunning);
   const [stopping, setStopping] = useState(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
 
@@ -284,6 +287,14 @@ export function FactoryRunDetailsClient({ projectId, runId }: FactoryRunDetailsC
               onToggle={handleToggleTask}
             />
           ))
+        )}
+      </div>
+
+      {/* PR-107: Live console for factory run logs */}
+      <div className="mt-6" data-testid="live-console-container">
+        <FactoryLiveConsole lines={logLines} />
+        {!logConnected && logLines.length > 0 && (
+          <div className="mt-2 text-xs text-muted-foreground">Stream disconnected</div>
         )}
       </div>
     </div>

@@ -1,4 +1,4 @@
-/** FactoryRunDetailsClient Tests (PR-91, PR-92, PR-93) */
+/** FactoryRunDetailsClient Tests (PR-91, PR-92, PR-93, PR-107) */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { FactoryRunDetailsClient } from "@/app/projects/[id]/factory/runs/[runId]/factory-run-details-client";
@@ -18,6 +18,29 @@ vi.mock("@/hooks/useFactoryRerun", () => ({
     error: null,
     lastResult: null,
   })),
+}));
+
+// Mock the log stream hook (PR-107)
+vi.mock("@/hooks/useFactoryLogStream", () => ({
+  useFactoryLogStream: vi.fn(() => ({
+    lines: [],
+    connected: false,
+    error: null,
+  })),
+}));
+
+// Mock the metrics hook
+vi.mock("@/hooks/useFactoryRunMetrics", () => ({
+  useFactoryRunMetrics: vi.fn(() => ({
+    data: null,
+    loading: false,
+    error: null,
+  })),
+}));
+
+// Mock the V2 metrics panel (it fetches its own data)
+vi.mock("@/components/factory/factory-run-metrics-panel-v2", () => ({
+  FactoryRunMetricsPanelV2: () => <div data-testid="metrics-panel-v2">Metrics V2</div>,
 }));
 
 // Mock the hook
@@ -195,5 +218,115 @@ describe("FactoryRunDetailsClient rerun (PR-93)", () => {
     });
     render(<FactoryRunDetailsClient projectId="proj-1" runId="run-123" />);
     expect(screen.getByTestId("max-parallel-input")).toBeInTheDocument();
+  });
+});
+
+// PR-107 tests - Live Console Integration
+describe("FactoryRunDetailsClient live console (PR-107)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("renders live console container", async () => {
+    const { useFactoryRunDetails } = await import("@/hooks/useFactoryRunDetails");
+    vi.mocked(useFactoryRunDetails).mockReturnValue({
+      run: mockRun,
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+    render(<FactoryRunDetailsClient projectId="proj-1" runId="run-123" />);
+    expect(screen.getByTestId("live-console-container")).toBeInTheDocument();
+  });
+
+  it("renders FactoryLiveConsole component", async () => {
+    const { useFactoryRunDetails } = await import("@/hooks/useFactoryRunDetails");
+    vi.mocked(useFactoryRunDetails).mockReturnValue({
+      run: mockRun,
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+    render(<FactoryRunDetailsClient projectId="proj-1" runId="run-123" />);
+    expect(screen.getByTestId("factory-live-console")).toBeInTheDocument();
+  });
+
+  it("shows logs when stream has lines", async () => {
+    const { useFactoryRunDetails } = await import("@/hooks/useFactoryRunDetails");
+    const { useFactoryLogStream } = await import("@/hooks/useFactoryLogStream");
+    vi.mocked(useFactoryRunDetails).mockReturnValue({
+      run: mockRun,
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+    vi.mocked(useFactoryLogStream).mockReturnValue({
+      lines: [
+        { ts: "2024-01-01T10:00:00Z", taskId: "task-1", attemptId: "att-1", line: "Test log line" },
+      ],
+      connected: true,
+      error: null,
+    });
+    render(<FactoryRunDetailsClient projectId="proj-1" runId="run-123" />);
+    expect(screen.getByText(/Test log line/)).toBeInTheDocument();
+  });
+
+  it("shows disconnected state when not connected and has logs", async () => {
+    const { useFactoryRunDetails } = await import("@/hooks/useFactoryRunDetails");
+    const { useFactoryLogStream } = await import("@/hooks/useFactoryLogStream");
+    vi.mocked(useFactoryRunDetails).mockReturnValue({
+      run: { ...mockRun, status: "completed" },
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+    vi.mocked(useFactoryLogStream).mockReturnValue({
+      lines: [
+        { ts: "2024-01-01T10:00:00Z", taskId: "task-1", attemptId: "att-1", line: "Some log" },
+      ],
+      connected: false,
+      error: null,
+    });
+    render(<FactoryRunDetailsClient projectId="proj-1" runId="run-123" />);
+    expect(screen.getByText(/stream disconnected/i)).toBeInTheDocument();
+  });
+
+  it("does not show disconnected state when connected", async () => {
+    const { useFactoryRunDetails } = await import("@/hooks/useFactoryRunDetails");
+    const { useFactoryLogStream } = await import("@/hooks/useFactoryLogStream");
+    vi.mocked(useFactoryRunDetails).mockReturnValue({
+      run: mockRun,
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+    vi.mocked(useFactoryLogStream).mockReturnValue({
+      lines: [
+        { ts: "2024-01-01T10:00:00Z", taskId: "task-1", attemptId: "att-1", line: "Log" },
+      ],
+      connected: true,
+      error: null,
+    });
+    render(<FactoryRunDetailsClient projectId="proj-1" runId="run-123" />);
+    expect(screen.queryByText(/stream disconnected/i)).not.toBeInTheDocument();
+  });
+
+  it("does not crash with empty logs array", async () => {
+    const { useFactoryRunDetails } = await import("@/hooks/useFactoryRunDetails");
+    const { useFactoryLogStream } = await import("@/hooks/useFactoryLogStream");
+    vi.mocked(useFactoryRunDetails).mockReturnValue({
+      run: mockRun,
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+    vi.mocked(useFactoryLogStream).mockReturnValue({
+      lines: [],
+      connected: true,
+      error: null,
+    });
+    render(<FactoryRunDetailsClient projectId="proj-1" runId="run-123" />);
+    expect(screen.getByTestId("factory-live-console")).toBeInTheDocument();
+    expect(screen.getByText(/waiting for logs/i)).toBeInTheDocument();
   });
 });
