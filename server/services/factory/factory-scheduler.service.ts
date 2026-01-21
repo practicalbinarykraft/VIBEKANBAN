@@ -136,7 +136,7 @@ export function setGlobalQueue(queue: FactoryQueueService | null): void {
   globalQueue = queue;
 }
 
-// PR-86: tickOnce for worker mode (non-blocking)
+// PR-86, PR-92: tickOnce for worker mode (non-blocking) with hard-stop
 export interface TickOnceDeps {
   getResumeState: (projectId: string) => Promise<ResumeState>;
   runTaskAttempt: (taskId: string, runId: string) => Promise<AttemptResult>;
@@ -145,6 +145,7 @@ export interface TickOnceDeps {
 /**
  * Execute one tick: start tasks up to available slots (non-blocking)
  * Returns immediately after starting tasks, does not wait for completion
+ * PR-92: Checks status before starting - returns early if not "running"
  */
 export async function tickOnce(
   params: { projectId: string; runId: string; maxParallel: number },
@@ -154,6 +155,11 @@ export async function tickOnce(
 
   // Get current state from DB
   const state = await deps.getResumeState(projectId);
+
+  // PR-92: Hard-stop - don't start if run is not running
+  if (!state.runId || state.status !== "running") {
+    return;
+  }
 
   // Calculate available slots
   const runningCount = state.runningTaskIds.length;

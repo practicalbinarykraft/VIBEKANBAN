@@ -1,5 +1,5 @@
 /**
- * FactoryRunDetailsClient (PR-91) - Client component for factory run details
+ * FactoryRunDetailsClient (PR-91, PR-92) - Client component for factory run details
  */
 "use client";
 
@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useFactoryRunDetails } from "@/hooks/useFactoryRunDetails";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { FactoryErrorGuidancePanel } from "@/components/factory/factory-error-guidance-panel";
 import {
   Loader2,
   ArrowLeft,
@@ -202,12 +203,14 @@ export function FactoryRunDetailsClient({ projectId, runId }: FactoryRunDetailsC
           </div>
         </div>
 
-        {run.error && (
-          <div className="mt-4 rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
-            {run.error}
-          </div>
-        )}
       </div>
+
+      {/* PR-92: Show error guidance when run failed/cancelled with error */}
+      {run.error && run.guidance && (
+        <div className="mb-6" data-testid="error-guidance">
+          <FactoryErrorGuidancePanel error={run.error} guidance={run.guidance} />
+        </div>
+      )}
 
       <div className="mb-6">
         <CountsBlock counts={run.counts} />
