@@ -18,6 +18,7 @@ import { CouncilConsole } from "@/components/council/council-console";
 import { CouncilThread, CouncilMessage, PlanArtifact } from "@/components/council/types";
 import { AutopilotPanel } from "@/components/planning/autopilot-panel";
 import { FactoryHandoffModal } from "@/components/planning/factory-handoff-modal";
+import { PhaseBanner } from "@/components/planning/phase-banner";
 import { useAutopilot } from "@/hooks/useAutopilot";
 import { Loader2, Send, RotateCcw } from "lucide-react";
 
@@ -435,6 +436,9 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, onApplyCompl
       {/* Left Column: User Input */}
       <div className="flex w-1/2 flex-col space-y-4 overflow-y-auto">
         <AiModeBanner />
+
+        {/* Phase Banner - shows current state and what user can do */}
+        <PhaseBanner phase={phase} />
 
         <div className="rounded-lg border bg-card p-4">
           <div className="mb-2 flex items-center justify-between">
