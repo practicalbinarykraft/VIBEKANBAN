@@ -224,3 +224,14 @@ export const providerAccounts = sqliteTable("provider_accounts", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+// Factory PR Auto-Fix (PR-99) - tracks auto-fix attempts on PRs (anti-loop)
+export const factoryPrAutofix = sqliteTable("factory_pr_autofix", {
+  id: text("id").primaryKey(),
+  runId: text("run_id").notNull(),
+  prUrl: text("pr_url").notNull(),
+  attemptNumber: integer("attempt_number").notNull().default(1), // Always 1 for now
+  status: text("status").notNull(), // success, failed
+  errorText: text("error_text"),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`CURRENT_TIMESTAMP`),
+});
