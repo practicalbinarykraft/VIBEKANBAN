@@ -1,16 +1,18 @@
 /**
- * FactoryRunDetailsClient (PR-91, PR-92, PR-93) - Client component for factory run details
+ * FactoryRunDetailsClient (PR-91, PR-92, PR-93, PR-94) - Client component for factory run details
  */
 "use client";
 
 import { useState } from "react";
 import Link from "next/link";
 import { useFactoryRunDetails } from "@/hooks/useFactoryRunDetails";
+import { useFactoryRunMetrics } from "@/hooks/useFactoryRunMetrics";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { FactoryErrorGuidancePanel } from "@/components/factory/factory-error-guidance-panel";
 import { FactoryRerunPanel } from "@/components/factory/factory-rerun-panel";
+import { FactoryRunMetricsPanel } from "@/components/factory/factory-run-metrics-panel";
 import {
   Loader2,
   ArrowLeft,
@@ -129,6 +131,8 @@ function CountsBlock({ counts }: { counts: FactoryRunDetails["counts"] }) {
 
 export function FactoryRunDetailsClient({ projectId, runId }: FactoryRunDetailsClientProps) {
   const { run, loading, error } = useFactoryRunDetails(projectId, runId);
+  const isRunning = run?.status === "running";
+  const { data: metrics, loading: metricsLoading } = useFactoryRunMetrics(projectId, runId, isRunning);
   const [stopping, setStopping] = useState(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
 
@@ -241,6 +245,11 @@ export function FactoryRunDetailsClient({ projectId, runId }: FactoryRunDetailsC
 
       <div className="mb-6">
         <CountsBlock counts={run.counts} />
+      </div>
+
+      {/* PR-94: Run metrics panel */}
+      <div className="mb-6" data-testid="metrics-panel-container">
+        <FactoryRunMetricsPanel metrics={metrics} loading={metricsLoading} />
       </div>
 
       {/* PR-93: Rerun action panel */}
