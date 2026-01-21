@@ -1,17 +1,21 @@
-/** FactoryBatchStartPanel (PR-87) - Batch factory start from Kanban */
+/** FactoryBatchStartPanel (PR-87, PR-103) - Batch factory start from Kanban */
 "use client";
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Play, Factory } from "lucide-react";
+import { getAgentProfiles, getDefaultAgentProfile } from "@/server/services/agents/agent-profiles.registry";
 
 export interface BatchStartRequest {
   source: "column" | "selection";
   columnStatus?: string;
   taskIds?: string[];
   maxParallel: number;
+  agentProfileId: string;
 }
+
+const AGENT_PROFILES = getAgentProfiles();
 
 interface FactoryBatchStartPanelProps {
   projectId: string;
@@ -34,6 +38,7 @@ export function FactoryBatchStartPanel({
   const [source, setSource] = useState<"column" | "selection">("column");
   const [columnStatus, setColumnStatus] = useState("todo");
   const [maxParallel, setMaxParallel] = useState(3);
+  const [agentProfileId, setAgentProfileId] = useState(getDefaultAgentProfile().id);
 
   const taskCount = source === "selection"
     ? selectedTaskIds.length
@@ -43,9 +48,9 @@ export function FactoryBatchStartPanel({
 
   const handleStart = () => {
     if (source === "column") {
-      onStart({ source: "column", columnStatus, maxParallel });
+      onStart({ source: "column", columnStatus, maxParallel, agentProfileId });
     } else {
-      onStart({ source: "selection", taskIds: selectedTaskIds, maxParallel });
+      onStart({ source: "selection", taskIds: selectedTaskIds, maxParallel, agentProfileId });
     }
   };
 
@@ -81,6 +86,19 @@ export function FactoryBatchStartPanel({
             ))}
           </select>
         )}
+
+        <select
+          value={agentProfileId}
+          onChange={(e) => setAgentProfileId(e.target.value)}
+          className="h-8 rounded border bg-background px-2 text-sm"
+          data-testid="batch-agent-select"
+        >
+          {AGENT_PROFILES.map((profile) => (
+            <option key={profile.id} value={profile.id}>
+              {profile.label}
+            </option>
+          ))}
+        </select>
 
         <div className="flex items-center gap-1">
           <Input

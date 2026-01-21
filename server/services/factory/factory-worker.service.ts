@@ -6,10 +6,17 @@ import {
 } from "./factory-worker-registry";
 import type { ResumeState } from "./factory-resume.service";
 
+export interface TickOnceParams {
+  projectId: string;
+  runId: string;
+  maxParallel: number;
+  agentProfileId?: string;
+}
+
 export interface FactoryWorkerDeps {
   registry: FactoryWorkerRegistry;
   getResumeState: (projectId: string) => Promise<ResumeState>;
-  tickOnce: (params: { projectId: string; runId: string; maxParallel: number }) => Promise<void>;
+  tickOnce: (params: TickOnceParams) => Promise<void>;
   markRunFailed: (runId: string, error: string) => Promise<void>;
   sleepMs: (ms: number) => Promise<void>;
 }
@@ -30,8 +37,9 @@ export class FactoryWorkerService {
     projectId: string;
     runId: string;
     maxParallel: number;
+    agentProfileId?: string;
   }): Promise<{ started: boolean }> {
-    const { projectId, runId, maxParallel } = params;
+    const { projectId, runId, maxParallel, agentProfileId } = params;
 
     // Check if already running
     if (this.deps.registry.has(projectId)) {
@@ -43,7 +51,7 @@ export class FactoryWorkerService {
     this.deps.registry.set(handle);
 
     // Start loop in background (fire-and-forget)
-    this.runLoop(handle, maxParallel).catch(() => {
+    this.runLoop(handle, maxParallel, agentProfileId).catch(() => {
       // Loop handles its own errors, just ensure cleanup
       this.deps.registry.delete(projectId);
     });
@@ -66,7 +74,11 @@ export class FactoryWorkerService {
   /**
    * Background loop that runs until stopped or run completes
    */
-  private async runLoop(handle: FactoryWorkerHandle, maxParallel: number): Promise<void> {
+  private async runLoop(
+    handle: FactoryWorkerHandle,
+    maxParallel: number,
+    agentProfileId?: string
+  ): Promise<void> {
     const { projectId, runId } = handle;
 
     try {
@@ -80,7 +92,7 @@ export class FactoryWorkerService {
         }
 
         // Execute one tick (non-blocking start of tasks)
-        await this.deps.tickOnce({ projectId, runId, maxParallel });
+        await this.deps.tickOnce({ projectId, runId, maxParallel, agentProfileId });
 
         // Sleep before next tick
         await this.deps.sleepMs(LOOP_INTERVAL_MS);

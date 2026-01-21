@@ -85,4 +85,46 @@ describe("FactoryBatchStartPanel", () => {
     render(<FactoryBatchStartPanel {...defaultProps} tasksByStatus={{ todo: 0, in_progress: 0, in_review: 0 }} />);
     expect(screen.getByTestId("batch-start-button")).toBeDisabled();
   });
+
+  // PR-103: Agent profile dropdown tests
+  describe("agent profile selection", () => {
+    it("renders agent profile selector", () => {
+      render(<FactoryBatchStartPanel {...defaultProps} />);
+      expect(screen.getByTestId("batch-agent-select")).toBeInTheDocument();
+    });
+
+    it("shows default agent profile label", () => {
+      render(<FactoryBatchStartPanel {...defaultProps} />);
+      const select = screen.getByTestId("batch-agent-select");
+      expect(select).toHaveTextContent(/Claude/i);
+    });
+
+    it("includes agentProfileId in onStart callback", () => {
+      const onStart = vi.fn();
+      render(<FactoryBatchStartPanel {...defaultProps} onStart={onStart} />);
+
+      fireEvent.click(screen.getByTestId("batch-start-button"));
+
+      expect(onStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          agentProfileId: expect.any(String),
+        })
+      );
+    });
+
+    it("passes selected profile ID to onStart", () => {
+      const onStart = vi.fn();
+      render(<FactoryBatchStartPanel {...defaultProps} onStart={onStart} />);
+
+      // Change agent profile
+      fireEvent.change(screen.getByTestId("batch-agent-select"), { target: { value: "mock" } });
+      fireEvent.click(screen.getByTestId("batch-start-button"));
+
+      expect(onStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          agentProfileId: "mock",
+        })
+      );
+    });
+  });
 });

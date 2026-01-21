@@ -1,4 +1,4 @@
-/** GET /api/projects/[id]/factory/runs/[runId] (PR-91, PR-92, PR-102) - Factory run details */
+/** GET /api/projects/[id]/factory/runs/[runId] (PR-91, PR-92, PR-102, PR-103) - Factory run details */
 import { NextRequest, NextResponse } from "next/server";
 import { finishFactoryRun } from "@/server/services/factory/factory-runs.service";
 import { getRunDetails } from "@/server/services/factory/factory-run-details.service";
@@ -35,6 +35,7 @@ export async function GET(
       branch: item.branchName,
       prUrl: item.prUrl,
       ci: item.ci,
+      agent: item.agent, // PR-103: include agent label
     })),
   });
 }

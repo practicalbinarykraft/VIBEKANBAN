@@ -223,11 +223,12 @@ export default function ProjectClient({ projectId, enableAutopilotV2 = false }: 
 
   // PR-88: Factory results handlers
   const handleRetryTask = async (taskId: string) => {
-    // Use batch start with single task
+    // Use batch start with single task (PR-103: use default agent profile)
     await batchStart.startBatch(projectId, {
       source: "selection",
       taskIds: [taskId],
       maxParallel: 1,
+      agentProfileId: "claude-default",
     });
     factory.refresh();
   };

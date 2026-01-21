@@ -136,22 +136,30 @@ export function setGlobalQueue(queue: FactoryQueueService | null): void {
   globalQueue = queue;
 }
 
-// PR-86, PR-92: tickOnce for worker mode (non-blocking) with hard-stop
+// PR-86, PR-92, PR-103: tickOnce for worker mode (non-blocking) with hard-stop
 export interface TickOnceDeps {
   getResumeState: (projectId: string) => Promise<ResumeState>;
-  runTaskAttempt: (taskId: string, runId: string) => Promise<AttemptResult>;
+  runTaskAttempt: (taskId: string, runId: string, agentProfileId?: string) => Promise<AttemptResult>;
+}
+
+export interface TickOnceParams {
+  projectId: string;
+  runId: string;
+  maxParallel: number;
+  agentProfileId?: string;
 }
 
 /**
  * Execute one tick: start tasks up to available slots (non-blocking)
  * Returns immediately after starting tasks, does not wait for completion
  * PR-92: Checks status before starting - returns early if not "running"
+ * PR-103: Passes agentProfileId to runTaskAttempt
  */
 export async function tickOnce(
-  params: { projectId: string; runId: string; maxParallel: number },
+  params: TickOnceParams,
   deps: TickOnceDeps
 ): Promise<void> {
-  const { projectId, runId, maxParallel } = params;
+  const { projectId, runId, maxParallel, agentProfileId } = params;
 
   // Get current state from DB
   const state = await deps.getResumeState(projectId);
@@ -173,7 +181,7 @@ export async function tickOnce(
   const tasksToStart = state.queuedTaskIds.slice(0, availableSlots);
   for (const taskId of tasksToStart) {
     // Fire-and-forget: don't await
-    deps.runTaskAttempt(taskId, runId).catch(() => {
+    deps.runTaskAttempt(taskId, runId, agentProfileId).catch(() => {
       // Errors handled by attempt runner
     });
   }
