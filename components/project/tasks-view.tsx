@@ -7,9 +7,11 @@ import { KanbanBoard } from "@/components/kanban/kanban-board";
 import { TaskDetailsPanel } from "@/components/task-details/task-details-panel";
 import { ExecutionControls } from "@/components/project/execution-controls";
 import { RepoStatus } from "@/components/project/repo-status";
+import { CloneRequiredBanner } from "@/components/tasks/clone-required-banner";
 import { FactoryBatchStartPanel, type BatchStartRequest } from "@/components/factory/factory-batch-start-panel";
 import { FactoryResultsPanel } from "@/components/factory/factory-results-panel";
 import { useFactoryResults } from "@/hooks/useFactoryResults";
+import { useRepoStatus } from "@/hooks/useRepoStatus";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Search, CheckSquare } from "lucide-react";
@@ -81,6 +83,7 @@ export function TasksView({
   onToggleCheckboxes,
 }: TasksViewProps) {
   const factoryResults = useFactoryResults(projectId);
+  const repoStatus = useRepoStatus(projectId);
 
   return (
     <div className="flex h-[calc(100vh-7rem)]">
@@ -126,6 +129,12 @@ export function TasksView({
           <div className="mt-2 flex items-center">
             <RepoStatus projectId={projectId} />
           </div>
+          {/* Clone Required Banner - shows when repo not configured */}
+          {!repoStatus.loading && repoStatus.status && !repoStatus.status.isCloned && (
+            <div className="mt-2">
+              <CloneRequiredBanner projectId={projectId} />
+            </div>
+          )}
           {/* Batch Start Panel (PR-87) */}
           {showBatchPanel && onBatchStart && (
             <div className="mt-2">
