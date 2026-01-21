@@ -39,6 +39,43 @@ export async function GET(
 }
 
 /**
+ * PATCH /api/projects/[id]
+ *
+ * Update project details (name, gitUrl, defaultBranch)
+ */
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const body = await request.json();
+
+    const project = await db
+      .select()
+      .from(projects)
+      .where(eq(projects.id, id))
+      .get();
+
+    if (!project) {
+      return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    }
+
+    const updates: Partial<typeof project> = {};
+    if (body.name !== undefined) updates.name = body.name;
+    if (body.gitUrl !== undefined) updates.gitUrl = body.gitUrl;
+    if (body.defaultBranch !== undefined) updates.defaultBranch = body.defaultBranch;
+
+    await db.update(projects).set(updates).where(eq(projects.id, id));
+
+    const updated = await db.select().from(projects).where(eq(projects.id, id)).get();
+    return NextResponse.json(updated);
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
+  }
+}
+
+/**
  * DELETE /api/projects/[id]
  *
  * Delete project and all related data (tasks, attempts, logs, artifacts)
