@@ -5,13 +5,18 @@ import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { GitBranch, ExternalLink, Folder, MoreVertical } from "lucide-react";
+import { GitBranch, ExternalLink, Folder } from "lucide-react";
 import { NewProjectButton } from "@/components/projects/new-project-button";
 import { ConnectionBadge } from "@/components/projects/connection-badge";
+import { ProjectActionsMenu } from "@/components/projects/project-actions-menu";
 import { Project } from "@/types";
 
+interface ProjectWithRun extends Project {
+  lastFactoryRun?: { id: string; status: string; maxParallel: number } | null;
+}
+
 export default function ProjectsPage() {
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [projects, setProjects] = useState<ProjectWithRun[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchProjects = useCallback(async () => {
@@ -104,15 +109,18 @@ export default function ProjectsPage() {
                       </div>
                       <div className="ml-2 flex items-center gap-2">
                         <ConnectionBadge projectId={project.id} />
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            // Menu logic
-                          }}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <MoreVertical className="h-4 w-4 text-muted-foreground" />
-                        </button>
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                          <ProjectActionsMenu
+                            project={project}
+                            lastRun={project.lastFactoryRun}
+                            onProjectUpdated={(updated) => {
+                              setProjects((prev) =>
+                                prev.map((p) => (p.id === updated.id ? { ...p, ...updated } : p))
+                              );
+                            }}
+                            onProjectDeleted={fetchProjects}
+                          />
+                        </div>
                       </div>
                     </div>
 

@@ -1,14 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/server/db";
-import { projects } from "@/server/db/schema";
+import { projects, factoryRuns } from "@/server/db/schema";
+import { eq, desc } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 export async function GET() {
   try {
     const allProjects = await db.select().from(projects);
-    return NextResponse.json(allProjects);
+
+    // Get last factory run for each project (PR-110)
+    const projectsWithRuns = await Promise.all(
+      allProjects.map(async (p) => {
+        const lastRun = await db.select({
+          id: factoryRuns.id,
+          status: factoryRuns.status,
+          maxParallel: factoryRuns.maxParallel,
+        })
+          .from(factoryRuns)
+          .where(eq(factoryRuns.projectId, p.id))
+          .orderBy(desc(factoryRuns.startedAt))
+          .limit(1)
+          .get();
+        return { ...p, lastFactoryRun: lastRun ?? null };
+      })
+    );
+
+    return NextResponse.json(projectsWithRuns);
   } catch (error: any) {
-    console.error("Error fetching projects:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
