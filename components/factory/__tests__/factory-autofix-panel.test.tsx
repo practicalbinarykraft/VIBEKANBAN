@@ -1,6 +1,6 @@
-/** Factory Auto-Fix Panel Tests (PR-99) - TDD */
+/** Factory Auto-Fix Panel Tests (PR-99, PR-100) - TDD */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { FactoryAutofixPanel } from "../factory-autofix-panel";
 
 describe("FactoryAutofixPanel", () => {
@@ -20,10 +20,16 @@ describe("FactoryAutofixPanel", () => {
     expect(screen.getByTestId("factory-autofix-panel")).toBeInTheDocument();
   });
 
-  it("renders autofix button", () => {
+  it("renders diagnostics button", () => {
+    render(<FactoryAutofixPanel {...defaultProps} />);
+    expect(screen.getByTestId("diagnostics-button")).toBeInTheDocument();
+    expect(screen.getByTestId("diagnostics-button")).toHaveTextContent(/diagnostics/i);
+  });
+
+  it("renders smart auto-fix button", () => {
     render(<FactoryAutofixPanel {...defaultProps} />);
     expect(screen.getByTestId("autofix-button")).toBeInTheDocument();
-    expect(screen.getByTestId("autofix-button")).toHaveTextContent(/auto-fix/i);
+    expect(screen.getByTestId("autofix-button")).toHaveTextContent(/smart/i);
   });
 
   it("shows autofix attempts counter", () => {
@@ -31,32 +37,44 @@ describe("FactoryAutofixPanel", () => {
     expect(screen.getByText(/0.*\/.*2/)).toBeInTheDocument();
   });
 
-  it("calls onRunAutofix when button clicked", async () => {
+  it("calls onRunAutofix with 'diagnostics' mode when diagnostics clicked", () => {
+    const onRunAutofix = vi.fn();
+    render(<FactoryAutofixPanel {...defaultProps} onRunAutofix={onRunAutofix} />);
+
+    fireEvent.click(screen.getByTestId("diagnostics-button"));
+
+    expect(onRunAutofix).toHaveBeenCalledWith("run-123", "diagnostics");
+  });
+
+  it("calls onRunAutofix with 'claude' mode when smart auto-fix clicked", () => {
     const onRunAutofix = vi.fn();
     render(<FactoryAutofixPanel {...defaultProps} onRunAutofix={onRunAutofix} />);
 
     fireEvent.click(screen.getByTestId("autofix-button"));
 
-    expect(onRunAutofix).toHaveBeenCalledWith("run-123");
+    expect(onRunAutofix).toHaveBeenCalledWith("run-123", "claude");
   });
 
-  it("disables button when runId is null", () => {
+  it("disables both buttons when runId is null", () => {
     render(<FactoryAutofixPanel {...defaultProps} runId={null} />);
+    expect(screen.getByTestId("diagnostics-button")).toBeDisabled();
     expect(screen.getByTestId("autofix-button")).toBeDisabled();
   });
 
-  it("disables button when all attempts used", () => {
+  it("disables both buttons when all attempts used", () => {
     render(
       <FactoryAutofixPanel
         {...defaultProps}
         autofixStatus={{ total: 2, used: 2 }}
       />
     );
+    expect(screen.getByTestId("diagnostics-button")).toBeDisabled();
     expect(screen.getByTestId("autofix-button")).toBeDisabled();
   });
 
-  it("disables button when isLoading is true", () => {
+  it("disables both buttons when isLoading is true", () => {
     render(<FactoryAutofixPanel {...defaultProps} isLoading={true} />);
+    expect(screen.getByTestId("diagnostics-button")).toBeDisabled();
     expect(screen.getByTestId("autofix-button")).toBeDisabled();
   });
 
