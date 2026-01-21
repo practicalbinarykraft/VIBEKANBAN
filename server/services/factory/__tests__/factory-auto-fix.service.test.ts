@@ -14,6 +14,8 @@ function createMockDeps(overrides: Partial<AutoFixDeps> = {}): AutoFixDeps {
     recordAutofixAttempt: vi.fn().mockResolvedValue(undefined),
     runAutofixAttempt: vi.fn().mockResolvedValue({ success: false, logs: "" }),
     saveAutofixReport: vi.fn().mockResolvedValue(undefined),
+    runClaudeAutofix: vi.fn().mockResolvedValue({ ok: false, code: "NO_CHANGES" }),
+    saveClaudeResult: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 }
@@ -162,7 +164,7 @@ describe("factory-auto-fix.service", () => {
       "run-1",
       mockFailedPr.prUrl,
       "failed",
-      "Network error"
+      "Auto-fix failed"
     );
   });
 
@@ -206,5 +208,60 @@ describe("factory-auto-fix.service", () => {
       action: "skipped",
       reason: "no_pr",
     });
+  });
+
+  // PR-100: Claude mode tests
+  it("runs claude fix when mode=claude and diagnostics collected", async () => {
+    const deps = createMockDeps({
+      getPrsWithCiStatus: vi.fn().mockResolvedValue([mockFailedPr]),
+      runAutofixAttempt: vi.fn().mockResolvedValue({ success: false, logs: "Unit test failed" }),
+      runClaudeAutofix: vi.fn().mockResolvedValue({ ok: true, commitSha: "abc123", changedFiles: ["a.ts"] }),
+    });
+
+    const results = await runAutoFix("run-1", deps, "claude");
+
+    expect(deps.runClaudeAutofix).toHaveBeenCalled();
+    expect(results[0].action).toBe("fixed");
+  });
+
+  it("skips claude fix if diagnostics mode", async () => {
+    const deps = createMockDeps({
+      getPrsWithCiStatus: vi.fn().mockResolvedValue([mockFailedPr]),
+      runAutofixAttempt: vi.fn().mockResolvedValue({ success: false, logs: "Unit test failed" }),
+      runClaudeAutofix: vi.fn(),
+    });
+
+    await runAutoFix("run-1", deps, "diagnostics");
+
+    expect(deps.runClaudeAutofix).not.toHaveBeenCalled();
+  });
+
+  it("saves claude result artifact when mode=claude", async () => {
+    const deps = createMockDeps({
+      getPrsWithCiStatus: vi.fn().mockResolvedValue([mockFailedPr]),
+      runAutofixAttempt: vi.fn().mockResolvedValue({ success: false, logs: "Error" }),
+      runClaudeAutofix: vi.fn().mockResolvedValue({ ok: true, commitSha: "def456", changedFiles: ["b.ts"] }),
+      saveClaudeResult: vi.fn(),
+    });
+
+    await runAutoFix("run-1", deps, "claude");
+
+    expect(deps.saveClaudeResult).toHaveBeenCalledWith(
+      mockFailedPr.attemptId,
+      expect.objectContaining({ commitSha: "def456", changedFiles: ["b.ts"] })
+    );
+  });
+
+  it("returns failed when claude fix returns NO_CHANGES", async () => {
+    const deps = createMockDeps({
+      getPrsWithCiStatus: vi.fn().mockResolvedValue([mockFailedPr]),
+      runAutofixAttempt: vi.fn().mockResolvedValue({ success: false, logs: "Error" }),
+      runClaudeAutofix: vi.fn().mockResolvedValue({ ok: false, code: "NO_CHANGES" }),
+    });
+
+    const results = await runAutoFix("run-1", deps, "claude");
+
+    expect(results[0].action).toBe("failed");
+    expect(results[0].reason).toBe("error");
   });
 });

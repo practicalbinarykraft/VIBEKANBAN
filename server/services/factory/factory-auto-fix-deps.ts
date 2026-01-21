@@ -1,15 +1,17 @@
-/** Factory Auto-Fix Dependencies (PR-99) - Real implementations for DI */
+/** Factory Auto-Fix Dependencies (PR-99, PR-100) - Real implementations for DI */
 import { db } from "@/server/db";
-import { factoryPrAutofix, attempts, projects } from "@/server/db/schema";
-import { eq, and } from "drizzle-orm";
+import { factoryPrAutofix, attempts, projects, artifacts } from "@/server/db/schema";
+import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { spawn } from "child_process";
 import { getRunPrChecks, type FactoryPrCheckSnapshot } from "./factory-pr-checks.service";
 import { createPrChecksDeps } from "./factory-pr-checks-deps";
 import { saveAutofixReport as saveReport } from "./factory-autofix-artifacts";
-import type { AutoFixDeps, PrWithCiStatus, AutofixReport } from "./factory-auto-fix.service";
+import type { AutoFixDeps, PrWithCiStatus, AutofixReport, ClaudeResultArtifact } from "./factory-auto-fix.service";
 import type { AutofixRunnerDeps, CommandResult } from "./factory-auto-fix-runner";
 import { runAutofixAttempt } from "./factory-auto-fix-runner";
+import { runClaudeAutofix, type ClaudeFixContext } from "./factory-auto-fix-claude-runner";
+import { createClaudeRunnerDeps } from "./factory-auto-fix-claude-deps";
 
 async function execCommand(cmd: string, args: string[], cwd: string): Promise<CommandResult> {
   return new Promise((resolve) => {
@@ -99,6 +101,25 @@ export function createAutoFixDeps(projectId: string): AutoFixDeps {
 
     saveAutofixReport: async (attemptId: string, report: AutofixReport) => {
       await saveReport(attemptId, report);
+    },
+
+    // PR-100: Claude auto-fix methods
+    runClaudeAutofix: async (context: ClaudeFixContext) => {
+      const project = await db.select().from(projects)
+        .where(eq(projects.id, projectId))
+        .get();
+      const projectPath = project?.repoPath ?? process.cwd();
+      const claudeDeps = createClaudeRunnerDeps(projectPath);
+      return runClaudeAutofix(context, claudeDeps);
+    },
+
+    saveClaudeResult: async (attemptId: string, result: ClaudeResultArtifact) => {
+      await db.insert(artifacts).values({
+        id: randomUUID(),
+        attemptId,
+        type: "factory_autofix_claude_result",
+        content: JSON.stringify(result),
+      });
     },
   };
 }
