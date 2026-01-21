@@ -186,4 +186,95 @@ describe("useKanbanDnd", () => {
       expect(todoTasks[1].id).toBe("t1"); // t1 moved after
     });
   });
+
+  describe("auto-enqueue (PR-106)", () => {
+    const tasksWithDone: Task[] = [
+      ...mockTasks,
+      { id: "t4", projectId: "p1", title: "Task 4", description: "", status: "done", order: 0, createdAt: new Date(), updatedAt: new Date() },
+    ];
+
+    it("calls onAutoEnqueue when moving to runnable column", async () => {
+      const onReorder = vi.fn().mockResolvedValue({ ok: true });
+      const onAutoEnqueue = vi.fn();
+      const { result } = renderHook(() =>
+        useKanbanDnd({ tasks: tasksWithDone, onReorder, onAutoEnqueue })
+      );
+
+      act(() => {
+        result.current.handleDragStart({ active: { id: "t4" } } as any);
+      });
+
+      await act(async () => {
+        await result.current.handleDragEnd({
+          active: { id: "t4" },
+          over: { id: "column-todo" },
+        } as any);
+      });
+
+      expect(onAutoEnqueue).toHaveBeenCalledWith("t4");
+    });
+
+    it("does not call onAutoEnqueue for same column move", async () => {
+      const onReorder = vi.fn().mockResolvedValue({ ok: true });
+      const onAutoEnqueue = vi.fn();
+      const { result } = renderHook(() =>
+        useKanbanDnd({ tasks: mockTasks, onReorder, onAutoEnqueue })
+      );
+
+      act(() => {
+        result.current.handleDragStart({ active: { id: "t1" } } as any);
+      });
+
+      await act(async () => {
+        await result.current.handleDragEnd({
+          active: { id: "t1" },
+          over: { id: "t2" },
+        } as any);
+      });
+
+      expect(onAutoEnqueue).not.toHaveBeenCalled();
+    });
+
+    it("does not call onAutoEnqueue when moving to non-runnable column (done)", async () => {
+      const onReorder = vi.fn().mockResolvedValue({ ok: true });
+      const onAutoEnqueue = vi.fn();
+      const { result } = renderHook(() =>
+        useKanbanDnd({ tasks: mockTasks, onReorder, onAutoEnqueue })
+      );
+
+      act(() => {
+        result.current.handleDragStart({ active: { id: "t1" } } as any);
+      });
+
+      await act(async () => {
+        await result.current.handleDragEnd({
+          active: { id: "t1" },
+          over: { id: "column-done" },
+        } as any);
+      });
+
+      expect(onAutoEnqueue).not.toHaveBeenCalled();
+    });
+
+    it("works without onAutoEnqueue callback", async () => {
+      const onReorder = vi.fn().mockResolvedValue({ ok: true });
+      const { result } = renderHook(() =>
+        useKanbanDnd({ tasks: tasksWithDone, onReorder })
+      );
+
+      act(() => {
+        result.current.handleDragStart({ active: { id: "t4" } } as any);
+      });
+
+      // Should not throw
+      await act(async () => {
+        await result.current.handleDragEnd({
+          active: { id: "t4" },
+          over: { id: "column-todo" },
+        } as any);
+      });
+
+      expect(onReorder).toHaveBeenCalled();
+    });
+  });
 });
