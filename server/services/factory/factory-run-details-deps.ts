@@ -1,4 +1,4 @@
-/** Factory Run Details Dependencies (PR-102) - Real implementations */
+/** Factory Run Details Dependencies (PR-102, PR-103) - Real implementations */
 import { db } from "@/server/db";
 import { factoryRuns, attempts, tasks } from "@/server/db/schema";
 import { eq } from "drizzle-orm";
@@ -32,6 +32,7 @@ export function createRunDetailsDeps(): RunDetailsDeps {
         prUrl: attempts.prUrl,
         headCommit: attempts.headCommit,
         taskTitle: tasks.title,
+        agent: attempts.agent, // PR-103: include agent
       })
         .from(attempts)
         .innerJoin(tasks, eq(attempts.taskId, tasks.id))
@@ -45,6 +46,7 @@ export function createRunDetailsDeps(): RunDetailsDeps {
         branchName: r.branchName,
         prUrl: r.prUrl,
         headCommit: r.headCommit,
+        agent: r.agent, // PR-103: include agent
       }));
     },
 

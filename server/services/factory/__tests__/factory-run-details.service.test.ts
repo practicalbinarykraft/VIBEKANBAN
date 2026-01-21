@@ -1,4 +1,4 @@
-/** Factory Run Details Service Tests (PR-102) - TDD */
+/** Factory Run Details Service Tests (PR-102, PR-103) - TDD */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   getRunDetails,
@@ -34,6 +34,7 @@ const mockItems = [
     branchName: "feat/pr-101",
     prUrl: "https://github.com/org/repo/pull/101",
     headCommit: "abc123",
+    agent: "Claude (Default)",
   },
   {
     taskId: "task-2",
@@ -43,6 +44,7 @@ const mockItems = [
     branchName: "fix/pr-102",
     prUrl: "https://github.com/org/repo/pull/102",
     headCommit: "def456",
+    agent: "Claude (Default)",
   },
   {
     taskId: "task-3",
@@ -52,6 +54,7 @@ const mockItems = [
     branchName: null,
     prUrl: null,
     headCommit: null,
+    agent: "Mock (Testing)",
   },
 ];
 

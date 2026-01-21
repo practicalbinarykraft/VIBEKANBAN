@@ -1,4 +1,4 @@
-/** Factory Run Details Service (PR-102) - Get detailed run info for UI */
+/** Factory Run Details Service (PR-102, PR-103) - Get detailed run info for UI */
 
 export type RunItemStatus = "queued" | "running" | "completed" | "failed";
 
@@ -24,6 +24,7 @@ export interface RunItem {
   branchName: string | null;
   prUrl: string | null;
   headCommit: string | null;
+  agent: string; // PR-103: agent profile label
 }
 
 export interface RunItemWithCi extends RunItem {

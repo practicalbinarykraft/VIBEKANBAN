@@ -1,4 +1,4 @@
-/** Factory Dependencies (PR-82, PR-86, PR-91) - Real implementations for scheduler/worker */
+/** Factory Dependencies (PR-82, PR-86, PR-91, PR-103) - Real implementations for scheduler/worker */
 import { db } from "@/server/db";
 import { tasks } from "@/server/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
@@ -7,8 +7,9 @@ import { getFactoryRun, finishFactoryRun } from "./factory-runs.service";
 import { getResumeState } from "./factory-resume.service";
 import { tickOnce, type FactorySchedulerDeps, type TickOnceDeps } from "./factory-scheduler.service";
 import { getGlobalWorkerRegistry, type FactoryWorkerHandle } from "./factory-worker-registry";
-import type { FactoryWorkerDeps } from "./factory-worker.service";
+import type { FactoryWorkerDeps, TickOnceParams } from "./factory-worker.service";
 import type { AttemptResult } from "@/types/factory";
+import { getAgentProfileById } from "../agents/agent-profiles.registry";
 
 /**
  * Get runnable tasks for a project (status: todo or in_progress)
@@ -23,11 +24,12 @@ export async function getRunnableTasks(projectId: string): Promise<string[]> {
 }
 
 /**
- * Run a single task attempt, linking it to the factory run (PR-91)
+ * Run a single task attempt, linking it to the factory run (PR-91, PR-103)
  */
 export async function runTaskAttempt(
   taskId: string,
-  factoryRunId: string
+  factoryRunId: string,
+  agentProfileId?: string
 ): Promise<AttemptResult> {
   // Get task to find projectId
   const task = await db.select().from(tasks).where(eq(tasks.id, taskId)).get();
@@ -35,12 +37,17 @@ export async function runTaskAttempt(
     return { taskId, attemptId: null, success: false, error: "Task not found" };
   }
 
+  // PR-103: Resolve agent profile for label
+  const agentProfile = agentProfileId ? getAgentProfileById(agentProfileId) : null;
+  const agentLabel = agentProfile?.label ?? "Claude Sonnet 4.5";
+
   const result = await runSimpleAttempt({
     taskId,
     projectId: task.projectId,
     command: ["echo", "Task execution placeholder"],
     timeout: 60000,
     factoryRunId, // PR-91: use factoryRunId instead of autopilotRunId
+    agent: agentLabel, // PR-103: use agent profile label
   });
 
   if (result.budgetRejected) {

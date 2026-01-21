@@ -1,4 +1,4 @@
-/** POST /api/projects/[id]/factory/start (PR-82, PR-86, PR-101) - Start factory worker */
+/** POST /api/projects/[id]/factory/start (PR-82, PR-86, PR-101, PR-103) - Start factory worker */
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/server/db";
 import { projects } from "@/server/db/schema";
@@ -9,10 +9,12 @@ import { createWorkerDeps } from "@/server/services/factory/factory-deps";
 import { runPreflightChecks } from "@/server/services/factory/factory-preflight.service";
 import { createPreflightDeps } from "@/server/services/factory/factory-preflight-deps";
 import { FactoryErrorCode, FACTORY_ERROR_MESSAGES } from "@/types/factory-errors";
+import { getAgentProfileById, getDefaultAgentProfile } from "@/server/services/agents/agent-profiles.registry";
 
 interface StartRequestBody {
   maxParallel?: number;
   skipPreflight?: boolean;
+  agentProfileId?: string;
 }
 
 export async function POST(
@@ -30,6 +32,18 @@ export async function POST(
   }
 
   const maxParallel = body.maxParallel ?? 3;
+
+  // PR-103: Validate agent profile
+  const agentProfile = body.agentProfileId
+    ? getAgentProfileById(body.agentProfileId)
+    : getDefaultAgentProfile();
+
+  if (!agentProfile) {
+    return NextResponse.json(
+      { error: `Unknown agent profile: ${body.agentProfileId}`, code: FactoryErrorCode.FACTORY_INVALID_CONFIG },
+      { status: 400 }
+    );
+  }
 
   // Get project for repoPath
   const project = await db.select().from(projects).where(eq(projects.id, projectId)).get();
@@ -74,10 +88,15 @@ export async function POST(
 
   const { runId: autopilotRunId } = runResult;
 
-  // Start worker in background (PR-86)
+  // Start worker in background (PR-86, PR-103)
   const workerDeps = createWorkerDeps();
   const worker = new FactoryWorkerService(workerDeps);
-  const { started } = await worker.startOrAttach({ projectId, runId: autopilotRunId, maxParallel });
+  const { started } = await worker.startOrAttach({
+    projectId,
+    runId: autopilotRunId,
+    maxParallel,
+    agentProfileId: agentProfile.id,
+  });
 
-  return NextResponse.json({ autopilotRunId, started });
+  return NextResponse.json({ autopilotRunId, started, agentProfileId: agentProfile.id });
 }

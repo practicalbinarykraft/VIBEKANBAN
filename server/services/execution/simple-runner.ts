@@ -28,6 +28,7 @@ export interface SimpleRunOptions {
   timeout?: number;
   autopilotRunId?: string; // PR-73: link to autopilot session
   factoryRunId?: string; // PR-91: link to factory run
+  agent?: string; // PR-103: agent profile label
 }
 
 export interface SimpleRunResult {
@@ -44,7 +45,7 @@ export interface SimpleRunResult {
  * Run a simple attempt: create record, execute command, store results
  */
 export async function runSimpleAttempt(options: SimpleRunOptions): Promise<SimpleRunResult> {
-  const { taskId, projectId, command, cwd, env, timeout, autopilotRunId, factoryRunId } = options;
+  const { taskId, projectId, command, cwd, env, timeout, autopilotRunId, factoryRunId, agent } = options;
 
   // PR-74: Check budget BEFORE creating attempt
   const budgetCheck = await checkProviderBudget("anthropic");
@@ -69,7 +70,7 @@ export async function runSimpleAttempt(options: SimpleRunOptions): Promise<Simpl
     id: attemptId,
     taskId,
     startedAt: now,
-    agent: "LocalRunner",
+    agent: agent ?? "LocalRunner", // PR-103: use provided agent label
     baseBranch: "main",
     worktreePath: cwd || process.cwd(),
     status: "running",
