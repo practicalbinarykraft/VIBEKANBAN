@@ -1,13 +1,17 @@
-/** FactoryControlsPanel (PR-83) - Factory start/stop controls with progress */
+/** FactoryControlsPanel (PR-83, PR-91) - Factory start/stop controls with progress */
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Play, Square, Factory } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, Play, Square, Factory, ExternalLink, History } from "lucide-react";
+import { useFactoryRuns, type FactoryRunSummary } from "@/hooks/useFactoryRuns";
 import type { FactoryRunStatus } from "@/server/services/factory/factory-status.service";
 
 interface FactoryControlsPanelProps {
+  projectId: string;
   status: FactoryRunStatus;
   total: number;
   completed: number;
@@ -32,11 +36,30 @@ const STATUS_COLORS: Record<FactoryRunStatus, string> = {
   cancelled: "text-amber-600 dark:text-amber-400",
 };
 
+function RunHistoryItem({ run, projectId }: { run: FactoryRunSummary; projectId: string }) {
+  const variant = run.status === "completed" ? "default" :
+    run.status === "failed" ? "destructive" :
+    run.status === "running" ? "secondary" : "outline";
+  const dateStr = new Date(run.startedAt).toLocaleDateString();
+
+  return (
+    <Link
+      href={`/projects/${projectId}/factory/runs/${run.id}`}
+      className="flex items-center justify-between py-1 hover:bg-muted/50 rounded px-1"
+      data-testid={`run-history-${run.id}`}
+    >
+      <span className="text-xs text-muted-foreground">{dateStr}</span>
+      <Badge variant={variant} className="text-xs">{run.status}</Badge>
+    </Link>
+  );
+}
+
 export function FactoryControlsPanel({
-  status, total, completed, failed, cancelled, running, queued, runId,
+  projectId, status, total, completed, failed, cancelled, running, queued, runId,
   isLoading, isStarting, isStopping, error, onStart, onStop,
 }: FactoryControlsPanelProps) {
   const [maxParallel, setMaxParallel] = useState(3);
+  const { runs } = useFactoryRuns(projectId, 5);
   const isRunning = status === "running";
   const canStart = !isRunning && !isStarting && !isLoading;
   const canStop = isRunning && !isStopping;
@@ -90,8 +113,32 @@ export function FactoryControlsPanel({
       )}
 
       {runId && (
-        <div className="mt-2 text-xs text-muted-foreground">
-          Run: <code className="bg-muted px-1 rounded">{runId.slice(0, 8)}</code>
+        <div className="mt-2 flex items-center gap-2 text-xs">
+          <span className="text-muted-foreground">
+            Run: <code className="bg-muted px-1 rounded">{runId.slice(0, 8)}</code>
+          </span>
+          <Link
+            href={`/projects/${projectId}/factory/runs/${runId}`}
+            className="flex items-center gap-1 text-blue-600 hover:underline"
+            data-testid="view-run-details"
+          >
+            <ExternalLink className="h-3 w-3" />
+            View details
+          </Link>
+        </div>
+      )}
+
+      {runs.length > 0 && (
+        <div className="mt-3 pt-3 border-t">
+          <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2">
+            <History className="h-3 w-3" />
+            Recent runs
+          </div>
+          <div className="space-y-1">
+            {runs.slice(0, 3).map((r) => (
+              <RunHistoryItem key={r.id} run={r} projectId={projectId} />
+            ))}
+          </div>
         </div>
       )}
     </div>

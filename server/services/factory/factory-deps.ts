@@ -1,9 +1,9 @@
-/** Factory Dependencies (PR-82, PR-86) - Real implementations for scheduler/worker */
+/** Factory Dependencies (PR-82, PR-86, PR-91) - Real implementations for scheduler/worker */
 import { db } from "@/server/db";
 import { tasks } from "@/server/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { runSimpleAttempt } from "@/server/services/execution/simple-runner";
-import { getRun, finishRun } from "@/server/services/autopilot/autopilot-runs.service";
+import { getFactoryRun, finishFactoryRun } from "./factory-runs.service";
 import { getResumeState } from "./factory-resume.service";
 import { tickOnce, type FactorySchedulerDeps, type TickOnceDeps } from "./factory-scheduler.service";
 import { getGlobalWorkerRegistry, type FactoryWorkerHandle } from "./factory-worker-registry";
@@ -23,11 +23,11 @@ export async function getRunnableTasks(projectId: string): Promise<string[]> {
 }
 
 /**
- * Run a single task attempt, linking it to the autopilot run
+ * Run a single task attempt, linking it to the factory run (PR-91)
  */
 export async function runTaskAttempt(
   taskId: string,
-  autopilotRunId: string
+  factoryRunId: string
 ): Promise<AttemptResult> {
   // Get task to find projectId
   const task = await db.select().from(tasks).where(eq(tasks.id, taskId)).get();
@@ -40,7 +40,7 @@ export async function runTaskAttempt(
     projectId: task.projectId,
     command: ["echo", "Task execution placeholder"],
     timeout: 60000,
-    autopilotRunId,
+    factoryRunId, // PR-91: use factoryRunId instead of autopilotRunId
   });
 
   if (result.budgetRejected) {
@@ -56,25 +56,25 @@ export async function runTaskAttempt(
 }
 
 /**
- * Get current run status
+ * Get current run status (PR-91: use factory runs)
  */
 export async function getRunStatus(runId: string): Promise<string> {
-  const { run } = await getRun(runId);
+  const { run } = await getFactoryRun(runId);
   return run?.status ?? "unknown";
 }
 
 /**
- * Mark run as completed
+ * Mark run as completed (PR-91: use factory runs)
  */
 export async function markRunCompleted(runId: string): Promise<void> {
-  await finishRun(runId, "completed");
+  await finishFactoryRun(runId, "completed");
 }
 
 /**
- * Mark run as failed
+ * Mark run as failed (PR-91: use factory runs)
  */
 export async function markRunFailed(runId: string, error?: string): Promise<void> {
-  await finishRun(runId, "failed", error);
+  await finishFactoryRun(runId, "failed", error);
 }
 
 /**

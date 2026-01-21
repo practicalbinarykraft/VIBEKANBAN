@@ -421,5 +421,30 @@ export function initDB() {
     }
   }
 
+  // Create factory_runs table (PR-91)
+  _sqlite!.exec(`
+    CREATE TABLE IF NOT EXISTS factory_runs (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL REFERENCES projects(id),
+      status TEXT NOT NULL DEFAULT 'running',
+      mode TEXT NOT NULL DEFAULT 'column',
+      max_parallel INTEGER NOT NULL DEFAULT 1,
+      selected_task_ids TEXT,
+      column_id TEXT,
+      started_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+      finished_at INTEGER,
+      error TEXT
+    );
+  `);
+
+  // Add factory_run_id column to attempts (PR-91)
+  try {
+    _sqlite!.exec(`ALTER TABLE attempts ADD COLUMN factory_run_id TEXT;`);
+  } catch (error: any) {
+    if (!error.message.includes('duplicate column name')) {
+      process.stderr.write(`Warning during migration: ${error.message}\n`);
+    }
+  }
+
   process.stdout.write("✅ Database initialized\n");
 }

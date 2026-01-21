@@ -1,9 +1,9 @@
-/** Factory Batch Start Service (PR-87) - Start factory from Kanban */
+/** Factory Batch Start Service (PR-87, PR-91) - Start factory from Kanban */
 import { db } from "@/server/db";
 import { tasks } from "@/server/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { getAiStatus } from "@/server/services/ai/ai-status";
-import { createRun } from "@/server/services/autopilot/autopilot-runs.service";
+import { createFactoryRun, type FactoryRunMode } from "./factory-runs.service";
 import { FactoryWorkerService } from "./factory-worker.service";
 import { createWorkerDeps } from "./factory-deps";
 import { getGlobalWorkerRegistry } from "./factory-worker-registry";
@@ -25,7 +25,7 @@ export interface BatchStartDeps {
   getTasksByIds: (ids: string[]) => Promise<TaskRecord[]>;
   isFactoryRunning: (projectId: string) => Promise<boolean>;
   checkBudget: () => Promise<{ ok: boolean; reason?: string }>;
-  createRun: (projectId: string) => Promise<{ ok: boolean; runId?: string }>;
+  createRun: (params: { projectId: string; mode: FactoryRunMode; maxParallel: number; selectedTaskIds?: string[]; columnId?: string }) => Promise<{ ok: boolean; runId?: string }>;
   startWorker: (params: { projectId: string; runId: string; maxParallel: number }) => Promise<{ started: boolean }>;
 }
 
@@ -60,8 +60,8 @@ async function defaultCheckBudget(): Promise<{ ok: boolean; reason?: string }> {
   return { ok: true };
 }
 
-async function defaultCreateRun(projectId: string): Promise<{ ok: boolean; runId?: string }> {
-  const result = await createRun(projectId);
+async function defaultCreateRun(params: { projectId: string; mode: FactoryRunMode; maxParallel: number; selectedTaskIds?: string[]; columnId?: string }): Promise<{ ok: boolean; runId?: string }> {
+  const result = await createFactoryRun(params);
   if (result.ok) {
     return { ok: true, runId: result.runId };
   }
@@ -122,8 +122,14 @@ export async function startBatchFactory(
     return { ok: false, error: "BUDGET_EXCEEDED" };
   }
 
-  // 5. Create run
-  const runResult = await deps.createRun(projectId);
+  // 5. Create factory run (PR-91)
+  const runResult = await deps.createRun({
+    projectId,
+    mode: source,
+    maxParallel,
+    selectedTaskIds: source === "selection" ? runnableTasks.map((t) => t.id) : undefined,
+    columnId: source === "column" ? columnStatus : undefined,
+  });
   if (!runResult.ok || !runResult.runId) {
     return { ok: false, error: "RUN_FAILED" };
   }

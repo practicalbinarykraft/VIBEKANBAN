@@ -1,6 +1,6 @@
-/** Factory Resume Service (PR-85) - Restore factory state from DB */
+/** Factory Resume Service (PR-85, PR-91) - Restore factory state from DB */
 import { db } from "@/server/db";
-import { autopilotRuns, attempts } from "@/server/db/schema";
+import { factoryRuns, attempts } from "@/server/db/schema";
 import { eq, desc } from "drizzle-orm";
 
 export type ResumeStatus = "running" | "cancelled" | "completed" | "failed" | "idle";
@@ -32,10 +32,10 @@ export interface FactoryResumeDeps {
 const DEFAULT_MAX_PARALLEL = 3;
 
 async function defaultGetLatestRun(projectId: string): Promise<RunRecord | null> {
-  const run = await db.select({ id: autopilotRuns.id, status: autopilotRuns.status })
-    .from(autopilotRuns)
-    .where(eq(autopilotRuns.projectId, projectId))
-    .orderBy(desc(autopilotRuns.startedAt))
+  const run = await db.select({ id: factoryRuns.id, status: factoryRuns.status })
+    .from(factoryRuns)
+    .where(eq(factoryRuns.projectId, projectId))
+    .orderBy(desc(factoryRuns.startedAt))
     .limit(1)
     .get();
   return run ?? null;
@@ -48,7 +48,7 @@ async function defaultGetAttemptsByRun(runId: string): Promise<AttemptRecord[]> 
     status: attempts.status,
   })
     .from(attempts)
-    .where(eq(attempts.autopilotRunId, runId));
+    .where(eq(attempts.factoryRunId, runId));
   return rows;
 }
 

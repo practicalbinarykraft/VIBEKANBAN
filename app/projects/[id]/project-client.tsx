@@ -332,6 +332,7 @@ export default function ProjectClient({ projectId, enableAutopilotV2 = false }: 
       {enableAutopilotV2 && activeTab === "tasks" && (
         <div className="mx-4 mt-2">
           <FactoryControlsPanel
+            projectId={projectId}
             status={factory.status}
             total={factory.total}
             completed={factory.completed}

@@ -1,10 +1,16 @@
-/** FactoryControlsPanel Tests (PR-83) - TDD */
+/** FactoryControlsPanel Tests (PR-83, PR-91) - TDD */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { FactoryControlsPanel } from "../factory-controls-panel";
 
+// Mock useFactoryRuns (PR-91)
+vi.mock("@/hooks/useFactoryRuns", () => ({
+  useFactoryRuns: () => ({ runs: [], loading: false, error: null, refetch: vi.fn() }),
+}));
+
 describe("FactoryControlsPanel", () => {
   const defaultProps = {
+    projectId: "test-project-id",
     status: "idle" as const,
     total: 0, completed: 0, failed: 0, cancelled: 0, running: 0, queued: 0,
     runId: null,
