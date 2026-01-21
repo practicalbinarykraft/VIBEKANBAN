@@ -1,8 +1,12 @@
-/** FactoryRunMetricsPanelV2 (PR-95) - Display run metrics with 5-min buckets */
+/** FactoryRunMetricsPanelV2 (PR-95/96) - Display run metrics with chart and bottlenecks */
 "use client";
 
+import { useMemo } from "react";
 import { TrendingUp, Timer, Zap, Users } from "lucide-react";
 import { useFactoryRunMetricsV2 } from "@/hooks/useFactoryRunMetricsV2";
+import { FactoryRunMetricsChart } from "./factory-run-metrics-chart";
+import { FactoryRunBottlenecksPanel } from "./factory-run-bottlenecks-panel";
+import { getFactoryRunBottlenecks } from "@/server/services/factory/factory-run-bottlenecks";
 
 interface FactoryRunMetricsPanelV2Props {
   runId: string;
@@ -50,6 +54,7 @@ export function FactoryRunMetricsPanelV2({ runId }: FactoryRunMetricsPanelV2Prop
 
   const { timing, timeline } = data;
   const displayTimeline = timeline.slice(-12);
+  const bottlenecks = useMemo(() => getFactoryRunBottlenecks(data), [data]);
 
   return (
     <div className="rounded-lg border bg-card" data-testid="metrics-panel">
@@ -101,28 +106,18 @@ export function FactoryRunMetricsPanelV2({ runId }: FactoryRunMetricsPanelV2Prop
           </div>
         </div>
 
-        {/* Timeline */}
+        {/* Chart */}
         {displayTimeline.length > 0 && (
           <div>
             <div className="text-xs font-medium text-muted-foreground mb-2">Timeline (5-min)</div>
-            <div className="border rounded max-h-40 overflow-y-auto">
-              {displayTimeline.map((bucket) => (
-                <div
-                  key={bucket.t}
-                  className="flex items-center justify-between py-1 px-2 text-xs border-b last:border-b-0"
-                  data-testid={`timeline-row-${bucket.t}`}
-                >
-                  <span className="text-muted-foreground font-mono">{formatTime(bucket.t)}</span>
-                  <div className="flex items-center gap-2">
-                    {bucket.started > 0 && <span className="text-blue-600">+{bucket.started}</span>}
-                    {bucket.completed > 0 && <span className="text-green-600">✓{bucket.completed}</span>}
-                    {bucket.failed > 0 && <span className="text-red-600">✗{bucket.failed}</span>}
-                  </div>
-                </div>
-              ))}
+            <div className="overflow-x-auto">
+              <FactoryRunMetricsChart timeline={displayTimeline} />
             </div>
           </div>
         )}
+
+        {/* Bottlenecks */}
+        <FactoryRunBottlenecksPanel hints={bottlenecks} />
       </div>
     </div>
   );

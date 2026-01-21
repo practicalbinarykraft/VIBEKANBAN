@@ -121,8 +121,8 @@ describe("FactoryRunMetricsPanelV2", () => {
     expect(screen.getByTestId("peak-running-value")).toHaveTextContent("3");
   });
 
-  // Test 8: renders timeline rows
-  it("renders timeline rows", () => {
+  // Test 8: renders chart with timeline buckets
+  it("renders chart with timeline buckets", () => {
     vi.mocked(useFactoryRunMetricsV2).mockReturnValue({
       data: mockMetrics,
       loading: false,
@@ -130,8 +130,9 @@ describe("FactoryRunMetricsPanelV2", () => {
     });
 
     render(<FactoryRunMetricsPanelV2 runId="run-1" />);
-    // Should have 2 timeline rows (last 12 buckets, we have 2)
-    const timelineRows = screen.getAllByTestId(/^timeline-row-/);
-    expect(timelineRows).toHaveLength(2);
+    // Should render chart with 2 bucket bars
+    expect(screen.getByTestId("metrics-chart")).toBeInTheDocument();
+    const bucketBars = screen.getAllByTestId("bucket-bar");
+    expect(bucketBars).toHaveLength(2);
   });
 });
