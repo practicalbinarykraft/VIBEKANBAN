@@ -1,12 +1,18 @@
-/** POST /api/projects/[id]/factory/start (PR-82, PR-86) - Start factory worker */
+/** POST /api/projects/[id]/factory/start (PR-82, PR-86, PR-101) - Start factory worker */
 import { NextRequest, NextResponse } from "next/server";
-import { getAiStatus } from "@/server/services/ai/ai-status";
+import { db } from "@/server/db";
+import { projects } from "@/server/db/schema";
+import { eq } from "drizzle-orm";
 import { createRun } from "@/server/services/autopilot/autopilot-runs.service";
 import { FactoryWorkerService } from "@/server/services/factory/factory-worker.service";
 import { createWorkerDeps } from "@/server/services/factory/factory-deps";
+import { runPreflightChecks } from "@/server/services/factory/factory-preflight.service";
+import { createPreflightDeps } from "@/server/services/factory/factory-preflight-deps";
+import { FactoryErrorCode, FACTORY_ERROR_MESSAGES } from "@/types/factory-errors";
 
 interface StartRequestBody {
   maxParallel?: number;
+  skipPreflight?: boolean;
 }
 
 export async function POST(
@@ -25,28 +31,45 @@ export async function POST(
 
   const maxParallel = body.maxParallel ?? 3;
 
-  // Validate maxParallel range
-  if (maxParallel < 1 || maxParallel > 20) {
+  // Get project for repoPath
+  const project = await db.select().from(projects).where(eq(projects.id, projectId)).get();
+  if (!project) {
     return NextResponse.json(
-      { error: "maxParallel must be between 1 and 20" },
-      { status: 400 }
+      { error: "Project not found", code: FactoryErrorCode.FACTORY_INVALID_CONFIG },
+      { status: 404 }
     );
   }
 
-  // Check AI configuration and budget
-  const aiStatus = await getAiStatus();
-  if (!aiStatus.realAiEligible) {
-    const message =
-      aiStatus.reason === "BUDGET_LIMIT_EXCEEDED"
-        ? `Budget exceeded: $${aiStatus.spendUSD?.toFixed(2)} / $${aiStatus.limitUSD?.toFixed(2)}`
-        : `AI not configured: ${aiStatus.reason}`;
-    return NextResponse.json({ error: message }, { status: 409 });
+  const repoPath = project.repoPath ?? process.cwd();
+
+  // PR-101: Run preflight checks (atomic operation)
+  if (!body.skipPreflight) {
+    const preflightDeps = createPreflightDeps();
+    const preflightResult = await runPreflightChecks(
+      { projectId, repoPath, maxParallel },
+      preflightDeps
+    );
+
+    if (!preflightResult.ok) {
+      const code = preflightResult.errorCode ?? FactoryErrorCode.FACTORY_PREFLIGHT_FAILED;
+      return NextResponse.json(
+        {
+          error: preflightResult.errorMessage ?? FACTORY_ERROR_MESSAGES[code],
+          code,
+          checks: preflightResult.checks,
+        },
+        { status: 409 }
+      );
+    }
   }
 
   // Create autopilot run
   const runResult = await createRun(projectId);
   if (!runResult.ok) {
-    return NextResponse.json({ error: "Failed to create run" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to create run", code: FactoryErrorCode.FACTORY_PREFLIGHT_FAILED },
+      { status: 500 }
+    );
   }
 
   const { runId: autopilotRunId } = runResult;
