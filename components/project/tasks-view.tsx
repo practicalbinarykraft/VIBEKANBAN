@@ -1,12 +1,15 @@
 /**
  * TasksView - Tasks tab content for project page
  */
+"use client";
 
 import { KanbanBoard } from "@/components/kanban/kanban-board";
 import { TaskDetailsPanel } from "@/components/task-details/task-details-panel";
 import { ExecutionControls } from "@/components/project/execution-controls";
 import { RepoStatus } from "@/components/project/repo-status";
 import { FactoryBatchStartPanel, type BatchStartRequest } from "@/components/factory/factory-batch-start-panel";
+import { FactoryResultsPanel } from "@/components/factory/factory-results-panel";
+import { useFactoryResults } from "@/hooks/useFactoryResults";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Search, CheckSquare } from "lucide-react";
@@ -77,6 +80,8 @@ export function TasksView({
   onTaskCheckChange,
   onToggleCheckboxes,
 }: TasksViewProps) {
+  const factoryResults = useFactoryResults(projectId);
+
   return (
     <div className="flex h-[calc(100vh-7rem)]">
       {/* Left: Kanban Navigation - 60% */}
@@ -134,6 +139,15 @@ export function TasksView({
               />
             </div>
           )}
+          {/* Factory Results Panel (PR-89) */}
+          <div className="mt-2">
+            <FactoryResultsPanel
+              data={factoryResults.data}
+              loading={factoryResults.loading}
+              error={factoryResults.error}
+              projectId={projectId}
+            />
+          </div>
         </div>
 
         {/* Kanban Board */}
