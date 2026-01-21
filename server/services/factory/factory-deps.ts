@@ -1,4 +1,4 @@
-/** Factory Dependencies (PR-82, PR-86, PR-91, PR-103) - Real implementations for scheduler/worker */
+/** Factory Dependencies (PR-82, PR-86, PR-91, PR-103, PR-108) - Real implementations for scheduler/worker */
 import { db } from "@/server/db";
 import { tasks } from "@/server/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
@@ -10,6 +10,7 @@ import { getGlobalWorkerRegistry, type FactoryWorkerHandle } from "./factory-wor
 import type { FactoryWorkerDeps, TickOnceParams } from "./factory-worker.service";
 import type { AttemptResult } from "@/types/factory";
 import { getAgentProfileById } from "../agents/agent-profiles.registry";
+import { maybeRunWorktreeGC } from "./factory-worktree-gc.service";
 
 /**
  * Get runnable tasks for a project (status: todo or in_progress)
@@ -98,7 +99,7 @@ export function createFactoryDeps(): FactorySchedulerDeps {
 }
 
 /**
- * Create deps for worker service (PR-86)
+ * Create deps for worker service (PR-86, PR-108)
  */
 export function createWorkerDeps(): FactoryWorkerDeps {
   const tickOnceDeps: TickOnceDeps = {
@@ -112,5 +113,6 @@ export function createWorkerDeps(): FactoryWorkerDeps {
     tickOnce: (params) => tickOnce(params, tickOnceDeps),
     markRunFailed,
     sleepMs: (ms) => new Promise((r) => setTimeout(r, ms)),
+    maybeRunWorktreeGC: async (projectId) => { await maybeRunWorktreeGC(projectId); }, // PR-108
   };
 }

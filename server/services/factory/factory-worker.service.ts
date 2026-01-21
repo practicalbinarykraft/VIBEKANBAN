@@ -1,4 +1,4 @@
-/** Factory Worker Service (PR-86) - Background loop for autonomous execution */
+/** Factory Worker Service (PR-86, PR-108) - Background loop for autonomous execution */
 import {
   FactoryWorkerRegistry,
   createWorkerHandle,
@@ -19,6 +19,7 @@ export interface FactoryWorkerDeps {
   tickOnce: (params: TickOnceParams) => Promise<void>;
   markRunFailed: (runId: string, error: string) => Promise<void>;
   sleepMs: (ms: number) => Promise<void>;
+  maybeRunWorktreeGC?: (projectId: string) => Promise<void>; // PR-108
 }
 
 const LOOP_INTERVAL_MS = 1000;
@@ -104,6 +105,11 @@ export class FactoryWorkerService {
     } finally {
       // Always clean up handle
       this.deps.registry.delete(projectId);
+
+      // PR-108: Run worktree GC (fire-and-forget, never throws)
+      if (this.deps.maybeRunWorktreeGC) {
+        this.deps.maybeRunWorktreeGC(projectId).catch(() => {});
+      }
     }
   }
 }
