@@ -77,9 +77,10 @@ describe("FactoryRunResultsPanel", () => {
     expect(screen.getByText("Task 2 Failed")).toBeInTheDocument();
   });
 
-  it("shows PR link for completed items with prUrl", () => {
+  it("shows PR status cell for completed items with prUrl", () => {
     render(<FactoryRunResultsPanel {...defaultProps} />);
-    const prLink = screen.getByTestId("pr-link-a1");
+    // PR-98: Changed from pr-link-a1 to pr-status-link
+    const prLink = screen.getByTestId("pr-status-link");
     expect(prLink).toBeInTheDocument();
     expect(prLink).toHaveAttribute("href", "https://github.com/pr/1");
   });
