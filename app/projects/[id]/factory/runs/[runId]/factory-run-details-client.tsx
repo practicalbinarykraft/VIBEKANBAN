@@ -1,5 +1,5 @@
 /**
- * FactoryRunDetailsClient (PR-91, PR-92, PR-93, PR-94) - Client component for factory run details
+ * FactoryRunDetailsClient (PR-91, PR-92, PR-93, PR-94, PR-95) - Client component for factory run details
  */
 "use client";
 
@@ -13,6 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { FactoryErrorGuidancePanel } from "@/components/factory/factory-error-guidance-panel";
 import { FactoryRerunPanel } from "@/components/factory/factory-rerun-panel";
 import { FactoryRunMetricsPanel } from "@/components/factory/factory-run-metrics-panel";
+import { FactoryRunMetricsPanelV2 } from "@/components/factory/factory-run-metrics-panel-v2";
 import {
   Loader2,
   ArrowLeft,
@@ -250,6 +251,11 @@ export function FactoryRunDetailsClient({ projectId, runId }: FactoryRunDetailsC
       {/* PR-94: Run metrics panel */}
       <div className="mb-6" data-testid="metrics-panel-container">
         <FactoryRunMetricsPanel metrics={metrics} loading={metricsLoading} />
+      </div>
+
+      {/* PR-95: Run metrics V2 panel (5-min buckets, peakRunning, p95) */}
+      <div className="mb-6" data-testid="metrics-panel-v2-container">
+        <FactoryRunMetricsPanelV2 runId={runId} />
       </div>
 
       {/* PR-93: Rerun action panel */}
