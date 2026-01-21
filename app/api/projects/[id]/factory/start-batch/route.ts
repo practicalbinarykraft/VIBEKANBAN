@@ -1,12 +1,14 @@
-/** POST /api/projects/[id]/factory/start-batch (PR-87) - Batch factory start */
+/** POST /api/projects/[id]/factory/start-batch (PR-87, PR-105) - Batch factory start */
 import { NextRequest, NextResponse } from "next/server";
 import { startBatchFactory, type BatchStartSource } from "@/server/services/factory/factory-batch-start.service";
+import { getAgentProfileById, getDefaultAgentProfile } from "@/server/services/agents/agent-profiles.registry";
 
 interface StartBatchRequestBody {
   source: BatchStartSource;
   columnStatus?: string;
   taskIds?: string[];
   maxParallel?: number;
+  agentProfileId?: string;
 }
 
 export async function POST(
@@ -42,6 +44,15 @@ export async function POST(
     return NextResponse.json({ error: "maxParallel must be between 1 and 20" }, { status: 400 });
   }
 
+  // PR-105: Validate agent profile
+  const agentProfile = body.agentProfileId
+    ? getAgentProfileById(body.agentProfileId)
+    : getDefaultAgentProfile();
+
+  if (!agentProfile) {
+    return NextResponse.json({ error: `Unknown agent profile: ${body.agentProfileId}` }, { status: 400 });
+  }
+
   // Start batch factory
   const result = await startBatchFactory({
     projectId,
@@ -49,6 +60,7 @@ export async function POST(
     columnStatus: body.columnStatus,
     taskIds: body.taskIds,
     maxParallel,
+    agentProfileId: agentProfile.id,
   });
 
   if (!result.ok) {

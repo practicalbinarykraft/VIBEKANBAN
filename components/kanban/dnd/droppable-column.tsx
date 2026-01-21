@@ -1,4 +1,4 @@
-/** Droppable Column (PR-104) - dnd-kit wrapper for KanbanColumn */
+/** Droppable Column (PR-104, PR-105) - dnd-kit wrapper for KanbanColumn */
 "use client";
 
 import { useDroppable } from "@dnd-kit/core";
@@ -6,6 +6,8 @@ import type { Task, TaskStatus } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { DraggableTaskCard } from "./draggable-task-card";
+import { FactoryColumnRunButton } from "@/components/factory/factory-column-run-button";
+import { RUNNABLE_STATUSES } from "@/lib/factory-constants";
 
 interface DroppableColumnProps {
   title: string;
@@ -17,6 +19,12 @@ interface DroppableColumnProps {
   checkedTaskIds?: string[];
   showCheckboxes?: boolean;
   onTaskCheckChange?: (taskId: string, checked: boolean) => void;
+  // PR-105: Factory run button props
+  showFactoryButton?: boolean;
+  isFactoryLoading?: boolean;
+  isFactoryRunning?: boolean;
+  preflightOk?: boolean;
+  onFactoryStart?: (columnStatus: string) => void;
 }
 
 const statusColors: Record<TaskStatus, string> = {
@@ -37,10 +45,18 @@ export function DroppableColumn({
   checkedTaskIds = [],
   showCheckboxes = false,
   onTaskCheckChange,
+  showFactoryButton = false,
+  isFactoryLoading = false,
+  isFactoryRunning = false,
+  preflightOk = true,
+  onFactoryStart,
 }: DroppableColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: `column-${status}`,
   });
+
+  const isRunnable = RUNNABLE_STATUSES.includes(status as typeof RUNNABLE_STATUSES[number]);
+  const showButton = showFactoryButton && isRunnable && onFactoryStart;
 
   return (
     <div
@@ -57,6 +73,16 @@ export function DroppableColumn({
         <h3 className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
           {title}
         </h3>
+        {showButton && (
+          <FactoryColumnRunButton
+            columnStatus={status}
+            taskCount={tasks.length}
+            isLoading={isFactoryLoading}
+            isRunning={isFactoryRunning}
+            preflightOk={preflightOk}
+            onStart={onFactoryStart}
+          />
+        )}
         <Badge variant="secondary" className="ml-auto rounded-full px-1.5 py-0 h-4 text-[10px] font-medium">
           {tasks.length}
         </Badge>

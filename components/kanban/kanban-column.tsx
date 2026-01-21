@@ -2,6 +2,8 @@ import { Task, TaskStatus } from "@/types";
 import { TaskCard } from "./task-card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { FactoryColumnRunButton } from "@/components/factory/factory-column-run-button";
+import { RUNNABLE_STATUSES } from "@/lib/factory-constants";
 
 interface KanbanColumnProps {
   title: string;
@@ -13,6 +15,12 @@ interface KanbanColumnProps {
   checkedTaskIds?: string[];
   showCheckboxes?: boolean;
   onTaskCheckChange?: (taskId: string, checked: boolean) => void;
+  // PR-105: Factory run button props
+  showFactoryButton?: boolean;
+  isFactoryLoading?: boolean;
+  isFactoryRunning?: boolean;
+  preflightOk?: boolean;
+  onFactoryStart?: (columnStatus: string) => void;
 }
 
 const statusColors: Record<TaskStatus, string> = {
@@ -33,7 +41,15 @@ export function KanbanColumn({
   checkedTaskIds = [],
   showCheckboxes = false,
   onTaskCheckChange,
+  showFactoryButton = false,
+  isFactoryLoading = false,
+  isFactoryRunning = false,
+  preflightOk = true,
+  onFactoryStart,
 }: KanbanColumnProps) {
+  const isRunnable = RUNNABLE_STATUSES.includes(status as typeof RUNNABLE_STATUSES[number]);
+  const showButton = showFactoryButton && isRunnable && onFactoryStart;
+
   return (
     <div className="flex min-w-[260px] max-w-[260px] flex-col shrink-0" data-testid={`column-${status}`}>
       <div className="flex items-center gap-1.5 px-2 py-1.5 bg-muted/40">
@@ -41,6 +57,16 @@ export function KanbanColumn({
         <h3 className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
           {title}
         </h3>
+        {showButton && (
+          <FactoryColumnRunButton
+            columnStatus={status}
+            taskCount={tasks.length}
+            isLoading={isFactoryLoading}
+            isRunning={isFactoryRunning}
+            preflightOk={preflightOk}
+            onStart={onFactoryStart}
+          />
+        )}
         <Badge variant="secondary" className="ml-auto rounded-full px-1.5 py-0 h-4 text-[10px] font-medium">
           {tasks.length}
         </Badge>

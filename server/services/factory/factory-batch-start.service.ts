@@ -1,4 +1,4 @@
-/** Factory Batch Start Service (PR-87, PR-91) - Start factory from Kanban */
+/** Factory Batch Start Service (PR-87, PR-91, PR-105) - Start factory from Kanban */
 import { db } from "@/server/db";
 import { tasks } from "@/server/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
@@ -16,6 +16,7 @@ export interface BatchStartParams {
   columnStatus?: string; // For column source
   taskIds?: string[]; // For selection source
   maxParallel: number;
+  agentProfileId?: string; // PR-105
 }
 
 type TaskRecord = { id: string; status: string };
@@ -26,7 +27,7 @@ export interface BatchStartDeps {
   isFactoryRunning: (projectId: string) => Promise<boolean>;
   checkBudget: () => Promise<{ ok: boolean; reason?: string }>;
   createRun: (params: { projectId: string; mode: FactoryRunMode; maxParallel: number; selectedTaskIds?: string[]; columnId?: string }) => Promise<{ ok: boolean; runId?: string }>;
-  startWorker: (params: { projectId: string; runId: string; maxParallel: number }) => Promise<{ started: boolean }>;
+  startWorker: (params: { projectId: string; runId: string; maxParallel: number; agentProfileId?: string }) => Promise<{ started: boolean }>;
 }
 
 export type BatchStartResult =
@@ -68,7 +69,7 @@ async function defaultCreateRun(params: { projectId: string; mode: FactoryRunMod
   return { ok: false };
 }
 
-async function defaultStartWorker(params: { projectId: string; runId: string; maxParallel: number }): Promise<{ started: boolean }> {
+async function defaultStartWorker(params: { projectId: string; runId: string; maxParallel: number; agentProfileId?: string }): Promise<{ started: boolean }> {
   const deps = createWorkerDeps();
   const worker = new FactoryWorkerService(deps);
   return worker.startOrAttach(params);
@@ -90,7 +91,7 @@ export async function startBatchFactory(
   params: BatchStartParams,
   deps: BatchStartDeps = defaultDeps
 ): Promise<BatchStartResult> {
-  const { projectId, source, columnStatus, taskIds, maxParallel } = params;
+  const { projectId, source, columnStatus, taskIds, maxParallel, agentProfileId } = params;
 
   // 1. Collect tasks based on source
   let taskRecords: TaskRecord[] = [];
@@ -134,8 +135,8 @@ export async function startBatchFactory(
     return { ok: false, error: "RUN_FAILED" };
   }
 
-  // 6. Start worker
-  await deps.startWorker({ projectId, runId: runResult.runId, maxParallel });
+  // 6. Start worker (PR-105: pass agentProfileId)
+  await deps.startWorker({ projectId, runId: runResult.runId, maxParallel, agentProfileId });
 
   return { ok: true, runId: runResult.runId, taskCount: runnableTasks.length };
 }
