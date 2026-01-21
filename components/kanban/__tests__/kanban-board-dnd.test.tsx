@@ -5,9 +5,9 @@ import { KanbanBoard } from "../kanban-board";
 import type { Task } from "@/types";
 
 const mockTasks: Task[] = [
-  { id: "t1", projectId: "p1", title: "Task 1", description: "", status: "todo", order: 0, createdAt: "", updatedAt: "" },
-  { id: "t2", projectId: "p1", title: "Task 2", description: "", status: "todo", order: 1, createdAt: "", updatedAt: "" },
-  { id: "t3", projectId: "p1", title: "Task 3", description: "", status: "in_progress", order: 0, createdAt: "", updatedAt: "" },
+  { id: "t1", projectId: "p1", title: "Task 1", description: "", status: "todo", order: 0, createdAt: new Date(), updatedAt: new Date() },
+  { id: "t2", projectId: "p1", title: "Task 2", description: "", status: "todo", order: 1, createdAt: new Date(), updatedAt: new Date() },
+  { id: "t3", projectId: "p1", title: "Task 3", description: "", status: "in_progress", order: 0, createdAt: new Date(), updatedAt: new Date() },
 ];
 
 describe("KanbanBoard with DnD", () => {
