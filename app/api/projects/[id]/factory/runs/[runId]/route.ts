@@ -1,7 +1,8 @@
-/** GET /api/projects/[id]/factory/runs/[runId] (PR-91, PR-92) - Factory run details */
+/** GET /api/projects/[id]/factory/runs/[runId] (PR-91, PR-92, PR-102) - Factory run details */
 import { NextRequest, NextResponse } from "next/server";
-import { getFactoryRun, finishFactoryRun } from "@/server/services/factory/factory-runs.service";
-import { getStoredError } from "@/server/services/factory/factory-run-error.store";
+import { finishFactoryRun } from "@/server/services/factory/factory-runs.service";
+import { getRunDetails } from "@/server/services/factory/factory-run-details.service";
+import { createRunDetailsDeps } from "@/server/services/factory/factory-run-details-deps";
 
 export async function GET(
   _request: NextRequest,
@@ -9,34 +10,31 @@ export async function GET(
 ) {
   const { runId } = await params;
 
-  const { run } = await getFactoryRun(runId);
+  const deps = createRunDetailsDeps();
+  const result = await getRunDetails(runId, deps);
 
-  if (!run) {
+  if (!result) {
     return NextResponse.json({ error: "Run not found" }, { status: 404 });
   }
 
-  // PR-92: Parse error and get guidance
-  const storedError = getStoredError(run.error);
-
   return NextResponse.json({
-    id: run.id,
-    projectId: run.projectId,
-    status: run.status,
-    mode: run.mode,
-    maxParallel: run.maxParallel,
-    selectedTaskIds: run.selectedTaskIds ? JSON.parse(run.selectedTaskIds) : null,
-    columnId: run.columnId,
-    startedAt: run.startedAt.toISOString(),
-    finishedAt: run.finishedAt?.toISOString() ?? null,
-    error: storedError?.error ?? null,
-    guidance: storedError?.guidance ?? null,
-    counts: run.counts,
-    attempts: run.attempts.map((a) => ({
-      id: a.id,
-      taskId: a.taskId,
-      status: a.status,
-      prUrl: a.prUrl,
-      updatedAt: a.updatedAt.toISOString(),
+    run: {
+      id: result.run.id,
+      projectId: result.run.projectId,
+      status: result.run.status,
+      startedAt: result.run.startedAt.toISOString(),
+      finishedAt: result.run.finishedAt?.toISOString() ?? null,
+      maxParallel: result.run.maxParallel,
+    },
+    counts: result.counts,
+    items: result.items.map((item) => ({
+      taskId: item.taskId,
+      taskTitle: item.taskTitle,
+      status: item.attemptStatus,
+      attemptId: item.attemptId,
+      branch: item.branchName,
+      prUrl: item.prUrl,
+      ci: item.ci,
     })),
   });
 }
