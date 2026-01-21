@@ -1,5 +1,5 @@
 /**
- * FactoryRunDetailsClient (PR-91, PR-92) - Client component for factory run details
+ * FactoryRunDetailsClient (PR-91, PR-92, PR-93) - Client component for factory run details
  */
 "use client";
 
@@ -8,7 +8,9 @@ import Link from "next/link";
 import { useFactoryRunDetails } from "@/hooks/useFactoryRunDetails";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { FactoryErrorGuidancePanel } from "@/components/factory/factory-error-guidance-panel";
+import { FactoryRerunPanel } from "@/components/factory/factory-rerun-panel";
 import {
   Loader2,
   ArrowLeft,
@@ -45,7 +47,14 @@ function formatDateTime(iso: string | null): string {
   return new Date(iso).toLocaleString();
 }
 
-function AttemptRow({ attempt, projectId }: { attempt: FactoryRunAttempt; projectId: string }) {
+interface AttemptRowProps {
+  attempt: FactoryRunAttempt;
+  projectId: string;
+  selected: boolean;
+  onToggle: (taskId: string) => void;
+}
+
+function AttemptRow({ attempt, projectId, selected, onToggle }: AttemptRowProps) {
   const variant = attempt.status === "completed" ? "default" :
     attempt.status === "failed" ? "destructive" :
     attempt.status === "running" ? "secondary" : "outline";
@@ -53,6 +62,11 @@ function AttemptRow({ attempt, projectId }: { attempt: FactoryRunAttempt; projec
   return (
     <div className="flex items-center justify-between py-2 px-4 border-b last:border-b-0">
       <div className="flex items-center gap-3">
+        <Checkbox
+          checked={selected}
+          onCheckedChange={() => onToggle(attempt.taskId)}
+          data-testid={`attempt-checkbox-${attempt.id}`}
+        />
         <code className="text-xs text-muted-foreground">{attempt.id.slice(0, 8)}</code>
         <span className="text-sm">Task #{attempt.taskId.slice(0, 8)}</span>
         <Badge variant={variant} className="text-xs">{attempt.status}</Badge>
@@ -116,6 +130,7 @@ function CountsBlock({ counts }: { counts: FactoryRunDetails["counts"] }) {
 export function FactoryRunDetailsClient({ projectId, runId }: FactoryRunDetailsClientProps) {
   const { run, loading, error } = useFactoryRunDetails(projectId, runId);
   const [stopping, setStopping] = useState(false);
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
 
   const handleStop = async () => {
     if (!run || stopping) return;
@@ -129,6 +144,18 @@ export function FactoryRunDetailsClient({ projectId, runId }: FactoryRunDetailsC
     } finally {
       setStopping(false);
     }
+  };
+
+  const handleToggleTask = (taskId: string) => {
+    setSelectedTaskIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(taskId)) {
+        next.delete(taskId);
+      } else {
+        next.add(taskId);
+      }
+      return next;
+    });
   };
 
   if (loading) {
@@ -216,6 +243,16 @@ export function FactoryRunDetailsClient({ projectId, runId }: FactoryRunDetailsC
         <CountsBlock counts={run.counts} />
       </div>
 
+      {/* PR-93: Rerun action panel */}
+      {run.status !== "running" && run.attempts.length > 0 && (
+        <FactoryRerunPanel
+          projectId={projectId}
+          runId={runId}
+          failedCount={run.counts.failed}
+          selectedTaskIds={Array.from(selectedTaskIds)}
+        />
+      )}
+
       <div className="rounded-lg border bg-card" data-testid="attempts-list">
         <div className="border-b px-4 py-3">
           <h2 className="font-medium">Attempts ({run.attempts.length})</h2>
@@ -224,7 +261,13 @@ export function FactoryRunDetailsClient({ projectId, runId }: FactoryRunDetailsC
           <div className="p-4 text-sm text-muted-foreground">No attempts yet</div>
         ) : (
           run.attempts.map((attempt) => (
-            <AttemptRow key={attempt.id} attempt={attempt} projectId={projectId} />
+            <AttemptRow
+              key={attempt.id}
+              attempt={attempt}
+              projectId={projectId}
+              selected={selectedTaskIds.has(attempt.taskId)}
+              onToggle={handleToggleTask}
+            />
           ))
         )}
       </div>

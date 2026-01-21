@@ -1,8 +1,24 @@
-/** FactoryRunDetailsClient Tests (PR-91, PR-92) */
+/** FactoryRunDetailsClient Tests (PR-91, PR-92, PR-93) */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { FactoryRunDetailsClient } from "@/app/projects/[id]/factory/runs/[runId]/factory-run-details-client";
 import type { FactoryRunDetails } from "@/hooks/useFactoryRunDetails";
+
+// Mock Next.js router
+vi.mock("next/navigation", () => ({
+  useRouter: vi.fn(() => ({ push: vi.fn() })),
+}));
+
+// Mock the rerun hook
+vi.mock("@/hooks/useFactoryRerun", () => ({
+  useFactoryRerun: vi.fn(() => ({
+    rerunFailed: vi.fn().mockResolvedValue({ started: false }),
+    rerunSelected: vi.fn().mockResolvedValue({ started: false }),
+    isLoading: false,
+    error: null,
+    lastResult: null,
+  })),
+}));
 
 // Mock the hook
 const mockRun: FactoryRunDetails = {
@@ -86,5 +102,98 @@ describe("FactoryRunDetailsClient", () => {
     });
     render(<FactoryRunDetailsClient projectId="proj-1" runId="run-123" />);
     expect(screen.getByText("Run not found")).toBeInTheDocument();
+  });
+});
+
+// PR-93 tests
+describe("FactoryRunDetailsClient rerun (PR-93)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("does NOT show rerun panel when run is running", async () => {
+    const { useFactoryRunDetails } = await import("@/hooks/useFactoryRunDetails");
+    vi.mocked(useFactoryRunDetails).mockReturnValue({
+      run: { ...mockRun, status: "running" },
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+    render(<FactoryRunDetailsClient projectId="proj-1" runId="run-123" />);
+    expect(screen.queryByTestId("rerun-panel")).not.toBeInTheDocument();
+  });
+
+  it("shows rerun panel when run is completed with attempts", async () => {
+    const { useFactoryRunDetails } = await import("@/hooks/useFactoryRunDetails");
+    vi.mocked(useFactoryRunDetails).mockReturnValue({
+      run: { ...mockRun, status: "completed" },
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+    render(<FactoryRunDetailsClient projectId="proj-1" runId="run-123" />);
+    expect(screen.getByTestId("rerun-panel")).toBeInTheDocument();
+  });
+
+  it("shows rerun failed button with count", async () => {
+    const { useFactoryRunDetails } = await import("@/hooks/useFactoryRunDetails");
+    vi.mocked(useFactoryRunDetails).mockReturnValue({
+      run: { ...mockRun, status: "failed", counts: { ...mockRun.counts, failed: 3 } },
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+    render(<FactoryRunDetailsClient projectId="proj-1" runId="run-123" />);
+    expect(screen.getByTestId("rerun-failed-button")).toBeInTheDocument();
+    expect(screen.getByText(/Rerun failed \(3\)/)).toBeInTheDocument();
+  });
+
+  it("disables rerun failed button when no failed tasks", async () => {
+    const { useFactoryRunDetails } = await import("@/hooks/useFactoryRunDetails");
+    vi.mocked(useFactoryRunDetails).mockReturnValue({
+      run: { ...mockRun, status: "completed", counts: { ...mockRun.counts, failed: 0 } },
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+    render(<FactoryRunDetailsClient projectId="proj-1" runId="run-123" />);
+    expect(screen.getByTestId("rerun-failed-button")).toBeDisabled();
+  });
+
+  it("disables rerun selected button when nothing selected", async () => {
+    const { useFactoryRunDetails } = await import("@/hooks/useFactoryRunDetails");
+    vi.mocked(useFactoryRunDetails).mockReturnValue({
+      run: { ...mockRun, status: "completed" },
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+    render(<FactoryRunDetailsClient projectId="proj-1" runId="run-123" />);
+    expect(screen.getByTestId("rerun-selected-button")).toBeDisabled();
+  });
+
+  it("renders checkboxes for each attempt", async () => {
+    const { useFactoryRunDetails } = await import("@/hooks/useFactoryRunDetails");
+    vi.mocked(useFactoryRunDetails).mockReturnValue({
+      run: { ...mockRun, status: "completed" },
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+    render(<FactoryRunDetailsClient projectId="proj-1" runId="run-123" />);
+    expect(screen.getByTestId("attempt-checkbox-att-1")).toBeInTheDocument();
+    expect(screen.getByTestId("attempt-checkbox-att-2")).toBeInTheDocument();
+  });
+
+  it("shows max parallel input", async () => {
+    const { useFactoryRunDetails } = await import("@/hooks/useFactoryRunDetails");
+    vi.mocked(useFactoryRunDetails).mockReturnValue({
+      run: { ...mockRun, status: "completed" },
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+    render(<FactoryRunDetailsClient projectId="proj-1" runId="run-123" />);
+    expect(screen.getByTestId("max-parallel-input")).toBeInTheDocument();
   });
 });
