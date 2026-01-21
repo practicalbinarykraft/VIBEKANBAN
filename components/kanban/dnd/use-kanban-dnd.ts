@@ -1,7 +1,8 @@
-/** useKanbanDnd Hook (PR-104) - DnD state management */
-import { useState, useCallback, useMemo } from "react";
+/** useKanbanDnd Hook (PR-104, PR-106) - DnD state management */
+import { useState, useCallback, useMemo, useRef } from "react";
 import type { DragStartEvent, DragOverEvent, DragEndEvent } from "@dnd-kit/core";
 import type { Task, TaskStatus } from "@/types";
+import { isRunnableStatus } from "@/lib/factory-constants";
 
 export interface ReorderPayload {
   taskId: string;
@@ -12,6 +13,7 @@ export interface ReorderPayload {
 export interface UseKanbanDndOptions {
   tasks: Task[];
   onReorder: (payload: ReorderPayload) => Promise<{ ok: boolean }>;
+  onAutoEnqueue?: (taskId: string) => void; // PR-106
 }
 
 export interface UseKanbanDndReturn {
@@ -23,10 +25,12 @@ export interface UseKanbanDndReturn {
   handleDragEnd: (event: DragEndEvent) => Promise<void>;
 }
 
-export function useKanbanDnd({ tasks, onReorder }: UseKanbanDndOptions): UseKanbanDndReturn {
+export function useKanbanDnd({ tasks, onReorder, onAutoEnqueue }: UseKanbanDndOptions): UseKanbanDndReturn {
   const [isDragging, setIsDragging] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [optimisticOrder, setOptimisticOrder] = useState<Task[] | null>(null);
+  const onAutoEnqueueRef = useRef(onAutoEnqueue);
+  onAutoEnqueueRef.current = onAutoEnqueue;
 
   const optimisticTasks = optimisticOrder ?? tasks;
 
@@ -130,6 +134,11 @@ export function useKanbanDnd({ tasks, onReorder }: UseKanbanDndOptions): UseKanb
         from: { status: activeTask.status, index: fromIndex },
         to: { status: targetStatus, index: targetIndex },
       });
+
+      // PR-106: Auto-enqueue when moving to runnable column
+      if (activeTask.status !== targetStatus && isRunnableStatus(targetStatus)) {
+        onAutoEnqueueRef.current?.(activeTaskId);
+      }
     } finally {
       setOptimisticOrder(null);
     }
