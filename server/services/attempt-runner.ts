@@ -13,6 +13,7 @@ import { execSync } from "child_process";
 import { ExecutionResult } from "@/types/execution-result";
 import { checkRepoPreconditions, getDiffSummary } from "./execution/repo-preconditions";
 import { createPullRequest } from "./execution/pr-creator";
+import { tryPublishAttemptPr } from "./execution/attempt-pr-publisher-deps";
 
 const isTestMode = process.env.PLAYWRIGHT === "1";
 
@@ -293,6 +294,14 @@ export async function runAttempt(options: RunAttemptOptions): Promise<void> {
     } catch (error: any) {
       if (!error.message?.includes("FOREIGN KEY")) {
         console.error("Error inserting artifacts:", error);
+      }
+    }
+
+    // PR-97: Fallback auto-PR if not created yet (idempotent)
+    if (finalStatus === "completed" && !executionResult.prUrl) {
+      const publishResult = await tryPublishAttemptPr(attemptId);
+      if (publishResult.ok) {
+        executionResult.prUrl = publishResult.prUrl;
       }
     }
 
