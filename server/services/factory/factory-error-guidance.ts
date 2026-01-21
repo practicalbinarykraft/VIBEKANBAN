@@ -86,6 +86,79 @@ const GUIDANCE_CONFIG: Record<FactoryErrorCode, GuidanceConfig> = {
       "Report the issue if it continues",
     ],
   },
+  // PR-101: Preflight & guardrail error guidance
+  [FactoryErrorCode.FACTORY_ALREADY_RUNNING]: {
+    severity: "warning",
+    titlePrefix: "Factory Already Running",
+    steps: [
+      "A factory run is already in progress for this project",
+      "Wait for the current run to complete",
+      "Or stop the current run first",
+    ],
+  },
+  [FactoryErrorCode.FACTORY_PREFLIGHT_FAILED]: {
+    severity: "critical",
+    titlePrefix: "Preflight Checks Failed",
+    steps: [
+      "One or more preflight checks failed",
+      "Review the check details below",
+      "Fix the issues and try again",
+    ],
+  },
+  [FactoryErrorCode.FACTORY_BUDGET_EXCEEDED]: {
+    severity: "critical",
+    titlePrefix: "Budget Exceeded",
+    steps: [
+      "Your AI budget limit has been reached",
+      "Increase budget limit in Settings",
+      "Wait for the next billing cycle",
+    ],
+  },
+  [FactoryErrorCode.FACTORY_REPO_DIRTY]: {
+    severity: "warning",
+    titlePrefix: "Uncommitted Changes",
+    steps: [
+      "Your repository has uncommitted changes",
+      "Commit or stash your changes first",
+      "Run 'git status' to see what needs attention",
+    ],
+  },
+  [FactoryErrorCode.FACTORY_GH_NOT_AUTHED]: {
+    severity: "critical",
+    titlePrefix: "GitHub CLI Not Authenticated",
+    steps: [
+      "GitHub CLI is not authenticated",
+      "Run 'gh auth login' in your terminal",
+      "Verify with 'gh auth status'",
+    ],
+  },
+  [FactoryErrorCode.FACTORY_PERMISSION_DENIED]: {
+    severity: "critical",
+    titlePrefix: "No Push Permission",
+    steps: [
+      "You don't have push access to this repository",
+      "Check your repository permissions",
+      "Contact the repository owner for access",
+    ],
+  },
+  [FactoryErrorCode.FACTORY_INVALID_CONFIG]: {
+    severity: "warning",
+    titlePrefix: "Invalid Configuration",
+    steps: [
+      "The factory configuration is invalid",
+      "Check maxParallel is between 1 and 20",
+      "Verify project settings are correct",
+    ],
+  },
+  [FactoryErrorCode.FACTORY_NO_DEFAULT_BRANCH]: {
+    severity: "warning",
+    titlePrefix: "Default Branch Missing",
+    steps: [
+      "Could not find main or master branch",
+      "Ensure your repository has a default branch",
+      "Run 'git branch' to check available branches",
+    ],
+  },
 };
 
 /**
