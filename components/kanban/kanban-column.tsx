@@ -10,6 +10,9 @@ interface KanbanColumnProps {
   selectedTaskId: string | null;
   onTaskClick: (taskId: string) => void;
   highlightedTaskIds?: string[];
+  checkedTaskIds?: string[];
+  showCheckboxes?: boolean;
+  onTaskCheckChange?: (taskId: string, checked: boolean) => void;
 }
 
 const statusColors: Record<TaskStatus, string> = {
@@ -27,6 +30,9 @@ export function KanbanColumn({
   selectedTaskId,
   onTaskClick,
   highlightedTaskIds = [],
+  checkedTaskIds = [],
+  showCheckboxes = false,
+  onTaskCheckChange,
 }: KanbanColumnProps) {
   return (
     <div className="flex min-w-[260px] max-w-[260px] flex-col shrink-0" data-testid={`column-${status}`}>
@@ -51,7 +57,10 @@ export function KanbanColumn({
               task={task}
               isSelected={selectedTaskId === task.id}
               isHighlighted={highlightedTaskIds.includes(task.id)}
+              isChecked={checkedTaskIds.includes(task.id)}
+              showCheckbox={showCheckboxes}
               onClick={() => onTaskClick(task.id)}
+              onCheckChange={onTaskCheckChange}
             />
           ))
         )}
