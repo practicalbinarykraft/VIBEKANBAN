@@ -25,6 +25,8 @@ import { useFactoryStatus } from "@/hooks/useFactoryStatus";
 import { useRunHistory } from "@/hooks/useRunHistory";
 import { useAutopilotRunDetails } from "@/hooks/useAutopilotRunDetails";
 import { useFactoryBatchStart } from "@/hooks/useFactoryBatchStart";
+import { useFactoryRunResults } from "@/hooks/useFactoryRunResults";
+import { FactoryRunResultsPanel } from "@/components/factory/factory-run-results-panel";
 import type { BatchStartRequest } from "@/components/factory/factory-batch-start-panel";
 
 interface ProjectClientProps {
@@ -95,6 +97,10 @@ export default function ProjectClient({ projectId, enableAutopilotV2 = false }: 
   // PR-84: Factory stream for console panel
   const factoryStream = useFactoryStream(projectId);
   const showFactoryConsole = factory.status === "running" || !!factory.runId;
+
+  // PR-88: Factory run results
+  const showFactoryResults = factory.runId && factory.status !== "running";
+  const factoryResults = useFactoryRunResults(projectId, showFactoryResults ? factory.runId : null);
 
   // PR-87: Batch start hook
   const batchStart = useFactoryBatchStart();
@@ -212,6 +218,25 @@ export default function ProjectClient({ projectId, enableAutopilotV2 = false }: 
     if (result) {
       factory.refresh();
       setCheckedTaskIds([]);
+    }
+  };
+
+  // PR-88: Factory results handlers
+  const handleRetryTask = async (taskId: string) => {
+    // Use batch start with single task
+    await batchStart.startBatch(projectId, {
+      source: "selection",
+      taskIds: [taskId],
+      maxParallel: 1,
+    });
+    factory.refresh();
+  };
+
+  const handleOpenLogs = (attemptId: string) => {
+    // Navigate to attempt details (using task view with attempt selected)
+    const item = factoryResults.results?.items.find(i => i.attemptId === attemptId);
+    if (item) {
+      router.push(`/projects/${projectId}?task=${item.taskId}`);
     }
   };
 
@@ -335,6 +360,19 @@ export default function ProjectClient({ projectId, enableAutopilotV2 = false }: 
             attempts={factoryStream.attempts}
             counts={factoryStream.counts}
             onStop={factory.stop}
+          />
+        </div>
+      )}
+
+      {/* PR-88: Factory Run Results Panel - shows when run finished */}
+      {enableAutopilotV2 && activeTab === "tasks" && showFactoryResults && (
+        <div className="mx-4 mt-2">
+          <FactoryRunResultsPanel
+            results={factoryResults.results}
+            isLoading={factoryResults.isLoading}
+            error={factoryResults.error}
+            onRetry={handleRetryTask}
+            onOpenLogs={handleOpenLogs}
           />
         </div>
       )}
