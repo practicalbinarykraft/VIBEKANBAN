@@ -17,6 +17,7 @@ import { AiModeBanner } from "@/components/banners/ai-mode-banner";
 import { CouncilConsole } from "@/components/council/council-console";
 import { CouncilThread, CouncilMessage, PlanArtifact } from "@/components/council/types";
 import { AutopilotPanel } from "@/components/planning/autopilot-panel";
+import { ReadOnlyBanner } from "@/components/planning/read-only-banner";
 import { useAutopilot } from "@/hooks/useAutopilot";
 import { Loader2, Send, RotateCcw } from "lucide-react";
 
@@ -521,18 +522,22 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, onApplyCompl
           </div>
         )}
 
+        {/* Read-only banners with explanations and actions */}
         {phase === "approved" && (
-          <div className="rounded-md bg-green-100 p-3 text-sm text-green-800 dark:bg-green-900/30 dark:text-green-200">
-            Plan approved! Click "Confirm & Create Tasks" to proceed.
-          </div>
+          <ReadOnlyBanner
+            reason="approved"
+            projectId={projectId}
+            onNewPlan={handleReset}
+          />
         )}
 
         {phase === "tasks_created" && (
-          <div
-            className="rounded-md bg-green-100 p-3 text-sm text-green-800 dark:bg-green-900/30 dark:text-green-200"
-            data-testid="phase-tasks-created"
-          >
-            Tasks created successfully! Check the Tasks tab.
+          <div data-testid="phase-tasks-created">
+            <ReadOnlyBanner
+              reason="tasks_created"
+              projectId={projectId}
+              onNewPlan={handleReset}
+            />
           </div>
         )}
 
