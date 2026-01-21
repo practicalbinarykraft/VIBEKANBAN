@@ -1,7 +1,11 @@
 "use client";
 
+import { DndContext, DragOverlay, closestCorners, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { Task, TaskStatus } from "@/types";
 import { KanbanColumn } from "./kanban-column";
+import { DroppableColumn } from "./dnd/droppable-column";
+import { TaskCard } from "./task-card";
+import { useKanbanDnd, type ReorderPayload } from "./dnd/use-kanban-dnd";
 
 interface KanbanBoardProps {
   tasks: Task[];
@@ -12,6 +16,7 @@ interface KanbanBoardProps {
   checkedTaskIds?: string[];
   showCheckboxes?: boolean;
   onTaskCheckChange?: (taskId: string, checked: boolean) => void;
+  onReorder?: (payload: ReorderPayload) => Promise<{ ok: boolean }>;
 }
 
 const columns: Array<{ title: string; status: TaskStatus }> = [
@@ -31,15 +36,30 @@ export function KanbanBoard({
   checkedTaskIds = [],
   showCheckboxes = false,
   onTaskCheckChange,
+  onReorder,
 }: KanbanBoardProps) {
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  const noopReorder = async () => ({ ok: true });
+  const {
+    isDragging,
+    activeId,
+    optimisticTasks,
+    handleDragStart,
+    handleDragOver,
+    handleDragEnd,
+  } = useKanbanDnd({ tasks, onReorder: onReorder ?? noopReorder });
+
+  const displayTasks = onReorder ? optimisticTasks : tasks;
+  const activeTask = activeId ? displayTasks.find((t) => t.id === activeId) : null;
+
   const tasksByStatus = columns.map((column) => ({
     ...column,
-    tasks: tasks.filter((task) => task.status === column.status),
+    tasks: displayTasks.filter((task) => task.status === column.status).sort((a, b) => a.order - b.order),
   }));
 
-  return (
+  const boardContent = (
     <div className="relative" data-testid="kanban-board">
-      {/* Refreshing overlay */}
       {isRefreshing && (
         <div
           className="absolute inset-0 z-10 flex items-center justify-center bg-background/50"
@@ -52,21 +72,59 @@ export function KanbanBoard({
         </div>
       )}
       <div className="flex gap-2 overflow-x-auto p-2">
-        {tasksByStatus.map((column) => (
-          <KanbanColumn
-            key={column.status}
-            title={column.title}
-            status={column.status}
-            tasks={column.tasks}
-            selectedTaskId={selectedTaskId}
-            onTaskClick={onTaskClick}
-            highlightedTaskIds={highlightedTaskIds}
-            checkedTaskIds={checkedTaskIds}
-            showCheckboxes={showCheckboxes}
-            onTaskCheckChange={onTaskCheckChange}
-          />
-        ))}
+        {tasksByStatus.map((column) =>
+          onReorder ? (
+            <DroppableColumn
+              key={column.status}
+              title={column.title}
+              status={column.status}
+              tasks={column.tasks}
+              selectedTaskId={selectedTaskId}
+              onTaskClick={onTaskClick}
+              highlightedTaskIds={highlightedTaskIds}
+              checkedTaskIds={checkedTaskIds}
+              showCheckboxes={showCheckboxes}
+              onTaskCheckChange={onTaskCheckChange}
+            />
+          ) : (
+            <KanbanColumn
+              key={column.status}
+              title={column.title}
+              status={column.status}
+              tasks={column.tasks}
+              selectedTaskId={selectedTaskId}
+              onTaskClick={onTaskClick}
+              highlightedTaskIds={highlightedTaskIds}
+              checkedTaskIds={checkedTaskIds}
+              showCheckboxes={showCheckboxes}
+              onTaskCheckChange={onTaskCheckChange}
+            />
+          )
+        )}
       </div>
     </div>
+  );
+
+  if (!onReorder) {
+    return boardContent;
+  }
+
+  return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCorners}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragEnd={handleDragEnd}
+    >
+      {boardContent}
+      <DragOverlay>
+        {activeTask && (
+          <div className="opacity-90">
+            <TaskCard task={activeTask} isSelected={false} onClick={() => {}} />
+          </div>
+        )}
+      </DragOverlay>
+    </DndContext>
   );
 }
