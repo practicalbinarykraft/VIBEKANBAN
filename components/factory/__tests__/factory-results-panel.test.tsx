@@ -1,8 +1,17 @@
-/** FactoryResultsPanel Tests (PR-89) - TDD */
+/** FactoryResultsPanel Tests (PR-89, PR-90) - TDD */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { FactoryResultsPanel } from "../factory-results-panel";
 import type { FactoryResultsResponse } from "@/server/services/factory/factory-results.service";
+
+// Mock useAttemptSummary hook to avoid act() warnings
+vi.mock("@/hooks/useAttemptSummary", () => ({
+  useAttemptSummary: vi.fn().mockReturnValue({
+    data: null,
+    loading: false,
+    error: null,
+  }),
+}));
 
 const mockData: FactoryResultsResponse = {
   runId: "run-123",
