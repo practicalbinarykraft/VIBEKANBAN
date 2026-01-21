@@ -1,10 +1,12 @@
-/** FactoryRunResultsPanel (PR-88) - Factory run results dashboard */
+/** FactoryRunResultsPanel (PR-88, PR-98) - Factory run results dashboard */
 "use client";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ExternalLink, FileText, RotateCcw, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
 import type { FactoryRunResultsDTO, ResultItem } from "@/server/services/factory/factory-run-results.service";
+import { FactoryPrStatusCell } from "./factory-pr-status-cell";
+import type { PrCheckStatus } from "@/server/services/factory/factory-pr-checks.service";
 
 interface FactoryRunResultsPanelProps {
   results: FactoryRunResultsDTO | null;
@@ -12,6 +14,8 @@ interface FactoryRunResultsPanelProps {
   error: string | null;
   onRetry: (taskId: string) => void;
   onOpenLogs: (attemptId: string) => void;
+  prCheckStatusMap?: Record<string, PrCheckStatus>; // PR-98: taskId → CI status
+  prChecksLoading?: boolean; // PR-98
 }
 
 function StatusBadge({ status, attemptId }: { status?: string; attemptId?: string }) {
@@ -25,10 +29,12 @@ function StatusBadge({ status, attemptId }: { status?: string; attemptId?: strin
   );
 }
 
-function ResultItemRow({ item, onRetry, onOpenLogs }: {
+function ResultItemRow({ item, onRetry, onOpenLogs, prCheckStatus, prChecksLoading }: {
   item: ResultItem;
   onRetry: (taskId: string) => void;
   onOpenLogs: (attemptId: string) => void;
+  prCheckStatus?: PrCheckStatus;
+  prChecksLoading?: boolean;
 }) {
   const isFailed = item.attemptStatus === "failed";
 
@@ -40,19 +46,14 @@ function ResultItemRow({ item, onRetry, onOpenLogs }: {
           <span className="font-medium text-sm truncate">{item.taskTitle}</span>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          {item.prUrl && (
-            <a
-              href={item.prUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              data-testid={`pr-link-${item.attemptId}`}
-            >
-              <Button variant="outline" size="sm" className="h-7 text-xs">
-                <ExternalLink className="h-3 w-3 mr-1" />
-                PR
-              </Button>
-            </a>
-          )}
+          {/* PR-98: Show CI status cell instead of simple PR button */}
+          {item.prUrl ? (
+            <FactoryPrStatusCell
+              status={prCheckStatus ?? null}
+              prUrl={item.prUrl}
+              isLoading={prChecksLoading}
+            />
+          ) : null}
           {item.attemptId && (
             <Button
               variant="outline"
@@ -100,7 +101,7 @@ function ResultItemRow({ item, onRetry, onOpenLogs }: {
 }
 
 export function FactoryRunResultsPanel({
-  results, isLoading, error, onRetry, onOpenLogs,
+  results, isLoading, error, onRetry, onOpenLogs, prCheckStatusMap, prChecksLoading,
 }: FactoryRunResultsPanelProps) {
   if (isLoading) {
     return (
@@ -170,6 +171,8 @@ export function FactoryRunResultsPanel({
             item={item}
             onRetry={onRetry}
             onOpenLogs={onOpenLogs}
+            prCheckStatus={prCheckStatusMap?.[item.taskId]}
+            prChecksLoading={prChecksLoading}
           />
         ))}
       </div>
