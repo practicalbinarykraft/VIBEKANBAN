@@ -1,4 +1,4 @@
-/** Factory Live Console Tests (PR-102) - TDD */
+/** Factory Live Console Tests (PR-102, PR-109) - TDD */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { FactoryLiveConsole, type LogLine } from "../factory-live-console";
@@ -78,5 +78,28 @@ describe("FactoryLiveConsole", () => {
     render(<FactoryLiveConsole lines={mockLines} />);
     const lines = screen.getAllByTestId(/console-line-/);
     expect(lines.length).toBe(3);
+  });
+
+  // PR-109: Connection status indicator tests
+  describe("connection status (PR-109)", () => {
+    it("shows connected indicator when connectionStatus is connected", () => {
+      render(<FactoryLiveConsole lines={mockLines} connectionStatus="connected" />);
+      expect(screen.getByTestId("status-connected")).toBeInTheDocument();
+    });
+
+    it("shows reconnecting indicator when connectionStatus is reconnecting", () => {
+      render(<FactoryLiveConsole lines={mockLines} connectionStatus="reconnecting" />);
+      expect(screen.getByTestId("status-reconnecting")).toBeInTheDocument();
+    });
+
+    it("shows disconnected indicator when connectionStatus is disconnected", () => {
+      render(<FactoryLiveConsole lines={mockLines} connectionStatus="disconnected" />);
+      expect(screen.getByTestId("status-disconnected")).toBeInTheDocument();
+    });
+
+    it("defaults to disconnected when no connectionStatus provided", () => {
+      render(<FactoryLiveConsole lines={mockLines} />);
+      expect(screen.getByTestId("status-disconnected")).toBeInTheDocument();
+    });
   });
 });

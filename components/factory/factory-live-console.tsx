@@ -1,9 +1,10 @@
-/** Factory Live Console (PR-102) - Display live logs from factory run */
+/** Factory Live Console (PR-102, PR-109) - Display live logs with connection status */
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Pause, Play, Terminal } from "lucide-react";
+import { Pause, Play, Terminal, Wifi, WifiOff, Loader2 } from "lucide-react";
+import type { ConnectionStatus } from "@/hooks/useFactoryLogStream";
 
 export interface LogLine {
   ts: string;
@@ -15,6 +16,7 @@ export interface LogLine {
 interface FactoryLiveConsoleProps {
   lines: LogLine[];
   maxLines?: number;
+  connectionStatus?: ConnectionStatus;
 }
 
 const TASK_COLORS = [
@@ -42,17 +44,44 @@ function formatTime(ts: string): string {
   }
 }
 
-export function FactoryLiveConsole({ lines, maxLines = 500 }: FactoryLiveConsoleProps) {
+function ConnectionIndicator({ status }: { status: ConnectionStatus }) {
+  if (status === "connected") {
+    return <Wifi className="h-3 w-3 text-green-400" data-testid="status-connected" />;
+  }
+  if (status === "reconnecting") {
+    return <Loader2 className="h-3 w-3 text-yellow-400 animate-spin" data-testid="status-reconnecting" />;
+  }
+  return <WifiOff className="h-3 w-3 text-red-400" data-testid="status-disconnected" />;
+}
+
+export function FactoryLiveConsole({
+  lines,
+  maxLines = 500,
+  connectionStatus = "disconnected",
+}: FactoryLiveConsoleProps) {
   const [paused, setPaused] = useState(false);
+  const [userScrolledUp, setUserScrolledUp] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const colorMap = useRef(new Map<string, string>()).current;
 
-  // Auto-scroll to bottom when new lines arrive (unless paused)
+  // Check if user is at bottom (within 50px threshold)
+  const isAtBottom = useCallback(() => {
+    if (!scrollRef.current) return true;
+    const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+    return scrollHeight - scrollTop - clientHeight < 50;
+  }, []);
+
+  // Handle scroll events to detect user scrolling up
+  const handleScroll = useCallback(() => {
+    setUserScrolledUp(!isAtBottom());
+  }, [isAtBottom]);
+
+  // Auto-scroll only if not paused AND user hasn't scrolled up
   useEffect(() => {
-    if (!paused && scrollRef.current) {
+    if (!paused && !userScrolledUp && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [lines, paused]);
+  }, [lines, paused, userScrolledUp]);
 
   // Limit displayed lines
   const displayedLines = lines.slice(-maxLines);
@@ -63,6 +92,7 @@ export function FactoryLiveConsole({ lines, maxLines = 500 }: FactoryLiveConsole
         <div className="flex items-center gap-2 text-sm text-gray-400">
           <Terminal className="h-4 w-4" />
           <span>Live Console</span>
+          <ConnectionIndicator status={connectionStatus} />
           <span className="text-xs">({lines.length} lines)</span>
         </div>
         <Button
@@ -89,6 +119,8 @@ export function FactoryLiveConsole({ lines, maxLines = 500 }: FactoryLiveConsole
       <div
         ref={scrollRef}
         className="h-64 overflow-y-auto font-mono text-xs p-3 space-y-0.5"
+        onScroll={handleScroll}
+        data-testid="console-scroll-area"
       >
         {displayedLines.length === 0 ? (
           <div className="text-gray-500 italic">Waiting for logs...</div>
@@ -96,11 +128,7 @@ export function FactoryLiveConsole({ lines, maxLines = 500 }: FactoryLiveConsole
           displayedLines.map((log, idx) => {
             const color = getTaskColor(log.taskId, colorMap);
             return (
-              <div
-                key={idx}
-                className="flex gap-2"
-                data-testid={`console-line-${idx}`}
-              >
+              <div key={idx} className="flex gap-2" data-testid={`console-line-${idx}`}>
                 <span className="text-gray-500 shrink-0">{formatTime(log.ts)}</span>
                 <span className={`shrink-0 ${color}`}>[{log.taskId.slice(0, 8)}]</span>
                 <span className="text-gray-200 break-all">{log.line}</span>

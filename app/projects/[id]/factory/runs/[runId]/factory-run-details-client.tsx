@@ -1,5 +1,5 @@
 /**
- * FactoryRunDetailsClient (PR-91, PR-92, PR-93, PR-94, PR-95, PR-107) - Client component for factory run details
+ * FactoryRunDetailsClient (PR-91, PR-92, PR-93, PR-94, PR-95, PR-107, PR-109) - Client component for factory run details
  */
 "use client";
 
@@ -136,7 +136,7 @@ export function FactoryRunDetailsClient({ projectId, runId }: FactoryRunDetailsC
   const { run, loading, error } = useFactoryRunDetails(projectId, runId);
   const isRunning = run?.status === "running";
   const { data: metrics, loading: metricsLoading } = useFactoryRunMetrics(projectId, runId, isRunning);
-  const { lines: logLines, connected: logConnected } = useFactoryLogStream(projectId, runId, isRunning);
+  const { lines: logLines, status: logStatus } = useFactoryLogStream(projectId, runId, isRunning);
   const [stopping, setStopping] = useState(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
 
@@ -290,12 +290,9 @@ export function FactoryRunDetailsClient({ projectId, runId }: FactoryRunDetailsC
         )}
       </div>
 
-      {/* PR-107: Live console for factory run logs */}
+      {/* PR-107, PR-109: Live console with connection status */}
       <div className="mt-6" data-testid="live-console-container">
-        <FactoryLiveConsole lines={logLines} />
-        {!logConnected && logLines.length > 0 && (
-          <div className="mt-2 text-xs text-muted-foreground">Stream disconnected</div>
-        )}
+        <FactoryLiveConsole lines={logLines} connectionStatus={logStatus} />
       </div>
     </div>
   );
