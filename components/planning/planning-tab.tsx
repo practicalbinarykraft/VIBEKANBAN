@@ -17,6 +17,7 @@ import { AiModeBanner } from "@/components/banners/ai-mode-banner";
 import { CouncilConsole } from "@/components/council/council-console";
 import { CouncilThread, CouncilMessage, PlanArtifact } from "@/components/council/types";
 import { AutopilotPanel } from "@/components/planning/autopilot-panel";
+import { FactoryHandoffModal } from "@/components/planning/factory-handoff-modal";
 import { useAutopilot } from "@/hooks/useAutopilot";
 import { Loader2, Send, RotateCcw } from "lucide-react";
 
@@ -48,6 +49,9 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, onApplyCompl
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [createdTaskIds, setCreatedTaskIds] = useState<string[]>([]);
   const showAutopilot = enableAutopilotV2;
+
+  // Factory handoff modal (PR-113)
+  const [showHandoffModal, setShowHandoffModal] = useState(false);
 
   // Loading states
   const [isLoading, setIsLoading] = useState(false);
@@ -386,6 +390,7 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, onApplyCompl
         setDebugCreateTasks(prev => ({ ...prev, phaseSet: true }));
       }
       setPhase("tasks_created");
+      setShowHandoffModal(true); // Show handoff modal (PR-113)
       onApplyComplete?.(taskIds);
     } catch (err: any) {
       const errMsg = err.message || "UNKNOWN_ERROR";
@@ -623,6 +628,15 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, onApplyCompl
           isCreating={isCreating}
         />
       </div>
+
+      {/* Factory Handoff Modal (PR-113) */}
+      <FactoryHandoffModal
+        open={showHandoffModal}
+        onOpenChange={setShowHandoffModal}
+        projectId={projectId}
+        taskCount={createdTaskIds.length}
+        onStayInPlanning={() => setShowHandoffModal(false)}
+      />
     </div>
   );
 }
