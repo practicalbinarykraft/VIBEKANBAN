@@ -1,14 +1,23 @@
-/** Factory Preflight Panel (PR-101) - UI for preflight validation */
+/**
+ * Factory Preflight Panel (PR-101, PR-116)
+ *
+ * UI for preflight validation with actionable fix links.
+ * Solves UX Problems #7, #10: Shows exactly what needs to be done.
+ */
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Loader2, CheckCircle, XCircle, Shield, X } from "lucide-react";
+import { Loader2, CheckCircle, XCircle, Shield, X, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 export interface PreflightCheckDisplay {
   name: string;
   label: string;
   passed: boolean;
+  description?: string;  // PR-116: Added description
+  fixUrl?: string;       // PR-116: Added fix URL
+  fixLabel?: string;     // PR-116: Added fix label
 }
 
 export interface PreflightDisplayResult {
@@ -86,22 +95,63 @@ export function FactoryPreflightPanel({
             </div>
           )}
 
-          <div className="space-y-1">
+          <div className="space-y-2">
             {result.checks.map((check) => (
               <div
                 key={check.name}
                 className={cn(
-                  "flex items-center gap-1 text-xs",
-                  check.passed ? "text-green-500" : "text-destructive"
+                  "rounded-md p-2",
+                  check.passed
+                    ? "bg-green-50 dark:bg-green-950/30"
+                    : "bg-amber-50 dark:bg-amber-950/30"
                 )}
                 data-testid={`preflight-check-${check.name}`}
               >
-                {check.passed ? (
-                  <CheckCircle className="h-3 w-3" />
-                ) : (
-                  <XCircle className="h-3 w-3" />
-                )}
-                <span>{check.label}</span>
+                <div className="flex items-start gap-2">
+                  {check.passed ? (
+                    <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400 mt-0.5 shrink-0" />
+                  ) : (
+                    <XCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <span
+                      className={cn(
+                        "text-xs font-medium",
+                        check.passed
+                          ? "text-green-700 dark:text-green-300"
+                          : "text-amber-700 dark:text-amber-300"
+                      )}
+                    >
+                      {check.label}
+                    </span>
+                    {check.description && (
+                      <p
+                        className={cn(
+                          "text-xs mt-0.5",
+                          check.passed
+                            ? "text-green-600 dark:text-green-400"
+                            : "text-amber-600 dark:text-amber-400"
+                        )}
+                      >
+                        {check.description}
+                      </p>
+                    )}
+                  </div>
+                  {/* PR-116: Fix button for failed checks */}
+                  {!check.passed && check.fixUrl && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-6 text-xs shrink-0"
+                      asChild
+                    >
+                      <Link href={check.fixUrl}>
+                        {check.fixLabel || "Fix"}
+                        <ExternalLink className="h-3 w-3 ml-1" />
+                      </Link>
+                    </Button>
+                  )}
+                </div>
               </div>
             ))}
           </div>

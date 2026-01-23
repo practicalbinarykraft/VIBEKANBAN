@@ -102,15 +102,15 @@ describe("FactoryPreflightPanel", () => {
     expect(onDismiss).toHaveBeenCalled();
   });
 
-  it("shows failed check with red indicator", () => {
+  it("shows failed check with amber indicator", () => {
     render(<FactoryPreflightPanel {...defaultProps} result={oneFailed} />);
     const failedCheck = screen.getByTestId("preflight-check-repo_clean");
-    expect(failedCheck).toHaveClass("text-destructive");
+    expect(failedCheck).toHaveClass("bg-amber-50");
   });
 
   it("shows passed check with green indicator", () => {
     render(<FactoryPreflightPanel {...defaultProps} result={allPassed} />);
     const passedCheck = screen.getByTestId("preflight-check-repo_clean");
-    expect(passedCheck).toHaveClass("text-green-500");
+    expect(passedCheck).toHaveClass("bg-green-50");
   });
 });
