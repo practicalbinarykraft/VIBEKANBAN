@@ -112,14 +112,21 @@ export function ProjectActionsMenu({
     setDeleteError(null);
   };
 
+  // Prevent click bubbling to parent Link wrapper
+  const stopBubbling = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
   return (
     <>
-      <DropdownMenu>
+      <div onClick={stopBubbling}>
+        <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
             data-testid="project-actions-trigger"
             className="p-1 rounded hover:bg-accent transition-colors cursor-pointer"
-            onClick={(e) => e.preventDefault()}
+            onClick={stopBubbling}
           >
             <MoreVertical className="h-4 w-4 text-muted-foreground" />
           </button>
@@ -154,8 +161,9 @@ export function ProjectActionsMenu({
           >
             <Trash2 className="mr-2 h-4 w-4" /> Delete project
           </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
 
       <EditProjectModal
         open={editOpen}
