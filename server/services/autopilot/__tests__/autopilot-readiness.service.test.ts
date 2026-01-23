@@ -32,7 +32,10 @@ describe("getAutopilotReadiness", () => {
     vi.mocked(getDerivedAutopilotStatus).mockResolvedValue({
       status: "IDLE", runId: null, activeAttempts: 0, failedAttempts: 0, completedAttempts: 0,
     });
-    vi.mocked(getAiStatus).mockResolvedValue({ realAiEligible: true, provider: "anthropic", model: "claude" });
+    vi.mocked(getAiStatus).mockResolvedValue({
+      realAiEligible: true, provider: "anthropic", model: "claude",
+      mode: "real", configuredProviders: [], testModeTriggers: [],
+    });
     vi.mocked(checkRepoReady).mockResolvedValue({ ok: true });
     vi.mocked(db.select).mockReturnValue({
       from: vi.fn().mockReturnValue({
@@ -59,6 +62,7 @@ describe("getAutopilotReadiness", () => {
   it("returns AI_NOT_CONFIGURED blocker when AI not configured", async () => {
     vi.mocked(getAiStatus).mockResolvedValue({
       realAiEligible: false, provider: "db", model: "db", reason: "MISSING_API_KEY",
+      mode: "mock", configuredProviders: [], testModeTriggers: [],
     });
     const result = await getAutopilotReadiness("project-1");
     expect(result.ready).toBe(false);
@@ -68,7 +72,7 @@ describe("getAutopilotReadiness", () => {
   it("returns BUDGET_EXCEEDED blocker with amounts", async () => {
     vi.mocked(getAiStatus).mockResolvedValue({
       realAiEligible: false, provider: "db", model: "db", reason: "BUDGET_LIMIT_EXCEEDED",
-      limitUSD: 100, spendUSD: 120,
+      limitUSD: 100, spendUSD: 120, mode: "mock", configuredProviders: [], testModeTriggers: [],
     });
     const result = await getAutopilotReadiness("project-1");
     expect(result.ready).toBe(false);
@@ -97,6 +101,7 @@ describe("getAutopilotReadiness", () => {
     } as any);
     vi.mocked(getAiStatus).mockResolvedValue({
       realAiEligible: false, provider: "db", model: "db", reason: "MISSING_API_KEY",
+      mode: "mock", configuredProviders: [], testModeTriggers: [],
     });
     const result = await getAutopilotReadiness("project-1");
     expect(result.ready).toBe(false);

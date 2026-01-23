@@ -111,15 +111,19 @@ describe("ai-status", () => {
       expect(status.provider).toBe("anthropic");
     });
 
-    it("does not expose API key in response", async () => {
+    it("does not expose full API key in response", async () => {
       process.env.FEATURE_REAL_AI = "1";
-      process.env.ANTHROPIC_API_KEY = "sk-ant-secret-key";
+      process.env.ANTHROPIC_API_KEY = "sk-ant-api03-secretlongkey123";
 
       const status = await getAiStatus();
       const statusString = JSON.stringify(status);
 
-      expect(statusString).not.toContain("sk-ant");
-      expect(statusString).not.toContain("secret");
+      // Full key should not appear
+      expect(statusString).not.toContain("sk-ant-api03-secretlongkey123");
+      // Middle portion should not appear
+      expect(statusString).not.toContain("secretlong");
+      // Masked key is ok (shows prefix + last chars)
+      expect(status.configuredProviders[0].keyMasked).toContain("****");
     });
 
     it("returns BUDGET_LIMIT_EXCEEDED when over budget", async () => {
@@ -158,6 +162,107 @@ describe("ai-status", () => {
       expect(status.realAiEligible).toBe(true);
       expect(status.limitUSD).toBeUndefined();
       expect(status.spendUSD).toBeUndefined();
+    });
+
+    // PR-121: Extended status info tests
+    describe("configuredProviders (PR-121)", () => {
+      it("returns configuredProviders with masked key when Anthropic configured", async () => {
+        process.env.FEATURE_REAL_AI = "1";
+        process.env.ANTHROPIC_API_KEY = "sk-ant-api03-verylongkeyhere";
+
+        const status = await getAiStatus();
+
+        expect(status.configuredProviders).toBeDefined();
+        expect(status.configuredProviders).toHaveLength(1);
+        expect(status.configuredProviders![0].provider).toBe("anthropic");
+        expect(status.configuredProviders![0].keyPresent).toBe(true);
+        // First 6 chars + **** + last 4 chars
+        expect(status.configuredProviders![0].keyMasked).toBe("sk-ant****here");
+      });
+
+      it("returns empty configuredProviders when no key set", async () => {
+        process.env.FEATURE_REAL_AI = "1";
+        delete process.env.ANTHROPIC_API_KEY;
+
+        const status = await getAiStatus();
+
+        expect(status.configuredProviders).toEqual([]);
+      });
+
+      it("masks short keys correctly", async () => {
+        process.env.FEATURE_REAL_AI = "1";
+        process.env.ANTHROPIC_API_KEY = "sk-short";
+
+        const status = await getAiStatus();
+
+        expect(status.configuredProviders![0].keyMasked).toBe("sk-****ort");
+      });
+    });
+
+    describe("mode field (PR-121)", () => {
+      it("returns mode=forced_mock when PLAYWRIGHT=1", async () => {
+        process.env.PLAYWRIGHT = "1";
+        process.env.FEATURE_REAL_AI = "1";
+        process.env.ANTHROPIC_API_KEY = "sk-ant-key";
+
+        const status = await getAiStatus();
+
+        expect(status.mode).toBe("forced_mock");
+      });
+
+      it("returns mode=forced_mock when NODE_ENV=test", async () => {
+        (process.env as Record<string, string | undefined>).NODE_ENV = "test";
+        process.env.FEATURE_REAL_AI = "1";
+        process.env.ANTHROPIC_API_KEY = "sk-ant-key";
+
+        const status = await getAiStatus();
+
+        expect(status.mode).toBe("forced_mock");
+      });
+
+      it("returns mode=real when all configured correctly", async () => {
+        process.env.FEATURE_REAL_AI = "1";
+        process.env.ANTHROPIC_API_KEY = "sk-ant-key";
+
+        const status = await getAiStatus();
+
+        expect(status.mode).toBe("real");
+      });
+
+      it("returns mode=mock when feature disabled", async () => {
+        delete process.env.FEATURE_REAL_AI;
+
+        const status = await getAiStatus();
+
+        expect(status.mode).toBe("mock");
+      });
+    });
+
+    describe("testModeTriggers (PR-121)", () => {
+      it("includes PLAYWRIGHT in triggers when set", async () => {
+        process.env.PLAYWRIGHT = "1";
+
+        const status = await getAiStatus();
+
+        expect(status.testModeTriggers).toContain("PLAYWRIGHT=1");
+      });
+
+      it("includes NODE_ENV=test in triggers when set", async () => {
+        (process.env as Record<string, string | undefined>).NODE_ENV = "test";
+
+        const status = await getAiStatus();
+
+        expect(status.testModeTriggers).toContain("NODE_ENV=test");
+      });
+
+      it("returns empty triggers when not in test mode", async () => {
+        process.env.FEATURE_REAL_AI = "1";
+        process.env.ANTHROPIC_API_KEY = "sk-ant-key";
+
+        const status = await getAiStatus();
+
+        expect(status.testModeTriggers).toEqual([]);
+      });
     });
   });
 });
