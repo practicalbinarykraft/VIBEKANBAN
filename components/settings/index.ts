@@ -3,4 +3,4 @@
  */
 
 // Unified AI Status (PR-114)
-export { AiStatusUnified, type AiStatusReason, type AiStatusContext } from "./ai-status-unified";
+export { AiStatusUnified, type AiStatusReason } from "./ai-status-unified";

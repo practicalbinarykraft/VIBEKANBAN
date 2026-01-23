@@ -22,7 +22,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-type AiStatusReason =
+export type AiStatusReason =
   | "FEATURE_REAL_AI_DISABLED"
   | "MISSING_API_KEY"
   | "TEST_MODE_FORCED_MOCK"
