@@ -138,7 +138,7 @@ describe("AiStatusUnified", () => {
       expect(screen.getByText(/Test mode active/)).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/mock/)).toBeInTheDocument();
+    expect(screen.getByTestId("ai-status-unified")).toHaveTextContent("Current mode:");
   });
 
   it("shows error state on fetch failure", async () => {
