@@ -17,7 +17,17 @@ vi.mock("../ai/ai-budget-guard", () => ({
   checkProviderBudget: vi.fn(),
 }));
 
+// Mock the BYOK service for DB access
+vi.mock("../ai/ai-byok", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../ai/ai-byok")>();
+  return {
+    ...original,
+    getByokSettings: vi.fn(),
+  };
+});
+
 import { checkProviderBudget } from "../ai/ai-budget-guard";
+import { getByokSettings } from "../ai/ai-byok";
 import { getAiStatus, type AiStatusResponse } from "../ai/ai-status";
 
 describe("ai-status", () => {
@@ -37,6 +47,9 @@ describe("ai-status", () => {
       provider: "anthropic",
       reason: "no_limit",
     });
+
+    // Default mock: no BYOK settings (tests env vars by default)
+    vi.mocked(getByokSettings).mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -262,6 +275,136 @@ describe("ai-status", () => {
         const status = await getAiStatus();
 
         expect(status.testModeTriggers).toEqual([]);
+      });
+    });
+
+    // PR-122: BYOK (Bring Your Own Key) - keys from DB, not env
+    describe("BYOK - keys from database (PR-122)", () => {
+      beforeEach(() => {
+        // Clear env keys to test BYOK only
+        delete process.env.ANTHROPIC_API_KEY;
+        delete process.env.OPENAI_API_KEY;
+        process.env.FEATURE_REAL_AI = "1";
+      });
+
+      it("returns mode=real when BYOK key exists in DB settings", async () => {
+        vi.mocked(getByokSettings).mockResolvedValue({
+          provider: "anthropic",
+          anthropicApiKey: "sk-ant-byok-key-from-db",
+          openaiApiKey: null,
+          model: "claude-sonnet-4-20250514",
+        });
+
+        const status = await getAiStatus();
+
+        expect(status.realAiEligible).toBe(true);
+        expect(status.mode).toBe("real");
+        expect(status.provider).toBe("anthropic");
+      });
+
+      it("returns MISSING_API_KEY when no BYOK key in DB", async () => {
+        vi.mocked(getByokSettings).mockResolvedValue({
+          provider: "anthropic",
+          anthropicApiKey: null,
+          openaiApiKey: null,
+          model: "claude-sonnet-4-20250514",
+        });
+
+        const status = await getAiStatus();
+
+        expect(status.realAiEligible).toBe(false);
+        expect(status.reason).toBe("MISSING_API_KEY");
+        expect(status.mode).toBe("mock");
+      });
+
+      it("configuredProviders includes BYOK keys from DB with masked value", async () => {
+        vi.mocked(getByokSettings).mockResolvedValue({
+          provider: "anthropic",
+          anthropicApiKey: "sk-ant-api03-byokkeyvalue",
+          openaiApiKey: null,
+          model: "claude-sonnet-4-20250514",
+        });
+
+        const status = await getAiStatus();
+
+        expect(status.configuredProviders).toHaveLength(1);
+        expect(status.configuredProviders[0].provider).toBe("anthropic");
+        expect(status.configuredProviders[0].keyPresent).toBe(true);
+        expect(status.configuredProviders[0].keyMasked).toBe("sk-ant****alue");
+      });
+
+      it("includes both providers when both BYOK keys exist in DB", async () => {
+        vi.mocked(getByokSettings).mockResolvedValue({
+          provider: "anthropic",
+          anthropicApiKey: "sk-ant-byok-anthropic",
+          openaiApiKey: "sk-openai-byok-key",
+          model: "claude-sonnet-4-20250514",
+        });
+
+        const status = await getAiStatus();
+
+        expect(status.configuredProviders).toHaveLength(2);
+        expect(status.configuredProviders.map(p => p.provider)).toContain("anthropic");
+        expect(status.configuredProviders.map(p => p.provider)).toContain("openai");
+      });
+
+      it("does NOT show provider without BYOK key (OpenAI not configured)", async () => {
+        vi.mocked(getByokSettings).mockResolvedValue({
+          provider: "anthropic",
+          anthropicApiKey: "sk-ant-only-this",
+          openaiApiKey: null,
+          model: "claude-sonnet-4-20250514",
+        });
+
+        const status = await getAiStatus();
+
+        expect(status.configuredProviders).toHaveLength(1);
+        expect(status.configuredProviders[0].provider).toBe("anthropic");
+        // OpenAI should NOT appear
+        expect(status.configuredProviders.map(p => p.provider)).not.toContain("openai");
+      });
+
+      it("uses DB key over env key when both exist (BYOK priority)", async () => {
+        // Set env key (lower priority)
+        process.env.ANTHROPIC_API_KEY = "sk-ant-from-env";
+
+        // DB has different key (higher priority)
+        vi.mocked(getByokSettings).mockResolvedValue({
+          provider: "anthropic",
+          anthropicApiKey: "sk-ant-from-byok-db",
+          openaiApiKey: null,
+          model: "claude-sonnet-4-20250514",
+        });
+
+        const status = await getAiStatus();
+
+        // Should show BYOK key, not env key
+        expect(status.configuredProviders[0].keyMasked).toBe("sk-ant****k-db");
+      });
+
+      it("falls back to env key when no DB settings exist", async () => {
+        process.env.ANTHROPIC_API_KEY = "sk-ant-env-fallback";
+
+        // No DB settings
+        vi.mocked(getByokSettings).mockResolvedValue(null);
+
+        const status = await getAiStatus();
+
+        expect(status.realAiEligible).toBe(true);
+        expect(status.configuredProviders[0].keyMasked).toBe("sk-ant****back");
+      });
+
+      it("returns correct model from DB settings", async () => {
+        vi.mocked(getByokSettings).mockResolvedValue({
+          provider: "anthropic",
+          anthropicApiKey: "sk-ant-key",
+          openaiApiKey: null,
+          model: "claude-opus-4-20250514",
+        });
+
+        const status = await getAiStatus();
+
+        expect(status.model).toBe("claude-opus-4-20250514");
       });
     });
   });
