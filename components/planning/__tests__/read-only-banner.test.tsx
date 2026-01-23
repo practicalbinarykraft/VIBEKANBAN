@@ -21,7 +21,7 @@ describe("ReadOnlyBanner", () => {
   it("shows 'Plan is approved and locked' for approved reason", () => {
     render(<ReadOnlyBanner reason="approved" projectId="test-project" />);
     expect(screen.getByText("Plan is approved and locked")).toBeInTheDocument();
-    expect(screen.getByText(/Create tasks/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Create Tasks/i })).toBeInTheDocument();
   });
 
   it("shows 'Plan is being executed by Factory' for executing reason", () => {
