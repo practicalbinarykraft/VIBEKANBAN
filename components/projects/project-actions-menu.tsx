@@ -26,6 +26,7 @@ interface ProjectActionsMenuProps {
   lastRun?: FactoryRun | null;
   onProjectUpdated?: (project: Project) => void;
   onProjectDeleted?: () => void;
+  onDeleteError?: (error: string) => void;
 }
 
 export function ProjectActionsMenu({
@@ -33,6 +34,7 @@ export function ProjectActionsMenu({
   lastRun,
   onProjectUpdated,
   onProjectDeleted,
+  onDeleteError,
 }: ProjectActionsMenuProps) {
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
@@ -40,6 +42,7 @@ export function ProjectActionsMenu({
   const [resetOpen, setResetOpen] = useState(false);
   const [cloning, setCloning] = useState(false);
   const [restarting, setRestarting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const canRestart = lastRun && ["failed", "cancelled", "completed"].includes(lastRun.status);
 
@@ -85,11 +88,28 @@ export function ProjectActionsMenu({
   };
 
   const handleDelete = async () => {
-    const res = await fetch(`/api/projects/${project.id}`, { method: "DELETE" });
-    if (res.ok) {
-      onProjectDeleted?.();
-      router.push("/projects");
+    setDeleteError(null);
+    try {
+      const res = await fetch(`/api/projects/${project.id}`, { method: "DELETE" });
+      if (res.ok) {
+        onProjectDeleted?.();
+        router.push("/projects");
+      } else {
+        const data = await res.json().catch(() => ({ error: "Delete failed" }));
+        const errorMsg = data.error || "Failed to delete project";
+        setDeleteError(errorMsg);
+        onDeleteError?.(errorMsg);
+      }
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : "Network error";
+      setDeleteError(errorMsg);
+      onDeleteError?.(errorMsg);
     }
+  };
+
+  const handleDeleteDialogClose = () => {
+    setDeleteOpen(false);
+    setDeleteError(null);
   };
 
   return (
@@ -147,7 +167,8 @@ export function ProjectActionsMenu({
       <DeleteProjectDialog
         open={deleteOpen}
         projectName={project.name}
-        onClose={() => setDeleteOpen(false)}
+        error={deleteError}
+        onClose={handleDeleteDialogClose}
         onConfirm={handleDelete}
       />
 

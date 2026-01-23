@@ -136,4 +136,91 @@ describe("ProjectActionsMenu", () => {
       expect(screen.getByTestId("action-restart")).toBeInTheDocument();
     });
   });
+
+  describe("Delete project flow", () => {
+    it("calls API and redirects on success", async () => {
+      const user = userEvent.setup();
+      const mockPush = vi.fn();
+      const mockOnDeleted = vi.fn();
+
+      vi.mocked(await import("next/navigation")).useRouter.mockReturnValue({
+        push: mockPush,
+        refresh: vi.fn(),
+      } as any);
+
+      global.fetch = vi.fn().mockResolvedValue({ ok: true });
+
+      render(
+        <ProjectActionsMenu
+          project={mockProject}
+          onProjectDeleted={mockOnDeleted}
+        />
+      );
+
+      // Open menu and click delete
+      await user.click(screen.getByTestId("project-actions-trigger"));
+      await user.click(screen.getByTestId("action-delete"));
+
+      // Dialog should open
+      expect(screen.getByTestId("delete-project-dialog")).toBeInTheDocument();
+
+      // Type project name to confirm
+      await user.type(screen.getByTestId("delete-confirm-input"), mockProject.name);
+      await user.click(screen.getByTestId("delete-confirm-button"));
+
+      // Verify API was called
+      expect(fetch).toHaveBeenCalledWith(
+        `/api/projects/${mockProject.id}`,
+        { method: "DELETE" }
+      );
+
+      // Verify callback and redirect on success
+      expect(mockOnDeleted).toHaveBeenCalled();
+      expect(mockPush).toHaveBeenCalledWith("/projects");
+    });
+
+    it("does NOT redirect on API failure", async () => {
+      const user = userEvent.setup();
+      const mockPush = vi.fn();
+      const mockOnDeleted = vi.fn();
+      const mockOnError = vi.fn();
+
+      vi.mocked(await import("next/navigation")).useRouter.mockReturnValue({
+        push: mockPush,
+        refresh: vi.fn(),
+      } as any);
+
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+        json: () => Promise.resolve({ error: "Server error" })
+      });
+
+      render(
+        <ProjectActionsMenu
+          project={mockProject}
+          onProjectDeleted={mockOnDeleted}
+          onDeleteError={mockOnError}
+        />
+      );
+
+      // Open menu and click delete
+      await user.click(screen.getByTestId("project-actions-trigger"));
+      await user.click(screen.getByTestId("action-delete"));
+
+      // Type project name and confirm
+      await user.type(screen.getByTestId("delete-confirm-input"), mockProject.name);
+      await user.click(screen.getByTestId("delete-confirm-button"));
+
+      // Verify API was called
+      expect(fetch).toHaveBeenCalled();
+
+      // Should NOT redirect or call success callback on failure
+      expect(mockOnDeleted).not.toHaveBeenCalled();
+      expect(mockPush).not.toHaveBeenCalledWith("/projects");
+
+      // Should call error callback
+      expect(mockOnError).toHaveBeenCalled();
+    });
+  });
 });

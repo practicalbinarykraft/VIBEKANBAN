@@ -13,15 +13,23 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AlertCircle } from "lucide-react";
 
 interface DeleteProjectDialogProps {
   open: boolean;
   projectName: string;
+  error?: string | null;
   onClose: () => void;
   onConfirm: () => void;
 }
 
-export function DeleteProjectDialog({ open, projectName, onClose, onConfirm }: DeleteProjectDialogProps) {
+export function DeleteProjectDialog({
+  open,
+  projectName,
+  error,
+  onClose,
+  onConfirm,
+}: DeleteProjectDialogProps) {
   const [typedName, setTypedName] = useState("");
   const [deleting, setDeleting] = useState(false);
 
@@ -53,6 +61,17 @@ export function DeleteProjectDialog({ open, projectName, onClose, onConfirm }: D
             factory runs, attempts, logs, and artifacts. This action cannot be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
+
+        {error && (
+          <div
+            className="flex items-center gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300"
+            data-testid="delete-error"
+          >
+            <AlertCircle className="h-4 w-4 flex-shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
         <div className="py-4">
           <Label htmlFor="confirm-name">
             Type <strong>{projectName}</strong> to confirm
