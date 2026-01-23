@@ -23,6 +23,7 @@ import { useFactoryStream } from "@/hooks/useFactoryStream";
 import { useAutopilotReadiness } from "@/hooks/useAutopilotReadiness";
 import { useFactoryStatus } from "@/hooks/useFactoryStatus";
 import { useRunHistory } from "@/hooks/useRunHistory";
+import { shouldRenderRunsPanelOverlay } from "@/lib/overlay-visibility";
 import { useAutopilotRunDetails } from "@/hooks/useAutopilotRunDetails";
 import { useFactoryBatchStart } from "@/hooks/useFactoryBatchStart";
 import { useFactoryRunResults } from "@/hooks/useFactoryRunResults";
@@ -486,8 +487,8 @@ export default function ProjectClient({ projectId, enableAutopilotV2 = false }: 
         </div>
       )}
 
-      {/* Autopilot Run History Panel (PR-67) */}
-      {enableAutopilotV2 && (
+      {/* Autopilot Run History Panel (PR-67) - only show on tasks tab to avoid click interception */}
+      {enableAutopilotV2 && shouldRenderRunsPanelOverlay({ activeTab }) && (
         <div className="fixed bottom-4 left-4 z-50 w-80">
           <AutopilotRunHistory
             projectId={projectId}

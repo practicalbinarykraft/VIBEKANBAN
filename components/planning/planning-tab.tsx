@@ -17,6 +17,9 @@ import { AiModeBanner } from "@/components/banners/ai-mode-banner";
 import { CouncilConsole } from "@/components/council/council-console";
 import { CouncilThread, CouncilMessage, PlanArtifact } from "@/components/council/types";
 import { AutopilotPanel } from "@/components/planning/autopilot-panel";
+import { FactoryHandoffModal } from "@/components/planning/factory-handoff-modal";
+import { PhaseBanner } from "@/components/planning/phase-banner";
+import { ReadOnlyBanner } from "@/components/planning/read-only-banner";
 import { useAutopilot } from "@/hooks/useAutopilot";
 import { Loader2, Send, RotateCcw } from "lucide-react";
 
@@ -48,6 +51,9 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, onApplyCompl
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [createdTaskIds, setCreatedTaskIds] = useState<string[]>([]);
   const showAutopilot = enableAutopilotV2;
+
+  // Factory handoff modal (PR-113)
+  const [showHandoffModal, setShowHandoffModal] = useState(false);
 
   // Loading states
   const [isLoading, setIsLoading] = useState(false);
@@ -386,6 +392,7 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, onApplyCompl
         setDebugCreateTasks(prev => ({ ...prev, phaseSet: true }));
       }
       setPhase("tasks_created");
+      setShowHandoffModal(true); // Show handoff modal (PR-113)
       onApplyComplete?.(taskIds);
     } catch (err: any) {
       const errMsg = err.message || "UNKNOWN_ERROR";
@@ -430,6 +437,9 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, onApplyCompl
       {/* Left Column: User Input */}
       <div className="flex w-1/2 flex-col space-y-4 overflow-y-auto">
         <AiModeBanner />
+
+        {/* Phase Banner - shows current state and what user can do */}
+        <PhaseBanner phase={phase} />
 
         <div className="rounded-lg border bg-card p-4">
           <div className="mb-2 flex items-center justify-between">
@@ -521,18 +531,22 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, onApplyCompl
           </div>
         )}
 
+        {/* Read-only banners with explanations and actions */}
         {phase === "approved" && (
-          <div className="rounded-md bg-green-100 p-3 text-sm text-green-800 dark:bg-green-900/30 dark:text-green-200">
-            Plan approved! Click "Confirm & Create Tasks" to proceed.
-          </div>
+          <ReadOnlyBanner
+            reason="approved"
+            projectId={projectId}
+            onNewPlan={handleReset}
+          />
         )}
 
         {phase === "tasks_created" && (
-          <div
-            className="rounded-md bg-green-100 p-3 text-sm text-green-800 dark:bg-green-900/30 dark:text-green-200"
-            data-testid="phase-tasks-created"
-          >
-            Tasks created successfully! Check the Tasks tab.
+          <div data-testid="phase-tasks-created">
+            <ReadOnlyBanner
+              reason="tasks_created"
+              projectId={projectId}
+              onNewPlan={handleReset}
+            />
           </div>
         )}
 
@@ -623,6 +637,15 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, onApplyCompl
           isCreating={isCreating}
         />
       </div>
+
+      {/* Factory Handoff Modal (PR-113) */}
+      <FactoryHandoffModal
+        open={showHandoffModal}
+        onOpenChange={setShowHandoffModal}
+        projectId={projectId}
+        taskCount={createdTaskIds.length}
+        onStayInPlanning={() => setShowHandoffModal(false)}
+      />
     </div>
   );
 }
