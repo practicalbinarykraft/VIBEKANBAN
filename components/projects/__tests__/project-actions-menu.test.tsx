@@ -137,6 +137,71 @@ describe("ProjectActionsMenu", () => {
     });
   });
 
+  describe("Click bubbling prevention (PR-120)", () => {
+    it("clicking trigger does not call parent click handler", async () => {
+      const user = userEvent.setup();
+      const parentClickSpy = vi.fn();
+
+      render(
+        <div onClick={parentClickSpy}>
+          <ProjectActionsMenu project={mockProject} />
+        </div>
+      );
+
+      await user.click(screen.getByTestId("project-actions-trigger"));
+      expect(parentClickSpy).not.toHaveBeenCalled();
+    });
+
+    it("clicking delete menu item does not call parent click handler", async () => {
+      const user = userEvent.setup();
+      const parentClickSpy = vi.fn();
+
+      render(
+        <div onClick={parentClickSpy}>
+          <ProjectActionsMenu project={mockProject} />
+        </div>
+      );
+
+      await user.click(screen.getByTestId("project-actions-trigger"));
+      await user.click(screen.getByTestId("action-delete"));
+
+      expect(parentClickSpy).not.toHaveBeenCalled();
+      expect(screen.getByTestId("delete-project-dialog")).toBeInTheDocument();
+    });
+
+    it("clicking edit menu item does not call parent click handler", async () => {
+      const user = userEvent.setup();
+      const parentClickSpy = vi.fn();
+
+      render(
+        <div onClick={parentClickSpy}>
+          <ProjectActionsMenu project={mockProject} />
+        </div>
+      );
+
+      await user.click(screen.getByTestId("project-actions-trigger"));
+      await user.click(screen.getByTestId("action-edit"));
+
+      expect(parentClickSpy).not.toHaveBeenCalled();
+    });
+
+    it("clicking factory history does not call parent click handler", async () => {
+      const user = userEvent.setup();
+      const parentClickSpy = vi.fn();
+
+      render(
+        <div onClick={parentClickSpy}>
+          <ProjectActionsMenu project={mockProject} />
+        </div>
+      );
+
+      await user.click(screen.getByTestId("project-actions-trigger"));
+      await user.click(screen.getByTestId("action-factory-history"));
+
+      expect(parentClickSpy).not.toHaveBeenCalled();
+    });
+  });
+
   describe("Delete project flow", () => {
     it("calls API and redirects on success", async () => {
       const user = userEvent.setup();
