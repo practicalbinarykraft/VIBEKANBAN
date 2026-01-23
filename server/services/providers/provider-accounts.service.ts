@@ -21,15 +21,31 @@ export interface ProviderAccountRow {
 }
 
 /**
+ * Check if a provider has an API key configured
+ */
+function isProviderConfigured(provider: Provider): boolean {
+  if (provider === "anthropic") {
+    return !!process.env.ANTHROPIC_API_KEY;
+  }
+  if (provider === "openai") {
+    return !!process.env.OPENAI_API_KEY;
+  }
+  return false;
+}
+
+/**
  * Get all provider accounts from DB
+ * PR-121: Only returns providers that are actually configured (have API keys)
  */
 export async function getAllProviderAccounts(): Promise<ProviderAccountRow[]> {
   const rows = await db.select().from(providerAccounts);
 
-  const providers: Provider[] = ["anthropic", "openai"];
+  // PR-121: Only include providers that have API keys configured
+  const allProviders: Provider[] = ["anthropic", "openai"];
+  const configuredProviders = allProviders.filter(isProviderConfigured);
   const result: ProviderAccountRow[] = [];
 
-  for (const provider of providers) {
+  for (const provider of configuredProviders) {
     const row = rows.find((r) => r.provider === provider);
     const limitUsd = getProviderLimit(provider);
 
@@ -52,13 +68,13 @@ export async function getAllProviderAccounts(): Promise<ProviderAccountRow[]> {
         status,
       });
     } else {
-      // No record yet - return placeholder
+      // Provider configured but no DB record yet
       result.push({
         provider,
         balanceUsd: null,
         spendUsd: null,
         limitUsd,
-        balanceSource: "unknown",
+        balanceSource: "not_tracked",
         updatedAt: null,
         status: "unknown",
       });
