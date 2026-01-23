@@ -15,17 +15,13 @@ export interface OverlayVisibilityInput {
 /**
  * Determines if the runs panel overlay should be rendered.
  *
- * Rule: Only show overlay on "tasks" tab to avoid click interception
- * on Planning/Chat where critical CTAs exist (generate-plan, iterate, etc.)
+ * Rule: Disable floating overlay on ALL tabs to prevent click interception.
+ * The overlay was blocking task cards, generate buttons, and other CTAs.
+ * Run history is accessible via other UI patterns.
  */
 export function shouldRenderRunsPanelOverlay(input: OverlayVisibilityInput): boolean {
-  // Never show overlay on planning or chat tabs - they have critical CTAs
-  if (input.activeTab === "planning" || input.activeTab === "chat") {
-    return false;
-  }
-
-  // Show on tasks tab
-  return input.activeTab === "tasks";
+  // Disable overlay on all tabs - it intercepts clicks on important elements
+  return false;
 }
 
 /**
