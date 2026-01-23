@@ -159,6 +159,23 @@ export default function ProjectClient({ projectId, enableAutopilotV2 = false }: 
     }
   };
 
+  // Check if project exists, redirect to /projects if deleted/not found
+  const [projectNotFound, setProjectNotFound] = useState(false);
+  useEffect(() => {
+    const checkProjectExists = async () => {
+      try {
+        const res = await fetch(`/api/projects/${projectId}`);
+        if (res.status === 404) {
+          setProjectNotFound(true);
+          router.replace("/projects");
+        }
+      } catch {
+        // Network error - don't redirect, let user retry
+      }
+    };
+    checkProjectExists();
+  }, [projectId, router]);
+
   // Expose refresh functions for tests
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -281,6 +298,17 @@ export default function ProjectClient({ projectId, enableAutopilotV2 = false }: 
       <AppShell>
         <div className="flex h-[calc(100vh-3rem)] items-center justify-center">
           <p className="text-sm text-muted-foreground">Loading tasks...</p>
+        </div>
+      </AppShell>
+    );
+  }
+
+  // Show brief message while redirecting to projects list
+  if (projectNotFound) {
+    return (
+      <AppShell>
+        <div className="flex h-[calc(100vh-3rem)] items-center justify-center">
+          <p className="text-sm text-muted-foreground">Project not found. Redirecting...</p>
         </div>
       </AppShell>
     );
