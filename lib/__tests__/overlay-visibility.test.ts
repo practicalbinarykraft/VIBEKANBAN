@@ -35,14 +35,14 @@ describe("shouldRenderRunsPanelOverlay", () => {
   });
 
   describe("tasks tab", () => {
-    it("returns true - overlay allowed on tasks tab", () => {
-      expect(shouldRenderRunsPanelOverlay({ activeTab: "tasks" })).toBe(true);
+    it("returns false - overlay disabled on tasks tab to prevent click interception", () => {
+      expect(shouldRenderRunsPanelOverlay({ activeTab: "tasks" })).toBe(false);
     });
 
-    it("returns true with session", () => {
+    it("returns false even with session", () => {
       expect(
         shouldRenderRunsPanelOverlay({ activeTab: "tasks", hasSession: true })
-      ).toBe(true);
+      ).toBe(false);
     });
   });
 });
@@ -56,7 +56,7 @@ describe("getRunsPanelPlacement", () => {
     expect(getRunsPanelPlacement({ activeTab: "chat" })).toBe("hidden");
   });
 
-  it("returns 'overlay' for tasks tab", () => {
-    expect(getRunsPanelPlacement({ activeTab: "tasks" })).toBe("overlay");
+  it("returns 'hidden' for tasks tab - overlay disabled", () => {
+    expect(getRunsPanelPlacement({ activeTab: "tasks" })).toBe("hidden");
   });
 });
