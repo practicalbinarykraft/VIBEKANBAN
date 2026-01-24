@@ -4,12 +4,8 @@ import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { AppShell } from "@/components/app-shell";
 import { AiModeSection } from "@/components/settings/ai-mode-section";
-import { RealAiStatusCard } from "@/components/settings/real-ai-status-card";
 import { AiStatusUnified } from "@/components/settings/ai-status-unified";
-import { AiUsageCard } from "@/components/settings/ai-usage-card";
-import { AIProvidersCard } from "@/components/settings/ai-providers-card";
-import { AiUsageHistoryCard } from "@/components/settings/ai-usage-history-card";
-import { AIUsageAlertsCard } from "@/components/settings/ai-usage-alerts-card";
+import { AiBillingWip } from "@/components/settings/ai-billing-wip";
 import { Settings, AlertTriangle } from "lucide-react";
 
 /**
@@ -69,12 +65,9 @@ function SettingsContent() {
             {/* Unified AI Status - single source of truth (PR-114) */}
             <AiStatusUnified context={context || undefined} />
 
-            {/* Legacy status card - kept for reference */}
-            <RealAiStatusCard />
-            <AIUsageAlertsCard />
-            <AiUsageCard />
-            <AIProvidersCard />
-            <AiUsageHistoryCard />
+            {/* Billing placeholder - PR-125: hide estimator-based billing UI */}
+            <AiBillingWip />
+
             <div data-testid="ai-mode-section" className="text-xs text-muted-foreground mb-1">Demo</div>
             <AiModeSection />
 
