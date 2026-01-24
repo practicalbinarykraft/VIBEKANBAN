@@ -21,10 +21,12 @@ export async function GET(request: NextRequest) {
 
     const result = await getAiUsageHistory({ limit, days, provider });
 
-    // Serialize dates to ISO strings
+    // Serialize dates to ISO strings (handles null and Invalid Date)
     const items = result.items.map((item) => ({
       ...item,
-      createdAt: item.createdAt.toISOString(),
+      createdAt: item.createdAt instanceof Date && !isNaN(item.createdAt.getTime())
+        ? item.createdAt.toISOString()
+        : null,
     }));
 
     return NextResponse.json({ items, totalUsd: result.totalUsd });
