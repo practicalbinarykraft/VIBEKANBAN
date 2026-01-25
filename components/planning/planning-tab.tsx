@@ -434,85 +434,12 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, compactMode 
   const messages = thread?.messages || [];
   const isStartDisabled = !idea.trim() || isLoading || phase !== "idle" || !canRunAi;
 
-  // Compact mode: single column with header + CouncilConsole (PR-126)
+  // Compact mode: single column with CouncilConsole only (PR-128)
+  // No idea input here - user uses chat on left
   if (compactMode) {
     return (
       <div className="flex h-full flex-col overflow-hidden" data-testid="planning-tab-compact">
-        {/* Compact Header with Run Consilium */}
-        <div className="flex-shrink-0 border-b p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold">Council Console</h2>
-            {phase !== "idle" && (
-              <Button variant="ghost" size="sm" onClick={handleReset}>
-                <RotateCcw className="mr-1 h-3 w-3" />
-                Reset
-              </Button>
-            )}
-          </div>
-
-          {/* Idea Input + Run Consilium Button */}
-          {phase === "idle" && (
-            <div className="flex gap-2">
-              <Textarea
-                placeholder="Describe your project idea..."
-                value={idea}
-                onChange={(e) => setIdea(e.target.value)}
-                className="min-h-[60px] flex-1 resize-none"
-                data-testid="planning-idea-input"
-              />
-              <Button
-                onClick={handleStartCouncil}
-                disabled={isStartDisabled}
-                className="self-end"
-                data-testid="planning-start-button"
-              >
-                {isLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  "Run Consilium"
-                )}
-              </Button>
-            </div>
-          )}
-
-          {/* Response Input - compact */}
-          {phase === "awaiting_response" && (
-            <div className="flex gap-2">
-              <Textarea
-                placeholder="Answer the council's questions..."
-                value={response}
-                onChange={(e) => setResponse(e.target.value)}
-                className="min-h-[60px] flex-1 resize-none"
-                data-testid="response-input"
-              />
-              <Button
-                onClick={handleSubmitResponse}
-                disabled={!response.trim() || isResponding}
-                className="self-end"
-                data-testid="submit-response-btn"
-              >
-                {isResponding ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Send className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-          )}
-
-          {/* Phase status */}
-          {phase !== "idle" && phase !== "awaiting_response" && (
-            <PhaseBanner phase={phase} />
-          )}
-
-          {error && (
-            <div className="mt-2 rounded-md bg-destructive/10 p-2 text-sm text-destructive">
-              {error}
-            </div>
-          )}
-        </div>
-
-        {/* Council Console - full width */}
+        {/* Council Console with integrated header */}
         <div className="flex-1 overflow-hidden">
           <CouncilConsole
             messages={messages}
@@ -523,9 +450,14 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, compactMode 
             onRevisePlan={handleRevisePlan}
             onApprovePlan={handleApprovePlan}
             onCreateTasks={handleCreateTasks}
+            onStartCouncil={handleStartCouncil}
+            onReset={handleReset}
+            isLoading={isLoading}
             isGenerating={isGenerating}
             isApproving={isApproving}
             isCreating={isCreating}
+            canRunAi={canRunAi}
+            error={error}
           />
         </div>
 

@@ -12,7 +12,7 @@
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Users, FileText, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { Users, FileText, ChevronDown, ChevronUp, Loader2, RotateCcw } from "lucide-react";
 import { CouncilMessage, MessageKind, CouncilRole } from "./types";
 import { PlanArtifact } from "./types";
 
@@ -25,9 +25,14 @@ interface CouncilConsoleProps {
   onRevisePlan: (revision: string) => void;
   onApprovePlan: () => void;
   onCreateTasks: () => void;
+  onStartCouncil?: () => void;
+  onReset?: () => void;
+  isLoading?: boolean;
   isGenerating?: boolean;
   isApproving?: boolean;
   isCreating?: boolean;
+  canRunAi?: boolean;
+  error?: string | null;
 }
 
 const ROLE_CONFIG: Record<CouncilRole, { label: string; color: string }> = {
@@ -55,13 +60,19 @@ export function CouncilConsole({
   onRevisePlan,
   onApprovePlan,
   onCreateTasks,
+  onStartCouncil,
+  onReset,
+  isLoading,
   isGenerating,
   isApproving,
   isCreating,
+  canRunAi = true,
+  error,
 }: CouncilConsoleProps) {
   const [showPlan, setShowPlan] = useState(false);
   const [revisionText, setRevisionText] = useState("");
 
+  const isIdle = threadStatus === "idle";
   const canGeneratePlan = threadStatus === "plan_ready" && !plan;
   const canRevise = plan && plan.status !== "approved";
   const canApprove = plan && plan.status !== "approved";
@@ -75,35 +86,80 @@ export function CouncilConsole({
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4 text-muted-foreground" />
             <h3 className="font-semibold">Council Console</h3>
+            {!isIdle && <Badge variant="outline">Iteration #{iterationNumber}</Badge>}
           </div>
-          <Badge variant="outline">Iteration #{iterationNumber}</Badge>
+          <div className="flex items-center gap-2">
+            {/* Run Consilium button - only in idle state */}
+            {isIdle && onStartCouncil && (
+              <Button
+                onClick={onStartCouncil}
+                disabled={isLoading || !canRunAi}
+                size="sm"
+                data-testid="planning-start-button"
+              >
+                {isLoading ? (
+                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                ) : (
+                  <Users className="mr-1 h-3 w-3" />
+                )}
+                Run Consilium
+              </Button>
+            )}
+            {/* Reset button - only when not idle */}
+            {!isIdle && onReset && (
+              <Button variant="ghost" size="sm" onClick={onReset}>
+                <RotateCcw className="mr-1 h-3 w-3" />
+                Reset
+              </Button>
+            )}
+          </div>
         </div>
 
-        {/* Tab buttons */}
-        <div className="mt-3 flex gap-2">
-          <Button
-            variant={!showPlan ? "default" : "outline"}
-            size="sm"
-            onClick={() => setShowPlan(false)}
-          >
-            <Users className="mr-1 h-3 w-3" />
-            Dialogue
-          </Button>
-          <Button
-            variant={showPlan ? "default" : "outline"}
-            size="sm"
-            onClick={() => setShowPlan(true)}
-            disabled={!plan}
-          >
-            <FileText className="mr-1 h-3 w-3" />
-            Plan {plan && `v${plan.version}`}
-          </Button>
-        </div>
+        {/* Tab buttons - only show when council has started */}
+        {!isIdle && (
+          <div className="mt-3 flex gap-2">
+            <Button
+              variant={!showPlan ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowPlan(false)}
+            >
+              <Users className="mr-1 h-3 w-3" />
+              Dialogue
+            </Button>
+            <Button
+              variant={showPlan ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowPlan(true)}
+              disabled={!plan}
+            >
+              <FileText className="mr-1 h-3 w-3" />
+              Plan {plan && `v${plan.version}`}
+            </Button>
+          </div>
+        )}
+
+        {/* Error display */}
+        {error && (
+          <div className="mt-3 rounded-md bg-destructive/10 p-2 text-sm text-destructive">
+            {error}
+          </div>
+        )}
       </div>
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4">
-        {!showPlan ? (
+        {/* Idle state - show call to action */}
+        {isIdle ? (
+          <div className="flex h-full flex-col items-center justify-center text-center" data-testid="council-idle">
+            <Users className="mb-3 h-12 w-12 text-muted-foreground/30" />
+            <p className="text-sm text-muted-foreground">
+              Click "Run Consilium" to start planning
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground/70">
+              The AI council will discuss your project and create a plan
+            </p>
+          </div>
+        ) : !showPlan ? (
           /* Dialogue View */
           <div className="space-y-3" data-testid="council-dialogue">
             {messages.length === 0 ? (
@@ -179,7 +235,8 @@ export function CouncilConsole({
         )}
       </div>
 
-      {/* Controls */}
+      {/* Controls - hidden when idle */}
+      {!isIdle && (
       <div className="border-t p-4 space-y-3">
         {canGeneratePlan && (
           <Button
@@ -264,6 +321,7 @@ export function CouncilConsole({
           </Button>
         )}
       </div>
+      )}
     </div>
   );
 }
