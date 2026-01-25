@@ -31,10 +31,10 @@ test.describe("Project Chat + Iteration Loop", () => {
   test("T58: Project Chat tab loads and accepts input", async ({ page }) => {
     const tracked = trackConsoleAndPageErrors(page);
 
-    // Navigate to Chat tab
-    const chatTab = page.locator('[data-testid="chat-tab"]');
-    await waitVisible(chatTab);
-    await clickNoNav(chatTab);
+    // Navigate to Planning tab (Chat is inside split view - PR-126)
+    const planningTab = page.locator('[data-testid="planning-tab"]');
+    await waitVisible(planningTab);
+    await clickNoNav(planningTab);
 
     // Verify chat is loaded
     const projectChat = page.locator('[data-testid="project-chat"]');
@@ -60,8 +60,8 @@ test.describe("Project Chat + Iteration Loop", () => {
   test("T59: User message shows AI response element", async ({ page }) => {
     const tracked = trackConsoleAndPageErrors(page);
 
-    // Navigate to Chat tab
-    await clickNoNav(page.locator('[data-testid="chat-tab"]'));
+    // Navigate to Planning tab (Chat is inside split view - PR-126)
+    await clickNoNav(page.locator('[data-testid="planning-tab"]'));
     await page.waitForSelector('[data-testid="project-chat"]', {
       timeout: 5000,
     });
@@ -86,8 +86,8 @@ test.describe("Project Chat + Iteration Loop", () => {
   test("T60: Council produces iteration summary element", async ({ page }) => {
     const tracked = trackConsoleAndPageErrors(page);
 
-    // Navigate to Chat tab
-    await clickNoNav(page.locator('[data-testid="chat-tab"]'));
+    // Navigate to Planning tab (Chat is inside split view - PR-126)
+    await clickNoNav(page.locator('[data-testid="planning-tab"]'));
     await page.waitForSelector('[data-testid="project-chat"]', {
       timeout: 5000,
     });
@@ -113,8 +113,8 @@ test.describe("Project Chat + Iteration Loop", () => {
   test("T61: Iterate button is clickable and navigates to tasks", async ({ page }) => {
     const tracked = trackConsoleAndPageErrors(page);
 
-    // Navigate to Chat tab
-    await clickNoNav(page.locator('[data-testid="chat-tab"]'));
+    // Navigate to Planning tab (Chat is inside split view - PR-126)
+    await clickNoNav(page.locator('[data-testid="planning-tab"]'));
     await page.waitForSelector('[data-testid="project-chat"]', {
       timeout: 5000,
     });
@@ -150,8 +150,8 @@ test.describe("Project Chat + Iteration Loop", () => {
   }) => {
     const tracked = trackConsoleAndPageErrors(page);
 
-    // Navigate to Chat tab
-    await clickNoNav(page.locator('[data-testid="chat-tab"]'));
+    // Navigate to Planning tab (Chat is inside split view - PR-126)
+    await clickNoNav(page.locator('[data-testid="planning-tab"]'));
     await page.waitForSelector('[data-testid="project-chat"]', {
       timeout: 5000,
     });
@@ -175,7 +175,7 @@ test.describe("Project Chat + Iteration Loop", () => {
       timeout: 10000,
     });
 
-    await clickNoNav(page.locator('[data-testid="chat-tab"]'));
+    await clickNoNav(page.locator('[data-testid="planning-tab"]'));
     await page.waitForSelector('[data-testid="project-chat"]', {
       timeout: 5000,
     });
