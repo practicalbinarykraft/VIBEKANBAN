@@ -1,10 +1,10 @@
 /**
- * ProjectTabs - Tab navigation for project views
+ * ProjectTabs - Tab navigation for project views (PR-126: merged Chat into Planning)
  */
 
-import { MessageSquare, ListTodo, Lightbulb } from "lucide-react";
+import { ListTodo, Lightbulb } from "lucide-react";
 
-type TabType = "tasks" | "chat" | "planning";
+type TabType = "tasks" | "planning";
 
 interface ProjectTabsProps {
   activeTab: TabType;
@@ -24,16 +24,6 @@ export function ProjectTabs({ activeTab, onTabChange }: ProjectTabsProps) {
         >
           <ListTodo className="h-4 w-4" />
           Tasks
-        </button>
-        <button
-          onClick={() => onTabChange("chat")}
-          className={`flex items-center gap-2 rounded-t-md px-4 py-2 text-sm font-medium transition-colors ${
-            activeTab === "chat" ? "bg-background text-foreground" : "text-muted-foreground hover:text-foreground"
-          }`}
-          data-testid="chat-tab"
-        >
-          <MessageSquare className="h-4 w-4" />
-          Chat
         </button>
         <button
           onClick={() => onTabChange("planning")}

@@ -26,6 +26,8 @@ import { Loader2, Send, RotateCcw } from "lucide-react";
 interface PlanningTabProps {
   projectId: string;
   enableAutopilotV2?: boolean;
+  /** When true, shows only CouncilConsole with compact header (PR-126 split-view) */
+  compactMode?: boolean;
   onApplyComplete?: (createdTaskIds: string[]) => void;
   onExecuteComplete?: (createdTaskIds: string[]) => void;
   onPipelineComplete?: (createdTaskIds: string[]) => void;
@@ -38,7 +40,7 @@ type Phase = "idle" | "kickoff" | "awaiting_response" | "plan_ready" | "approved
 // E2E mode detection - debug markers only render in Playwright tests
 const isE2E = process.env.NEXT_PUBLIC_PLAYWRIGHT === "1";
 
-export function PlanningTab({ projectId, enableAutopilotV2 = false, onApplyComplete, onAutopilotComplete, onAutopilotSessionCreated }: PlanningTabProps) {
+export function PlanningTab({ projectId, enableAutopilotV2 = false, compactMode = false, onApplyComplete, onAutopilotComplete, onAutopilotSessionCreated }: PlanningTabProps) {
   const [idea, setIdea] = useState("");
   const [response, setResponse] = useState("");
   const [thread, setThread] = useState<CouncilThread | null>(null);
@@ -432,6 +434,114 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, onApplyCompl
   const messages = thread?.messages || [];
   const isStartDisabled = !idea.trim() || isLoading || phase !== "idle" || !canRunAi;
 
+  // Compact mode: single column with header + CouncilConsole (PR-126)
+  if (compactMode) {
+    return (
+      <div className="flex h-full flex-col overflow-hidden" data-testid="planning-tab-compact">
+        {/* Compact Header with Run Consilium */}
+        <div className="flex-shrink-0 border-b p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold">Council Console</h2>
+            {phase !== "idle" && (
+              <Button variant="ghost" size="sm" onClick={handleReset}>
+                <RotateCcw className="mr-1 h-3 w-3" />
+                Reset
+              </Button>
+            )}
+          </div>
+
+          {/* Idea Input + Run Consilium Button */}
+          {phase === "idle" && (
+            <div className="flex gap-2">
+              <Textarea
+                placeholder="Describe your project idea..."
+                value={idea}
+                onChange={(e) => setIdea(e.target.value)}
+                className="min-h-[60px] flex-1 resize-none"
+                data-testid="planning-idea-input"
+              />
+              <Button
+                onClick={handleStartCouncil}
+                disabled={isStartDisabled}
+                className="self-end"
+                data-testid="planning-start-button"
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  "Run Consilium"
+                )}
+              </Button>
+            </div>
+          )}
+
+          {/* Response Input - compact */}
+          {phase === "awaiting_response" && (
+            <div className="flex gap-2">
+              <Textarea
+                placeholder="Answer the council's questions..."
+                value={response}
+                onChange={(e) => setResponse(e.target.value)}
+                className="min-h-[60px] flex-1 resize-none"
+                data-testid="response-input"
+              />
+              <Button
+                onClick={handleSubmitResponse}
+                disabled={!response.trim() || isResponding}
+                className="self-end"
+                data-testid="submit-response-btn"
+              >
+                {isResponding ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+          )}
+
+          {/* Phase status */}
+          {phase !== "idle" && phase !== "awaiting_response" && (
+            <PhaseBanner phase={phase} />
+          )}
+
+          {error && (
+            <div className="mt-2 rounded-md bg-destructive/10 p-2 text-sm text-destructive">
+              {error}
+            </div>
+          )}
+        </div>
+
+        {/* Council Console - full width */}
+        <div className="flex-1 overflow-hidden">
+          <CouncilConsole
+            messages={messages}
+            plan={plan}
+            threadStatus={phase}
+            iterationNumber={thread?.iterationNumber || 1}
+            onGeneratePlan={handleGeneratePlan}
+            onRevisePlan={handleRevisePlan}
+            onApprovePlan={handleApprovePlan}
+            onCreateTasks={handleCreateTasks}
+            isGenerating={isGenerating}
+            isApproving={isApproving}
+            isCreating={isCreating}
+          />
+        </div>
+
+        {/* Factory Handoff Modal */}
+        <FactoryHandoffModal
+          open={showHandoffModal}
+          onOpenChange={setShowHandoffModal}
+          projectId={projectId}
+          taskCount={createdTaskIds.length}
+          onStayInPlanning={() => setShowHandoffModal(false)}
+        />
+      </div>
+    );
+  }
+
+  // Full mode: two-column layout (original)
   return (
     <div className="flex h-full gap-4 overflow-hidden p-4">
       {/* Left Column: User Input */}

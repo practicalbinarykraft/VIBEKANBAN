@@ -7,10 +7,10 @@ import { ProjectModals } from "@/components/project/project-modals";
 import { useTaskAttempts } from "@/hooks/useTaskAttempts";
 import { useProjectTasks } from "@/hooks/useProjectTasks";
 import { useProjectExecution } from "@/hooks/useProjectExecution";
-import { ChatPage } from "@/components/chat/chat-page";
 import { ProjectTabs } from "@/components/project/project-tabs";
 import { TasksView } from "@/components/project/tasks-view";
 import { PlanningTab } from "@/components/planning/planning-tab";
+import { ProjectSplitView } from "@/components/planning/project-split-view";
 import { AutopilotPanel } from "@/components/planning/autopilot-panel";
 import { AutopilotRunHistory } from "@/components/autopilot/autopilot-run-history";
 import { AutopilotRunSummaryPanel, type SummaryPanelStatus } from "@/components/autopilot/autopilot-run-summary-panel";
@@ -35,7 +35,7 @@ interface ProjectClientProps {
   enableAutopilotV2?: boolean;
 }
 
-type TabType = "tasks" | "chat" | "planning";
+type TabType = "tasks" | "planning";
 
 export default function ProjectClient({ projectId, enableAutopilotV2 = false }: ProjectClientProps) {
   const searchParams = useSearchParams();
@@ -444,41 +444,16 @@ export default function ProjectClient({ projectId, enableAutopilotV2 = false }: 
         />
       )}
 
-      {/* Chat View */}
-      {activeTab === "chat" && (
-        <div className="h-[calc(100vh-7rem)]">
-          <ChatPage projectId={projectId} />
-        </div>
-      )}
-
-      {/* Planning View */}
+      {/* Planning View - Split layout with Chat + Council (PR-126) */}
       {activeTab === "planning" && (
         <div className="h-[calc(100vh-7rem)]">
-          <PlanningTab
+          <ProjectSplitView
             projectId={projectId}
             enableAutopilotV2={enableAutopilotV2}
             onApplyComplete={(createdTaskIds) => {
               setActiveTab("tasks");
               setHighlightedTaskIds(createdTaskIds);
               refreshTasks();
-              // Clear highlight after 1.5s
-              setTimeout(() => setHighlightedTaskIds([]), 1500);
-            }}
-            onExecuteComplete={(createdTaskIds) => {
-              setActiveTab("tasks");
-              setHighlightedTaskIds(createdTaskIds);
-              refreshTasks();
-              // Start execution after tasks are created
-              handleRunAll();
-              // Clear highlight after 1.5s
-              setTimeout(() => setHighlightedTaskIds([]), 1500);
-            }}
-            onPipelineComplete={(createdTaskIds) => {
-              setActiveTab("tasks");
-              setHighlightedTaskIds(createdTaskIds);
-              refreshTasks();
-              // Autopilot: start execution after apply
-              handleRunAll();
               // Clear highlight after 1.5s
               setTimeout(() => setHighlightedTaskIds([]), 1500);
             }}
