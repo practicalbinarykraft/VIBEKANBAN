@@ -446,5 +446,14 @@ export function initDB() {
     }
   }
 
+  // Add chat_language column to projects (PR-127)
+  try {
+    _sqlite!.exec(`ALTER TABLE projects ADD COLUMN chat_language TEXT;`);
+  } catch (error: any) {
+    if (!error.message.includes('duplicate column name')) {
+      process.stderr.write(`Warning during migration: ${error.message}\n`);
+    }
+  }
+
   process.stdout.write("✅ Database initialized\n");
 }

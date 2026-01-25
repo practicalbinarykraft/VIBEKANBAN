@@ -1,17 +1,82 @@
 /**
- * Chat Handler
+ * Chat Handler (PR-127: Chat UX Fix)
  *
- * Handles user messages in Project Chat with interactive flow:
- * 1. User sends idea → AI acknowledges and starts processing
- * 2. Council discusses → generates plan
- * 3. Shows proposal with task count
+ * Handles user messages in Project Chat with conversational flow:
+ * - Optimistic UI: user message appears instantly
+ * - Language detection: auto-detect and persist
+ * - Guardrails: short conversational responses only
+ * - NO automatic council/planning triggers
  */
 
 import { db } from "@/server/db";
-import { projectMessages } from "@/server/db/schema";
+import { projectMessages, projects } from "@/server/db/schema";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { getAICompletion, isAIConfigured } from "../ai/ai-provider";
+
+/**
+ * Detect language from text (PR-127)
+ * Returns "ru" for Cyrillic text, "en" otherwise
+ */
+export function detectLanguage(text: string): "ru" | "en" {
+  const cyrillicPattern = /[\u0400-\u04FF]/;
+  return cyrillicPattern.test(text) ? "ru" : "en";
+}
+
+/**
+ * Get project's chat language from DB
+ */
+export async function getProjectLanguage(projectId: string): Promise<string | null> {
+  const project = await db
+    .select({ chatLanguage: projects.chatLanguage })
+    .from(projects)
+    .where(eq(projects.id, projectId))
+    .get();
+  return project?.chatLanguage ?? null;
+}
+
+/**
+ * Set project's chat language in DB
+ */
+export async function setProjectLanguage(projectId: string, language: string): Promise<void> {
+  await db
+    .update(projects)
+    .set({ chatLanguage: language })
+    .where(eq(projects.id, projectId));
+}
+
+/**
+ * Get chat mode system prompt with guardrails (PR-127)
+ */
+function getChatSystemPrompt(language: string): string {
+  const langInstruction = language === "ru"
+    ? "Отвечай ТОЛЬКО на русском языке."
+    : "Respond ONLY in English.";
+
+  return `You are a friendly assistant helping with project planning.
+
+${langInstruction}
+
+RULES:
+1. Keep responses SHORT: 2-3 sentences maximum.
+2. Be conversational and friendly.
+3. Ask clarifying questions when needed.
+4. Do NOT mention language detection or switching.
+
+FORBIDDEN (never output these):
+- JSON or code blocks
+- Markdown headers (**, ##, etc.)
+- Bullet lists or numbered lists
+- Task specifications or technical details
+- Words: "Proposal", "Summary", "Scope", "Tasks", "Implementation"
+- Meta-statements about your capabilities
+
+ALLOWED:
+- Simple conversational responses
+- Clarifying questions
+- Brief acknowledgments
+- Short explanations`;
+}
 
 export interface ChatMessage {
   id: string;
@@ -29,43 +94,54 @@ function isTestMode(): boolean {
 }
 
 /**
- * Generate test mode response based on keywords
+ * Generate test mode response based on keywords and language (PR-127)
  */
-function getTestModeResponse(userMessage: string): string {
+function getTestModeResponse(userMessage: string, language: string): string {
   const keywords = userMessage.toLowerCase();
 
+  if (language === "ru") {
+    if (keywords.includes('привет') || keywords.includes('здравствуй')) {
+      return "Привет! Чем могу помочь с твоим проектом?";
+    }
+    if (keywords.includes('авториз') || keywords.includes('логин') || keywords.includes('вход')) {
+      return "Понял, нужна авторизация. Какой тип предпочитаешь — email/пароль или через соцсети?";
+    }
+    return "Понял! Расскажи подробнее, что именно ты хочешь сделать?";
+  }
+
+  // English responses
   if (keywords.includes('auth') || keywords.includes('login')) {
-    return "I understand you want to add authentication. Let me discuss this with the team to plan the implementation.";
+    return "Got it, you need authentication. What type are you thinking — email/password or social login?";
   }
   if (keywords.includes('ui') || keywords.includes('component') || keywords.includes('page')) {
-    return "Got it! I'll work with the team to design and implement this UI component.";
+    return "Understood! Can you describe what this page should look like or what it should do?";
   }
   if (keywords.includes('api') || keywords.includes('endpoint')) {
-    return "I'll coordinate with the backend team to create this API endpoint.";
+    return "Sure, an API endpoint. What data should it handle?";
   }
-  return "I understand your request. Let me discuss this with the team to create a plan.";
+  return "Got it! Can you tell me more about what you're trying to build?";
 }
 
 /**
- * Generate AI acknowledgment response
+ * Generate AI chat response with guardrails (PR-127)
  */
-async function generateAIAcknowledgment(userMessage: string): Promise<string> {
+async function generateAIChatResponse(userMessage: string, language: string): Promise<string> {
   if (isTestMode()) {
-    return getTestModeResponse(userMessage);
+    return getTestModeResponse(userMessage, language);
   }
 
   const configured = await isAIConfigured();
   if (!configured) {
-    return "⚠️ AI is not configured. Please add your API key in Settings to get intelligent responses.";
+    return language === "ru"
+      ? "⚠️ AI не настроен. Добавь API ключ в Настройках."
+      : "⚠️ AI is not configured. Please add your API key in Settings.";
   }
 
   try {
     const result = await getAICompletion({
-      systemPrompt: `You are a helpful product manager assistant.
-Acknowledge the user's request briefly and let them know you're analyzing it.
-Keep response under 2 sentences. Be conversational and friendly.`,
+      systemPrompt: getChatSystemPrompt(language),
       messages: [{ role: "user", content: userMessage }],
-      maxTokens: 100,
+      maxTokens: 150,
       temperature: 0.7,
     });
     return result.content;
@@ -121,18 +197,26 @@ export async function getChatHistory(projectId: string): Promise<ChatMessage[]> 
 }
 
 /**
- * Handle user message
- * Returns AI acknowledgment while council processes
+ * Handle user message (PR-127: Chat UX Fix)
+ * Returns conversational AI response WITHOUT triggering council
  */
 export async function handleUserMessage(
   projectId: string,
   userMessage: string
 ): Promise<{ userMsg: ChatMessage; productMsg: ChatMessage }> {
-  // Save user message
+  // Save user message first
   const userMsg = await saveMessage(projectId, "user", userMessage);
 
-  // Generate AI acknowledgment (real AI or test mode)
-  const productResponse = await generateAIAcknowledgment(userMessage);
+  // Get or detect language
+  let language = await getProjectLanguage(projectId);
+  if (!language) {
+    // First message - detect and save language
+    language = detectLanguage(userMessage);
+    await setProjectLanguage(projectId, language);
+  }
+
+  // Generate conversational AI response (no council, no proposal)
+  const productResponse = await generateAIChatResponse(userMessage, language);
   const productMsg = await saveMessage(projectId, "product", productResponse);
 
   return { userMsg, productMsg };

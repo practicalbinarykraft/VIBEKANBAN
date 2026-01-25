@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   handleUserMessage,
   getChatHistory,
-  saveProposalMessage,
-  formatProposalMessage,
 } from "@/server/services/chat/chat-handler";
-import { startCouncilDiscussion } from "@/server/services/chat/council-orchestrator";
 
 /**
  * GET /api/projects/[id]/chat
@@ -31,8 +28,11 @@ export async function GET(
 }
 
 /**
- * POST /api/projects/[id]/chat
+ * POST /api/projects/[id]/chat (PR-127: Chat UX Fix)
  * Send message to project chat
+ *
+ * Returns conversational AI response only.
+ * Does NOT trigger council/planning - that's done via separate endpoint.
  */
 export async function POST(
   request: NextRequest,
@@ -50,25 +50,13 @@ export async function POST(
       );
     }
 
-    // Handle user message and get AI response
+    // Handle user message and get conversational AI response
+    // NO council trigger, NO proposal generation
     const { userMsg, productMsg } = await handleUserMessage(projectId, message);
-
-    // Start council discussion
-    const { thread, plan, error: councilError } = await startCouncilDiscussion(projectId, message);
-
-    // Save proposal message to chat with plan details
-    const proposalMsg = await saveProposalMessage(projectId, plan);
-    const { data: proposalData } = formatProposalMessage(plan);
 
     return NextResponse.json({
       userMessage: userMsg,
       productMessage: productMsg,
-      proposalMessage: proposalMsg,
-      proposal: proposalData,
-      councilThread: thread,
-      iterationPlan: plan,
-      // Include error if AI failed (fail loudly)
-      ...(councilError && { error: councilError }),
     });
   } catch (error: any) {
     console.error("Error handling chat message:", error);
