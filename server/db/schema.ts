@@ -15,6 +15,8 @@ export const projects = sqliteTable("projects", {
   connectionStatus: text("connection_status").default("not_checked"), // not_checked, connected, auth_missing, error, not_found
   connectionLastCheckedAt: integer("connection_last_checked_at", { mode: "timestamp" }),
   connectionError: text("connection_error"), // Error message if connection failed
+  // Chat language (PR-127) - detected from first message, persists for project
+  chatLanguage: text("chat_language"), // null = not detected yet, "en", "ru", etc.
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 

@@ -1,8 +1,10 @@
 /**
- * ProjectChat - Main chat interface for project
+ * ProjectChat - Main chat interface for project (PR-127: Chat UX Fix)
  *
- * Left column: User ↔ AI Product conversation
- * Handles message input and display with clear status indicators
+ * Features:
+ * - Optimistic UI: user message appears instantly
+ * - TypingIndicator: animated dots while AI responds
+ * - No text-based status messages
  */
 
 "use client";
@@ -10,21 +12,9 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Loader2 } from "lucide-react";
+import { Send } from "lucide-react";
 import { AiModeBanner } from "@/components/ai/ai-mode-banner";
-
-type ProcessingStatus = "idle" | "thinking" | "generating" | "still-working";
-
-const STATUS_MESSAGES: Record<ProcessingStatus, string> = {
-  idle: "",
-  thinking: "Thinking…",
-  generating: "Generating plan…",
-  "still-working": "Still working… (this may take a moment)",
-};
-
-// Timeout thresholds in ms
-const GENERATING_TIMEOUT = 3000; // 3s -> show "Generating plan"
-const STILL_WORKING_TIMEOUT = 20000; // 20s -> show "Still working"
+import { TypingIndicator } from "./typing-indicator";
 
 interface ChatMessage {
   id: string;
@@ -41,30 +31,19 @@ interface ProjectChatProps {
 export function ProjectChat({ projectId, onMessageSent }: ProjectChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
-  const [sending, setSending] = useState(false);
-  const [status, setStatus] = useState<ProcessingStatus>("idle");
+  const [isTyping, setIsTyping] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const statusTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const stillWorkingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Load chat history
+  // Load chat history on mount
   useEffect(() => {
     loadHistory();
   }, [projectId]);
 
-  // Auto-scroll to bottom
+  // Auto-scroll to bottom when messages change or typing starts
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, status]);
-
-  // Cleanup timers on unmount
-  useEffect(() => {
-    return () => {
-      if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
-      if (stillWorkingTimerRef.current) clearTimeout(stillWorkingTimerRef.current);
-    };
-  }, []);
+  }, [messages, isTyping]);
 
   const loadHistory = async () => {
     try {
@@ -81,63 +60,68 @@ export function ProjectChat({ projectId, onMessageSent }: ProjectChatProps) {
     }
   };
 
-  const clearTimers = () => {
-    if (statusTimerRef.current) {
-      clearTimeout(statusTimerRef.current);
-      statusTimerRef.current = null;
-    }
-    if (stillWorkingTimerRef.current) {
-      clearTimeout(stillWorkingTimerRef.current);
-      stillWorkingTimerRef.current = null;
-    }
-  };
-
   const sendMessage = async () => {
-    if (!input.trim() || sending) return;
+    if (!input.trim() || isTyping) return;
 
-    setSending(true);
-    setStatus("thinking");
+    const userContent = input.trim();
+    const tempId = `temp-${Date.now()}`;
+
+    // 1. OPTIMISTIC UI: Add user message immediately
+    const optimisticMessage: ChatMessage = {
+      id: tempId,
+      role: "user",
+      content: userContent,
+      createdAt: new Date(),
+    };
+    setMessages(prev => [...prev, optimisticMessage]);
+
+    // 2. Clear input immediately
+    setInput("");
+
+    // 3. Show typing indicator
+    setIsTyping(true);
     setError(null);
 
-    // Set timer for "Generating plan" status
-    statusTimerRef.current = setTimeout(() => {
-      setStatus("generating");
-    }, GENERATING_TIMEOUT);
-
-    // Set timer for "Still working" status
-    stillWorkingTimerRef.current = setTimeout(() => {
-      setStatus("still-working");
-    }, STILL_WORKING_TIMEOUT);
-
     try {
+      // 4. Send to server
       const response = await fetch(`/api/projects/${projectId}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: input }),
+        body: JSON.stringify({ message: userContent }),
       });
-
-      clearTimers();
 
       if (response.ok) {
         const data = await response.json();
-        setInput("");
-        await loadHistory();
+
+        // 5. Replace optimistic message with real one + add AI response
+        setMessages(prev => {
+          const withoutTemp = prev.filter(m => m.id !== tempId);
+          return [
+            ...withoutTemp,
+            {
+              ...data.userMessage,
+              createdAt: new Date(data.userMessage.createdAt),
+            },
+            {
+              ...data.productMessage,
+              createdAt: new Date(data.productMessage.createdAt),
+            },
+          ];
+        });
+
         onMessageSent?.(data);
-        // Check for council error (fail loudly)
-        if (data.error) {
-          setError(data.error);
-        }
       } else {
         const errorData = await response.json().catch(() => ({}));
         setError(errorData.error || `Request failed (${response.status})`);
+        // Remove optimistic message on error
+        setMessages(prev => prev.filter(m => m.id !== tempId));
       }
     } catch (err) {
-      clearTimers();
       setError(err instanceof Error ? err.message : "Network error");
+      // Remove optimistic message on error
+      setMessages(prev => prev.filter(m => m.id !== tempId));
     } finally {
-      clearTimers();
-      setSending(false);
-      setStatus("idle");
+      setIsTyping(false);
     }
   };
 
@@ -157,7 +141,7 @@ export function ProjectChat({ projectId, onMessageSent }: ProjectChatProps) {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.length === 0 && status === "idle" ? (
+        {messages.length === 0 && !isTyping ? (
           <div className="flex h-full items-center justify-center text-center">
             <div className="text-sm text-muted-foreground">
               <p className="mb-2">Start a conversation about your project</p>
@@ -186,17 +170,8 @@ export function ProjectChat({ projectId, onMessageSent }: ProjectChatProps) {
                 </div>
               </div>
             ))}
-            {/* Processing Status Indicator */}
-            {status !== "idle" && (
-              <div className="flex justify-start" data-testid="chat-status-indicator">
-                <div className="flex items-center gap-2 rounded-lg bg-muted px-4 py-2">
-                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                  <span className="text-sm text-muted-foreground">
-                    {STATUS_MESSAGES[status]}
-                  </span>
-                </div>
-              </div>
-            )}
+            {/* Typing Indicator - animated dots */}
+            {isTyping && <TypingIndicator />}
           </>
         )}
         <div ref={messagesEndRef} />
@@ -205,7 +180,7 @@ export function ProjectChat({ projectId, onMessageSent }: ProjectChatProps) {
       {/* Error Display */}
       {error && (
         <div className="mx-4 mb-2 rounded-md bg-destructive/10 px-4 py-2 text-sm text-destructive" data-testid="chat-error">
-          ⚠️ {error}
+          {error}
         </div>
       )}
 
@@ -216,23 +191,19 @@ export function ProjectChat({ projectId, onMessageSent }: ProjectChatProps) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyPress}
-            placeholder={sending ? STATUS_MESSAGES[status] || "Processing..." : "Type your message..."}
+            placeholder="Type your message..."
             className="min-h-[60px] resize-none"
             data-testid="message-input"
-            disabled={sending}
+            disabled={isTyping}
           />
           <Button
             onClick={sendMessage}
-            disabled={!input.trim() || sending}
+            disabled={!input.trim() || isTyping}
             size="icon"
             className="h-[60px] w-[60px]"
             data-testid="send-button"
           >
-            {sending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
+            <Send className="h-4 w-4" />
           </Button>
         </div>
       </div>
