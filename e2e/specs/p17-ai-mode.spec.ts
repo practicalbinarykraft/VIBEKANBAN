@@ -25,7 +25,7 @@ test.describe("P17-B: AI Mode Banner", () => {
 
     // In test mode (PLAYWRIGHT=1), should show Demo mode
     await expect(banner).toHaveAttribute("data-mode", "demo");
-    await expect(banner).toContainText("Demo mode");
+    await expect(banner).toContainText("Demo Mode");
   });
 
   test("Settings page shows AI mode section", async ({ page }) => {
