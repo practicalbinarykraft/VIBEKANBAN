@@ -71,6 +71,7 @@ export function AiModeBanner({ className = "" }: AiModeBannerProps) {
           : "border-yellow-200 bg-yellow-50 dark:border-yellow-900 dark:bg-yellow-950"
       } ${className}`}
       data-testid="ai-mode-banner"
+      data-mode={mode}
     >
       <div className="flex items-center gap-2">
         {mode === "demo" ? (
