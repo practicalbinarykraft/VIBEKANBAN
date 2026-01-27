@@ -1,7 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
+import { getE2EProfile } from './e2e/config/e2e-profile';
 
-// In CI, use production build (more stable); locally use dev server (faster iteration)
-const isCI = !!process.env.CI;
+const profile = getE2EProfile();
+const isCI = profile === 'ci';
 
 export default defineConfig({
   testDir: './e2e',
@@ -9,10 +10,18 @@ export default defineConfig({
   forbidOnly: isCI,
   retries: isCI ? 2 : 0,
   workers: 1,
-  reporter: 'html',
+
+  // Profile-based reporter: CI uses html, local uses lightweight list
+  reporter: isCI ? 'html' : 'list',
+
   use: {
     baseURL: 'http://localhost:8000',
-    trace: 'on-first-retry',
+
+    // Profile-based trace: CI captures on-first-retry, local disables for memory savings
+    trace: isCI ? 'on-first-retry' : 'off',
+
+    // Profile-based video: CI can capture, local disables to avoid OOM (exit 137)
+    video: isCI ? 'on-first-retry' : 'off',
   },
   projects: [
     {

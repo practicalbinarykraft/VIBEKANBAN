@@ -68,3 +68,50 @@ await waitForTaskInColumn(page, taskId, 'in_progress');
 2. **E2E tests** run only if unit tests pass (`needs: unit`)
 
 If unit tests fail, E2E tests are skipped to save CI time.
+
+## Local E2E & Exit 137
+
+Exit code 137 indicates the process was killed due to OOM (Out of Memory). This commonly happens during local E2E runs because Playwright's trace and video recording consume significant memory.
+
+### Symptoms
+
+- Tests pass in CI but fail locally with exit 137
+- System becomes sluggish during test runs
+- Playwright processes killed unexpectedly
+
+### Solutions
+
+1. **Use the local profile (recommended)**
+   ```bash
+   npm run test:e2e:local
+   ```
+   This disables trace and video recording, significantly reducing memory usage.
+
+2. **Run fewer tests at once**
+   ```bash
+   npm run test:e2e:local -- e2e/specs/specific-test.spec.ts
+   ```
+
+3. **Close memory-heavy applications** during test runs (browsers, IDEs, Docker containers)
+
+4. **Increase system swap** if available
+
+### Profile Comparison
+
+| Setting   | Local (default) | CI               |
+|-----------|-----------------|------------------|
+| trace     | off             | on-first-retry   |
+| video     | off             | on-first-retry   |
+| reporter  | list            | html             |
+| retries   | 0               | 2                |
+
+### Environment Variable
+
+The profile is controlled by `E2E_PROFILE`:
+
+```bash
+E2E_PROFILE=local playwright test  # Lightweight
+E2E_PROFILE=ci playwright test     # Full CI config
+```
+
+Without `E2E_PROFILE`, defaults to `local` for memory-safe local development.
