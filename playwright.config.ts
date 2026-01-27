@@ -6,6 +6,7 @@ const isCI = profile === 'ci';
 
 export default defineConfig({
   testDir: './e2e',
+  testMatch: '**/*.spec.ts',
   fullyParallel: false,
   forbidOnly: isCI,
   retries: isCI ? 2 : 0,

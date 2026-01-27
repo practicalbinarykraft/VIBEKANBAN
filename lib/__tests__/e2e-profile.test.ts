@@ -4,7 +4,7 @@
  * Tests for E2E profile detection to support local vs CI configuration.
  */
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { getE2EProfile, type E2EProfile } from "../e2e-profile";
+import { getE2EProfile, type E2EProfile } from "../../e2e/config/e2e-profile";
 
 describe("getE2EProfile", () => {
   const originalEnv = process.env.E2E_PROFILE;
