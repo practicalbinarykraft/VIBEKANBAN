@@ -1,4 +1,5 @@
 import { Page, expect, APIRequestContext } from '@playwright/test';
+import { postWithRetry } from './request-utils';
 
 /**
  * Wait for board to be ready (not refreshing)
@@ -135,12 +136,9 @@ export async function waitForTaskCountToIncrease(
  * Set up execution readiness for tests that need Run Task enabled
  * - Sets AI provider to anthropic with test key
  * - Creates fake .git so repo appears cloned
+ *
+ * Includes health check + retry to handle ECONNRESET during server startup
  */
 export async function setupExecutionReady(request: APIRequestContext, projectId: string) {
-  const response = await request.post('/api/test/fixtures/execution-ready', {
-    data: { projectId },
-  });
-  if (!response.ok()) {
-    throw new Error(`Failed to set execution ready: ${await response.text()}`);
-  }
+  await postWithRetry(request, '/api/test/fixtures/execution-ready', { projectId });
 }

@@ -1,4 +1,5 @@
 import { APIRequestContext } from '@playwright/test';
+import { postJsonWithRetry, postWithRetry, deleteWithRetry } from './request-utils';
 
 interface Task {
   id: string;
@@ -141,8 +142,10 @@ export async function createFixtureAttempt(
     forceStatus?: 'running' | 'queued' | 'stopped';
   }
 ): Promise<string> {
-  const response = await request.post('http://localhost:8000/api/test/fixtures/create-attempt', {
-    data: {
+  const data = await postJsonWithRetry<{ attemptId: string }>(
+    request,
+    '/api/test/fixtures/create-attempt',
+    {
       taskId,
       status,
       withArtifacts: !options?.noDiff,
@@ -155,14 +158,8 @@ export async function createFixtureAttempt(
       withConflict: options?.withConflict || false,
       conflictFiles: options?.conflictFiles,
       forceStatus: options?.forceStatus,
-    },
-  });
-
-  if (!response.ok()) {
-    throw new Error(`Failed to create fixture attempt: ${response.status()} ${await response.text()}`);
-  }
-
-  const data = await response.json();
+    }
+  );
   return data.attemptId;
 }
 
@@ -173,11 +170,7 @@ export async function createFixtureAttempt(
 export async function clearProcessedWebhooks(
   request: APIRequestContext
 ): Promise<void> {
-  const response = await request.delete('http://localhost:8000/api/test/webhooks/clear');
-
-  if (!response.ok()) {
-    throw new Error(`Failed to clear processed webhooks: ${response.status()} ${await response.text()}`);
-  }
+  await deleteWithRetry(request, '/api/test/webhooks/clear');
 }
 
 /**
@@ -188,11 +181,5 @@ export async function resetProjectStatus(
   request: APIRequestContext,
   projectId: string
 ): Promise<void> {
-  const response = await request.post('http://localhost:8000/api/test/fixtures/project/reset-status', {
-    data: { projectId },
-  });
-
-  if (!response.ok()) {
-    throw new Error(`Failed to reset project status: ${response.status()} ${await response.text()}`);
-  }
+  await postWithRetry(request, '/api/test/fixtures/project/reset-status', { projectId });
 }
