@@ -1,66 +1,5 @@
 import { Page, expect, APIRequestContext } from '@playwright/test';
-
-// Network errors that should trigger retry
-const RETRYABLE_ERRORS = ['ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'EAI_AGAIN', 'EPIPE'];
-
-/**
- * Check if error is retryable (network issue or 5xx)
- */
-function isRetryableError(error: unknown, response?: { status: () => number }): boolean {
-  if (response && response.status() >= 500) return true;
-  if (error instanceof Error) {
-    return RETRYABLE_ERRORS.some((code) => error.message.includes(code));
-  }
-  return false;
-}
-
-/**
- * Retry wrapper with exponential backoff
- */
-async function withRetry<T>(
-  fn: () => Promise<T>,
-  options: { maxAttempts?: number; baseDelayMs?: number } = {}
-): Promise<T> {
-  const { maxAttempts = 4, baseDelayMs = 250 } = options;
-  let lastError: unknown;
-
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      return await fn();
-    } catch (error) {
-      lastError = error;
-      if (attempt === maxAttempts || !isRetryableError(error)) {
-        throw error;
-      }
-      const delay = baseDelayMs * Math.pow(2, attempt - 1); // 250, 500, 1000
-      await new Promise((r) => setTimeout(r, delay));
-    }
-  }
-  throw lastError;
-}
-
-/**
- * Wait for server to be ready (health check)
- * Polls a lightweight endpoint until server responds
- */
-async function waitForServerReady(
-  request: APIRequestContext,
-  options: { timeoutMs?: number; intervalMs?: number } = {}
-): Promise<void> {
-  const { timeoutMs = 10000, intervalMs = 250 } = options;
-  const startTime = Date.now();
-
-  while (Date.now() - startTime < timeoutMs) {
-    try {
-      const response = await request.get('/api/settings');
-      if (response.ok()) return;
-    } catch {
-      // Server not ready yet, continue polling
-    }
-    await new Promise((r) => setTimeout(r, intervalMs));
-  }
-  throw new Error(`Server not ready after ${timeoutMs}ms`);
-}
+import { postWithRetry } from './request-utils';
 
 /**
  * Wait for board to be ready (not refreshing)
@@ -201,24 +140,5 @@ export async function waitForTaskCountToIncrease(
  * Includes health check + retry to handle ECONNRESET during server startup
  */
 export async function setupExecutionReady(request: APIRequestContext, projectId: string) {
-  // Health check: wait for server to be ready before making mutations
-  await waitForServerReady(request);
-
-  // POST with retry for transient network errors
-  await withRetry(async () => {
-    const response = await request.post('/api/test/fixtures/execution-ready', {
-      data: { projectId },
-    });
-    if (!response.ok()) {
-      const text = await response.text();
-      // Don't retry 4xx (contract/logic errors)
-      if (response.status() >= 400 && response.status() < 500) {
-        throw new Error(`Failed to set execution ready (${response.status()}): ${text}`);
-      }
-      // 5xx gets retried via isRetryableError
-      const err = new Error(`Failed to set execution ready (${response.status()}): ${text}`);
-      (err as any).response = response;
-      throw err;
-    }
-  });
+  await postWithRetry(request, '/api/test/fixtures/execution-ready', { projectId });
 }
