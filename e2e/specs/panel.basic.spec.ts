@@ -47,14 +47,18 @@ test.describe('Task Details Panel - Basic Operations', () => {
     await expect(closeButton).toBeVisible();
     await closeButton.click();
 
-    // THEN: URL should not have task param (auto-select may trigger, that's ok)
-    // We just verify the close button works and removes the selected task
-    await page.waitForTimeout(500); // Wait for any auto-select to settle
+    // THEN: Wait for URL to change (task=2 must be removed; auto-select may add different task)
+    await page.waitForURL(
+      (url) => {
+        const params = new URL(url).searchParams;
+        return !params.has('task') || params.get('task') !== '2';
+      },
+      { timeout: 10000 }
+    );
 
-    // AND: Panel should either be closed OR show a different task (auto-select)
-    // The key is that clicking close DID remove task=2 from URL (even if auto-select triggered)
-    const currentUrl = page.url();
-    expect(currentUrl).not.toContain('task=2');
+    // AND: Verify task=2 is no longer in URL
+    const currentUrl = new URL(page.url());
+    expect(currentUrl.searchParams.get('task')).not.toBe('2');
   });
 
   test('T3: Switching tasks updates panel header and content', async ({ page }) => {
