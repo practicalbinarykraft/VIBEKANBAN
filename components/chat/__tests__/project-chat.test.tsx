@@ -37,12 +37,12 @@ describe("ProjectChat", () => {
 
   it("renders message input", () => {
     render(<ProjectChat projectId="test-123" />);
-    expect(screen.getByTestId("message-input")).toBeInTheDocument();
+    expect(screen.getByTestId("chat-input")).toBeInTheDocument();
   });
 
   it("renders send button", () => {
     render(<ProjectChat projectId="test-123" />);
-    expect(screen.getByTestId("send-button")).toBeInTheDocument();
+    expect(screen.getByTestId("chat-send")).toBeInTheDocument();
   });
 
   it("shows empty state when no messages", () => {
@@ -52,15 +52,15 @@ describe("ProjectChat", () => {
 
   it("disables send button when input is empty", () => {
     render(<ProjectChat projectId="test-123" />);
-    const sendButton = screen.getByTestId("send-button");
+    const sendButton = screen.getByTestId("chat-send");
     expect(sendButton).toBeDisabled();
   });
 
   it("enables send button when input has content", () => {
     render(<ProjectChat projectId="test-123" />);
-    const input = screen.getByTestId("message-input");
+    const input = screen.getByTestId("chat-input");
     fireEvent.change(input, { target: { value: "Hello" } });
-    const sendButton = screen.getByTestId("send-button");
+    const sendButton = screen.getByTestId("chat-send");
     expect(sendButton).not.toBeDisabled();
   });
 
@@ -90,10 +90,10 @@ describe("ProjectChat", () => {
 
     render(<ProjectChat projectId="test-123" />);
 
-    const input = screen.getByTestId("message-input");
+    const input = screen.getByTestId("chat-input");
     fireEvent.change(input, { target: { value: "Hello" } });
 
-    const sendButton = screen.getByTestId("send-button");
+    const sendButton = screen.getByTestId("chat-send");
     fireEvent.click(sendButton);
 
     // Should show typing indicator
@@ -113,11 +113,11 @@ describe("ProjectChat", () => {
 
     render(<ProjectChat projectId="test-123" />);
 
-    const input = screen.getByTestId("message-input") as HTMLTextAreaElement;
+    const input = screen.getByTestId("chat-input") as HTMLTextAreaElement;
     fireEvent.change(input, { target: { value: "Hello" } });
     expect(input.value).toBe("Hello");
 
-    const sendButton = screen.getByTestId("send-button");
+    const sendButton = screen.getByTestId("chat-send");
     fireEvent.click(sendButton);
 
     // Input should be cleared immediately (optimistic)
@@ -149,10 +149,10 @@ describe("ProjectChat", () => {
 
     render(<ProjectChat projectId="test-123" />);
 
-    const input = screen.getByTestId("message-input");
+    const input = screen.getByTestId("chat-input");
     fireEvent.change(input, { target: { value: "Hello" } });
 
-    const sendButton = screen.getByTestId("send-button");
+    const sendButton = screen.getByTestId("chat-send");
     fireEvent.click(sendButton);
 
     // User message should appear immediately (optimistic)
@@ -187,10 +187,10 @@ describe("ProjectChat", () => {
 
     render(<ProjectChat projectId="test-123" />);
 
-    const input = screen.getByTestId("message-input");
+    const input = screen.getByTestId("chat-input");
     fireEvent.change(input, { target: { value: "Hello" } });
 
-    const sendButton = screen.getByTestId("send-button");
+    const sendButton = screen.getByTestId("chat-send");
     fireEvent.click(sendButton);
 
     await waitFor(() => {
@@ -216,10 +216,10 @@ describe("ProjectChat", () => {
 
     render(<ProjectChat projectId="test-123" />);
 
-    const input = screen.getByTestId("message-input");
+    const input = screen.getByTestId("chat-input");
     fireEvent.change(input, { target: { value: "Hello" } });
 
-    const sendButton = screen.getByTestId("send-button");
+    const sendButton = screen.getByTestId("chat-send");
     fireEvent.click(sendButton);
 
     // Wait for error to appear

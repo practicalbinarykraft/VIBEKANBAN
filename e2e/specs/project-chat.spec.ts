@@ -41,7 +41,7 @@ test.describe("Project Chat + Iteration Loop", () => {
     await waitVisible(projectChat);
 
     // Message input should be visible and enabled
-    const messageInput = page.locator('[data-testid="message-input"]');
+    const messageInput = page.locator('[data-testid="chat-input"]');
     await waitVisible(messageInput);
     await expect(messageInput).toBeEnabled();
 
@@ -70,7 +70,7 @@ test.describe("Project Chat + Iteration Loop", () => {
     });
 
     // Send message
-    const messageInput = page.locator('[data-testid="message-input"]');
+    const messageInput = page.locator('[data-testid="chat-input"]');
     await messageInput.fill("Build a login page with email and password");
     await messageInput.press("Enter");
 
@@ -96,7 +96,7 @@ test.describe("Project Chat + Iteration Loop", () => {
     });
 
     // Send message
-    const messageInput = page.locator('[data-testid="message-input"]');
+    const messageInput = page.locator('[data-testid="chat-input"]');
     await messageInput.fill("Add logout button to the header");
     await messageInput.press("Enter");
 
@@ -123,7 +123,7 @@ test.describe("Project Chat + Iteration Loop", () => {
     });
 
     // Send message
-    const messageInput = page.locator('[data-testid="message-input"]');
+    const messageInput = page.locator('[data-testid="chat-input"]');
     await messageInput.fill("Create settings page with user profile");
     await messageInput.press("Enter");
 
@@ -160,7 +160,7 @@ test.describe("Project Chat + Iteration Loop", () => {
     });
 
     // Send first message
-    const messageInput = page.locator('[data-testid="message-input"]');
+    const messageInput = page.locator('[data-testid="chat-input"]');
     await messageInput.fill("Add API endpoint for users");
     await messageInput.press("Enter");
 

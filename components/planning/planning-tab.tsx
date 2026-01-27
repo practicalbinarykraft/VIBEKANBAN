@@ -28,6 +28,8 @@ interface PlanningTabProps {
   enableAutopilotV2?: boolean;
   /** When true, shows only CouncilConsole with compact header (PR-126 split-view) */
   compactMode?: boolean;
+  /** Whether chat has user messages (needed for Run Consilium in compact mode) */
+  hasUserMessages?: boolean;
   onApplyComplete?: (createdTaskIds: string[]) => void;
   onExecuteComplete?: (createdTaskIds: string[]) => void;
   onPipelineComplete?: (createdTaskIds: string[]) => void;
@@ -40,7 +42,7 @@ type Phase = "idle" | "kickoff" | "awaiting_response" | "plan_ready" | "approved
 // E2E mode detection - debug markers only render in Playwright tests
 const isE2E = process.env.NEXT_PUBLIC_PLAYWRIGHT === "1";
 
-export function PlanningTab({ projectId, enableAutopilotV2 = false, compactMode = false, onApplyComplete, onAutopilotComplete, onAutopilotSessionCreated }: PlanningTabProps) {
+export function PlanningTab({ projectId, enableAutopilotV2 = false, compactMode = false, hasUserMessages = false, onApplyComplete, onAutopilotComplete, onAutopilotSessionCreated }: PlanningTabProps) {
   const [idea, setIdea] = useState("");
   const [response, setResponse] = useState("");
   const [thread, setThread] = useState<CouncilThread | null>(null);
@@ -136,7 +138,10 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, compactMode 
 
   // Phase 1: Start council kickoff
   const handleStartCouncil = async () => {
-    if (!idea.trim()) return;
+    // In compact mode (split-view), idea comes from chat history
+    // In full mode, idea comes from the input field
+    if (!compactMode && !idea.trim()) return;
+    if (compactMode && !hasUserMessages) return;
 
     setIsLoading(true);
     setError(null);
@@ -146,7 +151,7 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, compactMode 
       const res = await fetch(`/api/projects/${projectId}/council/start`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idea: idea.trim() }),
+        body: JSON.stringify(compactMode ? { fromChat: true } : { idea: idea.trim() }),
       });
 
       if (!res.ok) {
@@ -156,6 +161,7 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, compactMode 
 
       const data = await res.json();
       setThread(data.thread);
+      setIdea(data.thread.ideaText || ""); // Store idea from chat for display
       setPhase("awaiting_response");
     } catch (err: any) {
       setError(err.message);
@@ -165,9 +171,16 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, compactMode 
     }
   };
 
-  // Phase 2: Submit response to council
+  // Phase 2: Submit response to council (used in full mode)
   const handleSubmitResponse = async () => {
     if (!response.trim() || !thread) return;
+    await submitResponseToCouncil(response.trim());
+    setResponse("");
+  };
+
+  // Core response submission logic (used by both modes)
+  const submitResponseToCouncil = async (responseText: string) => {
+    if (!thread) return;
 
     setIsResponding(true);
     setError(null);
@@ -176,7 +189,7 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, compactMode 
       const res = await fetch(`/api/projects/${projectId}/council/respond`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ threadId: thread.id, response: response.trim() }),
+        body: JSON.stringify({ threadId: thread.id, response: responseText }),
       });
 
       if (!res.ok) {
@@ -187,7 +200,6 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, compactMode 
       const data = await res.json();
       setThread(data.thread);
       setPhase("plan_ready");
-      setResponse("");
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -434,85 +446,12 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, compactMode 
   const messages = thread?.messages || [];
   const isStartDisabled = !idea.trim() || isLoading || phase !== "idle" || !canRunAi;
 
-  // Compact mode: single column with header + CouncilConsole (PR-126)
+  // Compact mode: single column with CouncilConsole only (PR-128)
+  // No idea input here - user uses chat on left
   if (compactMode) {
     return (
-      <div className="flex h-full flex-col overflow-hidden" data-testid="planning-tab-compact">
-        {/* Compact Header with Run Consilium */}
-        <div className="flex-shrink-0 border-b p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold">Council Console</h2>
-            {phase !== "idle" && (
-              <Button variant="ghost" size="sm" onClick={handleReset}>
-                <RotateCcw className="mr-1 h-3 w-3" />
-                Reset
-              </Button>
-            )}
-          </div>
-
-          {/* Idea Input + Run Consilium Button */}
-          {phase === "idle" && (
-            <div className="flex gap-2">
-              <Textarea
-                placeholder="Describe your project idea..."
-                value={idea}
-                onChange={(e) => setIdea(e.target.value)}
-                className="min-h-[60px] flex-1 resize-none"
-                data-testid="planning-idea-input"
-              />
-              <Button
-                onClick={handleStartCouncil}
-                disabled={isStartDisabled}
-                className="self-end"
-                data-testid="planning-start-button"
-              >
-                {isLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  "Run Consilium"
-                )}
-              </Button>
-            </div>
-          )}
-
-          {/* Response Input - compact */}
-          {phase === "awaiting_response" && (
-            <div className="flex gap-2">
-              <Textarea
-                placeholder="Answer the council's questions..."
-                value={response}
-                onChange={(e) => setResponse(e.target.value)}
-                className="min-h-[60px] flex-1 resize-none"
-                data-testid="response-input"
-              />
-              <Button
-                onClick={handleSubmitResponse}
-                disabled={!response.trim() || isResponding}
-                className="self-end"
-                data-testid="submit-response-btn"
-              >
-                {isResponding ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Send className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-          )}
-
-          {/* Phase status */}
-          {phase !== "idle" && phase !== "awaiting_response" && (
-            <PhaseBanner phase={phase} />
-          )}
-
-          {error && (
-            <div className="mt-2 rounded-md bg-destructive/10 p-2 text-sm text-destructive">
-              {error}
-            </div>
-          )}
-        </div>
-
-        {/* Council Console - full width */}
+      <div className="flex h-full flex-col overflow-hidden" data-testid="planning-tab-compact" data-can-run-ai={canRunAi} data-has-user-messages={hasUserMessages}>
+        {/* Council Console with integrated header */}
         <div className="flex-1 overflow-hidden">
           <CouncilConsole
             messages={messages}
@@ -523,9 +462,16 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, compactMode 
             onRevisePlan={handleRevisePlan}
             onApprovePlan={handleApprovePlan}
             onCreateTasks={handleCreateTasks}
+            onStartCouncil={handleStartCouncil}
+            onSubmitResponse={submitResponseToCouncil}
+            onReset={handleReset}
+            isLoading={isLoading}
+            isResponding={isResponding}
             isGenerating={isGenerating}
             isApproving={isApproving}
             isCreating={isCreating}
+            canRunAi={canRunAi && hasUserMessages}
+            error={error}
           />
         </div>
 

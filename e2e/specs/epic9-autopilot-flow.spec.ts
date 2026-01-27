@@ -10,13 +10,19 @@ import {
 
 /**
  * EPIC-9 + Autopilot Integration E2E tests (Critical Path)
+ * PR-128: Updated for new Chat → Council flow
  *
  * Tests critical path only:
  * - Page loads without crash
  * - Buttons are clickable
  * - No 5xx errors
  *
- * NO text assertions, NO navigation waits, NO env-var dependencies
+ * New flow (PR-128):
+ * 1. User types message in Chat (left panel)
+ * 2. User clicks "Run Consilium" button (right panel)
+ * 3. Council dialogue appears, user responds
+ * 4. Generate plan, approve, create tasks
+ * 5. AutopilotPanel appears
  */
 
 test.describe("EPIC-9 Autopilot Integration", () => {
@@ -33,21 +39,30 @@ test.describe("EPIC-9 Autopilot Integration", () => {
 
     // Navigate to Planning tab
     await page.locator('[data-testid="planning-tab"]').click();
-    await waitVisible(page.locator('[data-testid="planning-idea-input"]'));
 
-    // Enter idea and start council
-    const ideaInput = page.locator('[data-testid="planning-idea-input"]');
-    await ideaInput.fill("Build a REST API with user authentication");
-    await clickNoNav(page.locator('[data-testid="planning-start-button"]'));
+    // Wait for chat input
+    const chatInput = page.locator('[data-testid="chat-input"]');
+    await waitVisible(chatInput);
+
+    // Send chat message
+    await chatInput.fill("Build a REST API with user authentication");
+    await clickNoNav(page.locator('[data-testid="chat-send"]'));
+    await waitVisible(page.locator('[data-testid="chat-message-ai"]').first(), 15000);
+    await page.waitForTimeout(500);
+
+    // Start council
+    const runBtn = page.locator('[data-testid="run-consilium"]');
+    await expect(runBtn).toBeEnabled({ timeout: 10000 });
+    await clickNoNav(runBtn);
 
     // Wait for council dialogue
     await waitVisible(page.locator('[data-testid="council-dialogue"]'), 15000);
 
     // Wait for response input and submit
-    const responseInput = page.locator('[data-testid="response-input"]');
+    const responseInput = page.locator('[data-testid="council-response-input"]');
     await waitVisible(responseInput, 15000);
     await responseInput.fill("Use JWT tokens for auth.");
-    await clickNoNav(page.locator('[data-testid="submit-response-btn"]'));
+    await clickNoNav(page.locator('[data-testid="council-response-submit"]'));
 
     // Wait for Generate Plan button and click
     const generateBtn = page.locator('[data-testid="generate-plan-btn"]');
@@ -60,7 +75,7 @@ test.describe("EPIC-9 Autopilot Integration", () => {
     await clickNoNav(planTabBtn);
 
     // Approve plan
-    const approveBtn = page.locator('[data-testid="approve-plan-btn"]');
+    const approveBtn = page.locator('[data-testid="approve-plan"]');
     await waitVisible(approveBtn, 10000);
     await clickNoNav(approveBtn);
 
@@ -92,18 +107,27 @@ test.describe("EPIC-9 Autopilot Integration", () => {
 
     // Navigate to Planning tab
     await page.locator('[data-testid="planning-tab"]').click();
-    await waitVisible(page.locator('[data-testid="planning-idea-input"]'));
+
+    // Wait for chat input
+    const chatInput = page.locator('[data-testid="chat-input"]');
+    await waitVisible(chatInput);
 
     // Full council flow
-    const ideaInput = page.locator('[data-testid="planning-idea-input"]');
-    await ideaInput.fill("Create a simple CRUD for products");
-    await clickNoNav(page.locator('[data-testid="planning-start-button"]'));
+    await chatInput.fill("Create a simple CRUD for products");
+    await clickNoNav(page.locator('[data-testid="chat-send"]'));
+    await waitVisible(page.locator('[data-testid="chat-message-ai"]').first(), 15000);
+    await page.waitForTimeout(500);
+
+    // Start council
+    const runBtn = page.locator('[data-testid="run-consilium"]');
+    await expect(runBtn).toBeEnabled({ timeout: 10000 });
+    await clickNoNav(runBtn);
 
     // Wait for response input
-    const responseInput = page.locator('[data-testid="response-input"]');
+    const responseInput = page.locator('[data-testid="council-response-input"]');
     await waitVisible(responseInput, 15000);
     await responseInput.fill("Keep it simple.");
-    await clickNoNav(page.locator('[data-testid="submit-response-btn"]'));
+    await clickNoNav(page.locator('[data-testid="council-response-submit"]'));
 
     // Generate plan
     const generateBtn = page.locator('[data-testid="generate-plan-btn"]');
@@ -116,7 +140,7 @@ test.describe("EPIC-9 Autopilot Integration", () => {
     await clickNoNav(planTabBtn);
 
     // Approve and create tasks
-    const approveBtn = page.locator('[data-testid="approve-plan-btn"]');
+    const approveBtn = page.locator('[data-testid="approve-plan"]');
     await waitVisible(approveBtn, 10000);
     await clickNoNav(approveBtn);
 
@@ -150,17 +174,26 @@ test.describe("EPIC-9 Autopilot Integration", () => {
 
     // Navigate to Planning tab
     await page.locator('[data-testid="planning-tab"]').click();
-    await waitVisible(page.locator('[data-testid="planning-idea-input"]'));
+
+    // Wait for chat input
+    const chatInput = page.locator('[data-testid="chat-input"]');
+    await waitVisible(chatInput);
 
     // Full council flow
-    const ideaInput = page.locator('[data-testid="planning-idea-input"]');
-    await ideaInput.fill("Build a notification system");
-    await clickNoNav(page.locator('[data-testid="planning-start-button"]'));
+    await chatInput.fill("Build a notification system");
+    await clickNoNav(page.locator('[data-testid="chat-send"]'));
+    await waitVisible(page.locator('[data-testid="chat-message-ai"]').first(), 15000);
+    await page.waitForTimeout(500);
 
-    const responseInput = page.locator('[data-testid="response-input"]');
+    // Start council
+    const runBtn = page.locator('[data-testid="run-consilium"]');
+    await expect(runBtn).toBeEnabled({ timeout: 10000 });
+    await clickNoNav(runBtn);
+
+    const responseInput = page.locator('[data-testid="council-response-input"]');
     await waitVisible(responseInput, 15000);
     await responseInput.fill("Email and push notifications.");
-    await clickNoNav(page.locator('[data-testid="submit-response-btn"]'));
+    await clickNoNav(page.locator('[data-testid="council-response-submit"]'));
 
     const generateBtn = page.locator('[data-testid="generate-plan-btn"]');
     await waitVisible(generateBtn, 30000);
@@ -170,7 +203,7 @@ test.describe("EPIC-9 Autopilot Integration", () => {
     await expect(planTabBtn).toBeEnabled({ timeout: 30000 });
     await clickNoNav(planTabBtn);
 
-    const approveBtn = page.locator('[data-testid="approve-plan-btn"]');
+    const approveBtn = page.locator('[data-testid="approve-plan"]');
     await waitVisible(approveBtn, 10000);
     await clickNoNav(approveBtn);
 

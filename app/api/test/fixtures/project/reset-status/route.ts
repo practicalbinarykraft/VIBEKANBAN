@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/server/db";
-import { projects, tasks, councilThreads, councilThreadMessages, planArtifacts, planningSessions } from "@/server/db/schema";
+import { projects, tasks, councilThreads, councilThreadMessages, planArtifacts, planningSessions, projectMessages } from "@/server/db/schema";
 import { eq, and } from "drizzle-orm";
 
 /**
@@ -11,6 +11,7 @@ import { eq, and } from "drizzle-orm";
  * - Moves all todo tasks to 'done' so they don't interfere with test tasks
  * - Clears council threads and plan artifacts (EPIC-9)
  * - Clears planning sessions
+ * - Clears chat history (PR-128)
  */
 export async function POST(request: NextRequest) {
   try {
@@ -60,6 +61,9 @@ export async function POST(request: NextRequest) {
 
     // Clear planning sessions for this project
     await db.delete(planningSessions).where(eq(planningSessions.projectId, projectId));
+
+    // Clear chat history for this project (PR-128)
+    await db.delete(projectMessages).where(eq(projectMessages.projectId, projectId));
 
     return NextResponse.json({ success: true, projectId });
   } catch (error: any) {
