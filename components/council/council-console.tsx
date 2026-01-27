@@ -26,8 +26,10 @@ interface CouncilConsoleProps {
   onApprovePlan: () => void;
   onCreateTasks: () => void;
   onStartCouncil?: () => void;
+  onSubmitResponse?: (response: string) => void;
   onReset?: () => void;
   isLoading?: boolean;
+  isResponding?: boolean;
   isGenerating?: boolean;
   isApproving?: boolean;
   isCreating?: boolean;
@@ -61,8 +63,10 @@ export function CouncilConsole({
   onApprovePlan,
   onCreateTasks,
   onStartCouncil,
+  onSubmitResponse,
   onReset,
   isLoading,
+  isResponding,
   isGenerating,
   isApproving,
   isCreating,
@@ -71,15 +75,23 @@ export function CouncilConsole({
 }: CouncilConsoleProps) {
   const [showPlan, setShowPlan] = useState(false);
   const [revisionText, setRevisionText] = useState("");
+  const [responseText, setResponseText] = useState("");
 
   const isIdle = threadStatus === "idle";
+  const isRunning = threadStatus === "kickoff" || threadStatus === "awaiting_response";
+  const isDone = threadStatus === "tasks_created";
+  const hasError = !!error;
+
+  // Council status for E2E tests: idle | running | done | error
+  const councilStatus = hasError ? "error" : isDone ? "done" : isRunning ? "running" : isIdle ? "idle" : "running";
+
   const canGeneratePlan = threadStatus === "plan_ready" && !plan;
   const canRevise = plan && plan.status !== "approved";
   const canApprove = plan && plan.status !== "approved";
   const canCreateTasks = plan && plan.status === "approved";
 
   return (
-    <div className="flex h-full flex-col" data-testid="council-console">
+    <div className="flex h-full flex-col" data-testid="council-console" data-council-status={councilStatus}>
       {/* Header */}
       <div className="border-b p-4">
         <div className="flex items-center justify-between">
@@ -95,7 +107,7 @@ export function CouncilConsole({
                 onClick={onStartCouncil}
                 disabled={isLoading || !canRunAi}
                 size="sm"
-                data-testid="planning-start-button"
+                data-testid="run-consilium"
               >
                 {isLoading ? (
                   <Loader2 className="mr-1 h-3 w-3 animate-spin" />
@@ -192,7 +204,7 @@ export function CouncilConsole({
           </div>
         ) : (
           /* Plan View */
-          <div className="space-y-4" data-testid="plan-view">
+          <div className="space-y-4" data-testid="council-plan">
             {plan ? (
               <>
                 <div className="rounded-lg border bg-card p-4">
@@ -238,6 +250,43 @@ export function CouncilConsole({
       {/* Controls - hidden when idle */}
       {!isIdle && (
       <div className="border-t p-4 space-y-3">
+        {/* Response input - when awaiting user response (PR-128) */}
+        {threadStatus === "awaiting_response" && onSubmitResponse && (
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Answer the council's questions to continue:
+            </p>
+            <textarea
+              placeholder="Type your response..."
+              value={responseText}
+              onChange={(e) => setResponseText(e.target.value)}
+              className="w-full rounded-md border bg-background p-2 text-sm"
+              rows={3}
+              data-testid="council-response-input"
+            />
+            <Button
+              onClick={() => {
+                if (responseText.trim()) {
+                  onSubmitResponse(responseText.trim());
+                  setResponseText("");
+                }
+              }}
+              disabled={!responseText.trim() || isResponding}
+              className="w-full"
+              data-testid="council-response-submit"
+            >
+              {isResponding ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                "Send Response"
+              )}
+            </Button>
+          </div>
+        )}
+
         {canGeneratePlan && (
           <Button
             onClick={onGeneratePlan}
@@ -290,7 +339,7 @@ export function CouncilConsole({
             disabled={isApproving}
             variant="outline"
             className="w-full"
-            data-testid="approve-plan-btn"
+            data-testid="approve-plan"
           >
             {isApproving ? (
               <>

@@ -26,9 +26,10 @@ interface ChatMessage {
 interface ProjectChatProps {
   projectId: string;
   onMessageSent?: (data: any) => void;
+  onHasUserMessages?: (hasUserMessages: boolean) => void;
 }
 
-export function ProjectChat({ projectId, onMessageSent }: ProjectChatProps) {
+export function ProjectChat({ projectId, onMessageSent, onHasUserMessages }: ProjectChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -44,6 +45,12 @@ export function ProjectChat({ projectId, onMessageSent }: ProjectChatProps) {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
+
+  // Notify parent when user messages exist
+  useEffect(() => {
+    const hasUserMessages = messages.some(m => m.role === "user");
+    onHasUserMessages?.(hasUserMessages);
+  }, [messages, onHasUserMessages]);
 
   const loadHistory = async () => {
     try {
@@ -203,7 +210,7 @@ export function ProjectChat({ projectId, onMessageSent }: ProjectChatProps) {
             onKeyDown={handleKeyPress}
             placeholder="Type your message..."
             className="min-h-[60px] resize-none"
-            data-testid="message-input"
+            data-testid="chat-input"
             disabled={isTyping}
           />
           <Button
@@ -211,7 +218,7 @@ export function ProjectChat({ projectId, onMessageSent }: ProjectChatProps) {
             disabled={!input.trim() || isTyping}
             size="icon"
             className="h-[60px] w-[60px]"
-            data-testid="send-button"
+            data-testid="chat-send"
           >
             <Send className="h-4 w-4" />
           </Button>
