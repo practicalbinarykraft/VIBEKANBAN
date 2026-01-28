@@ -1,14 +1,16 @@
 /**
- * Real AI Configuration
+ * Real AI Configuration (PR-130: Mock mode gating)
  *
  * Handles FEATURE_REAL_AI flag for enabling real AI via env vars.
  * This allows CI/local testing with real Anthropic without DB config.
  *
  * Priority:
- * 1. PLAYWRIGHT=1 or NODE_ENV=test → always mock (safety first)
+ * 1. Mock mode enabled (CI/VK_TEST_MODE/E2E_PROFILE) → always mock
  * 2. FEATURE_REAL_AI=1 + ANTHROPIC_API_KEY → use real Anthropic
  * 3. Otherwise → fallback to database settings (existing behavior)
  */
+
+import { isMockModeEnabled } from "@/lib/mock-mode";
 
 export interface RealAiConfig {
   provider: "anthropic";
@@ -16,12 +18,7 @@ export interface RealAiConfig {
   model: string;
 }
 
-/**
- * Check if test mode is active (should use mocks)
- */
-function isTestMode(): boolean {
-  return process.env.PLAYWRIGHT === "1" || process.env.NODE_ENV === "test";
-}
+// isTestMode removed - use isMockModeEnabled() from @/lib/mock-mode
 
 /**
  * Check if FEATURE_REAL_AI flag is enabled
@@ -40,7 +37,7 @@ function isRealAiFlagEnabled(): boolean {
  * - ANTHROPIC_API_KEY is set
  */
 export function shouldUseRealAi(): boolean {
-  if (isTestMode()) {
+  if (isMockModeEnabled()) {
     return false;
   }
   if (!isRealAiFlagEnabled()) {

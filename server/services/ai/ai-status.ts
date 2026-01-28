@@ -1,5 +1,5 @@
 /**
- * AI Status Service (PR-122: BYOK support)
+ * AI Status Service (PR-122: BYOK support, PR-130: Mock mode gating)
  *
  * Returns current AI configuration status for Settings UI.
  * Reads API keys from BYOK storage (DB settings table) first,
@@ -9,6 +9,7 @@
 
 import { checkProviderBudget } from "./ai-budget-guard";
 import { getByokSettings, getApiKey, type ByokSettings } from "./ai-byok";
+import { isMockModeEnabled, getMockModeTriggers, getMockModeReason } from "@/lib/mock-mode";
 
 export type AiStatusReason =
   | "FEATURE_REAL_AI_DISABLED"
@@ -34,20 +35,13 @@ export interface AiStatusResponse {
   testModeTriggers: string[];
 }
 
-function isTestMode(): boolean {
-  return process.env.PLAYWRIGHT === "1" || process.env.NODE_ENV === "test";
-}
-
 function isRealAiFlagEnabled(): boolean {
   const value = process.env.FEATURE_REAL_AI;
   return value === "1" || value === "true";
 }
 
 function getTestModeTriggers(): string[] {
-  const triggers: string[] = [];
-  if (process.env.PLAYWRIGHT === "1") triggers.push("PLAYWRIGHT=1");
-  if (process.env.NODE_ENV === "test") triggers.push("NODE_ENV=test");
-  return triggers;
+  return getMockModeTriggers();
 }
 
 function maskApiKey(key: string): string {
@@ -78,7 +72,7 @@ export async function getAiStatus(): Promise<AiStatusResponse> {
   const testModeTriggers = getTestModeTriggers();
   const model = byokSettings?.model || "claude-sonnet-4-20250514";
 
-  if (isTestMode()) {
+  if (isMockModeEnabled()) {
     return {
       realAiEligible: false, provider: "mock", model: "mock",
       reason: "TEST_MODE_FORCED_MOCK", mode: "forced_mock",
