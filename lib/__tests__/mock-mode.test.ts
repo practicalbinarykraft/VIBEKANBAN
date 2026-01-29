@@ -29,7 +29,7 @@ describe("Mock Mode Gating (PR-130)", () => {
     delete process.env.VK_TEST_MODE;
     delete process.env.E2E_PROFILE;
     delete process.env.PLAYWRIGHT;
-    process.env.NODE_ENV = "development";
+    (process.env as Record<string, string | undefined>).NODE_ENV = "development";
   });
 
   afterEach(() => {
@@ -60,7 +60,7 @@ describe("Mock Mode Gating (PR-130)", () => {
     it("returns false when NODE_ENV=test (allows testing real AI branches)", () => {
       // CRITICAL: NODE_ENV=test should NOT trigger mock mode
       // Unit tests must be able to test both mock and real AI status logic
-      process.env.NODE_ENV = "test";
+      (process.env as Record<string, string | undefined>).NODE_ENV = "test";
       expect(isMockModeEnabled()).toBe(false);
     });
 
@@ -119,7 +119,7 @@ describe("Mock Mode Gating (PR-130)", () => {
 
     // NEW: NODE_ENV_TEST should NOT appear in triggers
     it("does NOT include NODE_ENV_TEST even when NODE_ENV=test", () => {
-      process.env.NODE_ENV = "test";
+      (process.env as Record<string, string | undefined>).NODE_ENV = "test";
       expect(getMockModeTriggers()).not.toContain("NODE_ENV_TEST");
     });
 
@@ -195,13 +195,13 @@ describe("Mock Mode Gating (PR-130)", () => {
   describe("Dev Mode Scenario", () => {
     it("mock mode is disabled in clean dev", () => {
       // Simulates: npm run dev
-      process.env.NODE_ENV = "development";
+      (process.env as Record<string, string | undefined>).NODE_ENV = "development";
       expect(isMockModeEnabled()).toBe(false);
     });
 
     it("mock mode is disabled even with stray PLAYWRIGHT=1", () => {
       // Edge case: user accidentally runs with PLAYWRIGHT=1
-      process.env.NODE_ENV = "development";
+      (process.env as Record<string, string | undefined>).NODE_ENV = "development";
       process.env.PLAYWRIGHT = "1";
       expect(isMockModeEnabled()).toBe(false);
     });
@@ -210,13 +210,13 @@ describe("Mock Mode Gating (PR-130)", () => {
   describe("Unit Test Scenario (NODE_ENV=test)", () => {
     it("mock mode is disabled so tests can validate real AI logic", () => {
       // CRITICAL: Unit tests must be able to test both mock and real AI paths
-      process.env.NODE_ENV = "test";
+      (process.env as Record<string, string | undefined>).NODE_ENV = "test";
       expect(isMockModeEnabled()).toBe(false);
     });
 
     it("mock mode can be enabled explicitly in unit tests via VK_TEST_MODE", () => {
       // When a test WANTS mock mode, it sets VK_TEST_MODE=1 explicitly
-      process.env.NODE_ENV = "test";
+      (process.env as Record<string, string | undefined>).NODE_ENV = "test";
       process.env.VK_TEST_MODE = "1";
       expect(isMockModeEnabled()).toBe(true);
     });
