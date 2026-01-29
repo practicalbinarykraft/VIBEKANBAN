@@ -13,6 +13,7 @@ import { projectMessages, projects } from "@/server/db/schema";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { getAICompletion, isAIConfigured } from "../ai/ai-provider";
+import { isMockModeEnabled } from "@/lib/mock-mode";
 
 /**
  * Detect language from text (PR-127)
@@ -86,12 +87,7 @@ export interface ChatMessage {
   createdAt: Date;
 }
 
-/**
- * Check if running in test mode
- */
-function isTestMode(): boolean {
-  return process.env.PLAYWRIGHT === "1" || process.env.NODE_ENV === "test";
-}
+// isTestMode removed - use isMockModeEnabled() from @/lib/mock-mode
 
 /**
  * Generate test mode response based on keywords and language (PR-127)
@@ -126,7 +122,7 @@ function getTestModeResponse(userMessage: string, language: string): string {
  * Generate AI chat response with guardrails (PR-127)
  */
 async function generateAIChatResponse(userMessage: string, language: string): Promise<string> {
-  if (isTestMode()) {
+  if (isMockModeEnabled()) {
     return getTestModeResponse(userMessage, language);
   }
 

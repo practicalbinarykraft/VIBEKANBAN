@@ -1,10 +1,11 @@
 /**
  * Tests for council real AI routing
  *
- * Verifies mode selection:
- * - PLAYWRIGHT=1 → mock
- * - NODE_ENV=test → mock
- * - FEATURE_REAL_AI=1 + key → real path (stream mocked in test)
+ * PR-130 NEW CONTRACT:
+ * - Mock mode is ONLY triggered by explicit flags: VK_TEST_MODE=1, E2E_PROFILE
+ * - PLAYWRIGHT=1 alone does NOT trigger mock mode
+ * - NODE_ENV=test does NOT trigger mock mode
+ * - Uses shouldUseRealAi() which internally uses isMockModeEnabled()
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -41,7 +42,8 @@ describe("council-real-ai-routing", () => {
   };
 
   describe("mode selection", () => {
-    it("returns mock response when PLAYWRIGHT=1", async () => {
+    // PR-130: When VK_TEST_MODE=1, shouldUseRealAi returns false
+    it("returns mock response when shouldUseRealAi returns false (mock mode)", async () => {
       vi.mocked(shouldUseRealAi).mockReturnValue(false);
 
       const result = await getCouncilAiResponse(defaultParams);
@@ -52,17 +54,7 @@ describe("council-real-ai-routing", () => {
       expect(result.content).toBeTruthy();
     });
 
-    it("returns mock response when NODE_ENV=test", async () => {
-      vi.mocked(shouldUseRealAi).mockReturnValue(false);
-
-      const result = await getCouncilAiResponse(defaultParams);
-
-      expect(shouldUseRealAi).toHaveBeenCalled();
-      expect(collectStreamResponse).not.toHaveBeenCalled();
-      expect(result.isReal).toBe(false);
-    });
-
-    it("uses real AI when FEATURE_REAL_AI=1 and key present", async () => {
+    it("uses real AI when shouldUseRealAi returns true", async () => {
       vi.mocked(shouldUseRealAi).mockReturnValue(true);
       vi.mocked(getRealAiConfig).mockReturnValue({
         provider: "anthropic",

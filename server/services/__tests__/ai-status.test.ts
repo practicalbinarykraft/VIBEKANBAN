@@ -1,6 +1,11 @@
 /**
  * Unit tests for AI Status service
  *
+ * PR-130 NEW CONTRACT:
+ * - Mock mode is ONLY triggered by explicit flags: VK_TEST_MODE=1, E2E_PROFILE
+ * - NODE_ENV=test and CI do NOT trigger mock mode
+ * - This allows unit tests to validate both mock and real AI logic
+ *
  * Tests getAiStatus() function that returns:
  * - realAiEligible: boolean
  * - provider: "anthropic" | "mock" | "db"
@@ -39,6 +44,10 @@ describe("ai-status", () => {
     delete process.env.FEATURE_REAL_AI;
     delete process.env.ANTHROPIC_API_KEY;
     delete process.env.PLAYWRIGHT;
+    delete process.env.VK_TEST_MODE;
+    delete process.env.E2E_PROFILE;
+    delete process.env.CI;
+    // Set NODE_ENV to development (tests can override)
     (process.env as Record<string, string | undefined>).NODE_ENV = "development";
 
     // Default mock: budget allowed
@@ -57,8 +66,9 @@ describe("ai-status", () => {
   });
 
   describe("getAiStatus", () => {
-    it("returns mock provider when in test mode (PLAYWRIGHT=1)", async () => {
-      process.env.PLAYWRIGHT = "1";
+    // PR-130: Mock mode only via VK_TEST_MODE, not PLAYWRIGHT alone
+    it("returns mock provider when VK_TEST_MODE=1 is set", async () => {
+      process.env.VK_TEST_MODE = "1";
       process.env.FEATURE_REAL_AI = "1";
       process.env.ANTHROPIC_API_KEY = "sk-ant-test";
 
@@ -69,8 +79,9 @@ describe("ai-status", () => {
       expect(status.reason).toBe("TEST_MODE_FORCED_MOCK");
     });
 
-    it("returns mock provider when in test mode (NODE_ENV=test)", async () => {
-      (process.env as Record<string, string | undefined>).NODE_ENV = "test";
+    // PR-130: Mock mode via E2E_PROFILE=ci
+    it("returns mock provider when E2E_PROFILE=ci is set", async () => {
+      process.env.E2E_PROFILE = "ci";
       process.env.FEATURE_REAL_AI = "1";
       process.env.ANTHROPIC_API_KEY = "sk-ant-test";
 
@@ -79,6 +90,34 @@ describe("ai-status", () => {
       expect(status.realAiEligible).toBe(false);
       expect(status.provider).toBe("mock");
       expect(status.reason).toBe("TEST_MODE_FORCED_MOCK");
+    });
+
+    // PR-130: PLAYWRIGHT alone does NOT trigger mock
+    it("does NOT trigger mock when only PLAYWRIGHT=1 is set", async () => {
+      process.env.PLAYWRIGHT = "1";
+      process.env.FEATURE_REAL_AI = "1";
+      process.env.ANTHROPIC_API_KEY = "sk-ant-test";
+
+      const status = await getAiStatus();
+
+      // Should be real AI, not mock
+      expect(status.realAiEligible).toBe(true);
+      expect(status.provider).toBe("anthropic");
+      expect(status.mode).toBe("real");
+    });
+
+    // PR-130: NODE_ENV=test does NOT trigger mock (allows testing real AI branches)
+    it("does NOT trigger mock when NODE_ENV=test (allows testing real AI logic)", async () => {
+      (process.env as Record<string, string | undefined>).NODE_ENV = "test";
+      process.env.FEATURE_REAL_AI = "1";
+      process.env.ANTHROPIC_API_KEY = "sk-ant-test";
+
+      const status = await getAiStatus();
+
+      // Should be real AI, not mock - so we can test real AI branches
+      expect(status.realAiEligible).toBe(true);
+      expect(status.provider).toBe("anthropic");
+      expect(status.mode).toBe("real");
     });
 
     it("returns db provider when FEATURE_REAL_AI not set", async () => {
@@ -212,9 +251,10 @@ describe("ai-status", () => {
       });
     });
 
-    describe("mode field (PR-121)", () => {
-      it("returns mode=forced_mock when PLAYWRIGHT=1", async () => {
-        process.env.PLAYWRIGHT = "1";
+    describe("mode field (PR-121, PR-130 updated)", () => {
+      // PR-130: VK_TEST_MODE triggers forced_mock, not PLAYWRIGHT alone
+      it("returns mode=forced_mock when VK_TEST_MODE=1", async () => {
+        process.env.VK_TEST_MODE = "1";
         process.env.FEATURE_REAL_AI = "1";
         process.env.ANTHROPIC_API_KEY = "sk-ant-key";
 
@@ -223,14 +263,26 @@ describe("ai-status", () => {
         expect(status.mode).toBe("forced_mock");
       });
 
-      it("returns mode=forced_mock when NODE_ENV=test", async () => {
-        (process.env as Record<string, string | undefined>).NODE_ENV = "test";
+      // PR-130: E2E_PROFILE triggers forced_mock
+      it("returns mode=forced_mock when E2E_PROFILE=ci", async () => {
+        process.env.E2E_PROFILE = "ci";
         process.env.FEATURE_REAL_AI = "1";
         process.env.ANTHROPIC_API_KEY = "sk-ant-key";
 
         const status = await getAiStatus();
 
         expect(status.mode).toBe("forced_mock");
+      });
+
+      // PR-130: NODE_ENV=test does NOT trigger forced_mock
+      it("returns mode=real when NODE_ENV=test (not a mock trigger)", async () => {
+        (process.env as Record<string, string | undefined>).NODE_ENV = "test";
+        process.env.FEATURE_REAL_AI = "1";
+        process.env.ANTHROPIC_API_KEY = "sk-ant-key";
+
+        const status = await getAiStatus();
+
+        expect(status.mode).toBe("real");
       });
 
       it("returns mode=real when all configured correctly", async () => {
@@ -251,24 +303,47 @@ describe("ai-status", () => {
       });
     });
 
-    describe("testModeTriggers (PR-121)", () => {
-      it("includes PLAYWRIGHT in triggers when set", async () => {
+    describe("testModeTriggers (PR-121, PR-130 updated)", () => {
+      // PR-130: VK_TEST_MODE is a trigger
+      it("includes VK_TEST_MODE in triggers when set", async () => {
+        process.env.VK_TEST_MODE = "1";
+
+        const status = await getAiStatus();
+
+        expect(status.testModeTriggers).toContain("VK_TEST_MODE");
+      });
+
+      // PR-130: E2E_PROFILE is a trigger
+      it("includes E2E_PROFILE in triggers when E2E_PROFILE=ci", async () => {
+        process.env.E2E_PROFILE = "ci";
+
+        const status = await getAiStatus();
+
+        expect(status.testModeTriggers).toContain("E2E_PROFILE");
+      });
+
+      // PR-130: PLAYWRIGHT is NOT a trigger
+      it("does NOT include PLAYWRIGHT in triggers (not a mock trigger)", async () => {
         process.env.PLAYWRIGHT = "1";
 
         const status = await getAiStatus();
 
-        expect(status.testModeTriggers).toContain("PLAYWRIGHT=1");
+        expect(status.testModeTriggers).not.toContain("PLAYWRIGHT");
+        expect(status.testModeTriggers).not.toContain("PLAYWRIGHT=1");
       });
 
-      it("includes NODE_ENV=test in triggers when set", async () => {
+      // PR-130: NODE_ENV=test is NOT a trigger
+      it("does NOT include NODE_ENV in triggers (not a mock trigger)", async () => {
         (process.env as Record<string, string | undefined>).NODE_ENV = "test";
 
         const status = await getAiStatus();
 
-        expect(status.testModeTriggers).toContain("NODE_ENV=test");
+        expect(status.testModeTriggers).not.toContain("NODE_ENV");
+        expect(status.testModeTriggers).not.toContain("NODE_ENV=test");
+        expect(status.testModeTriggers).not.toContain("NODE_ENV_TEST");
       });
 
-      it("returns empty triggers when not in test mode", async () => {
+      it("returns empty triggers when not in mock mode", async () => {
         process.env.FEATURE_REAL_AI = "1";
         process.env.ANTHROPIC_API_KEY = "sk-ant-key";
 

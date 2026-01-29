@@ -1,10 +1,10 @@
 /**
  * Integration tests for AI Provider
  *
- * Tests:
- * - Demo mode fallback (without real API key)
- * - Settings configuration
- * - Error handling
+ * PR-130 NEW CONTRACT:
+ * - Mock mode is ONLY triggered by explicit flags: VK_TEST_MODE=1, E2E_PROFILE
+ * - PLAYWRIGHT=1 alone does NOT trigger mock mode
+ * - Tests use VK_TEST_MODE=1 to explicitly trigger mock mode
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -34,6 +34,10 @@ describe("AI Provider Integration", () => {
   beforeEach(() => {
     // Reset environment
     process.env = { ...originalEnv };
+    delete process.env.VK_TEST_MODE;
+    delete process.env.E2E_PROFILE;
+    delete process.env.VIBE_DEMO_MODE;
+    delete process.env.PLAYWRIGHT;
   });
 
   afterEach(() => {
@@ -41,9 +45,10 @@ describe("AI Provider Integration", () => {
     vi.clearAllMocks();
   });
 
-  describe("Test Mode (PLAYWRIGHT=1)", () => {
+  describe("Test Mode (VK_TEST_MODE=1)", () => {
     beforeEach(() => {
-      process.env.PLAYWRIGHT = "1";
+      // PR-130: Use VK_TEST_MODE instead of PLAYWRIGHT
+      process.env.VK_TEST_MODE = "1";
     });
 
     it("returns demo completion in test mode", async () => {
@@ -65,7 +70,6 @@ describe("AI Provider Integration", () => {
   describe("Demo Mode (VIBE_DEMO_MODE=1)", () => {
     beforeEach(() => {
       process.env.VIBE_DEMO_MODE = "1";
-      delete process.env.PLAYWRIGHT;
     });
 
     it("returns demo completion when demo mode enabled", async () => {
@@ -80,8 +84,6 @@ describe("AI Provider Integration", () => {
 
   describe("No Configuration (fallback)", () => {
     beforeEach(() => {
-      delete process.env.PLAYWRIGHT;
-      delete process.env.VIBE_DEMO_MODE;
       // Set NODE_ENV to something other than 'test' to bypass test mode check
       (process.env as Record<string, string | undefined>).NODE_ENV = "development";
     });
@@ -108,7 +110,8 @@ describe("AI Provider Integration", () => {
 
   describe("Completion Parameters", () => {
     beforeEach(() => {
-      process.env.PLAYWRIGHT = "1";
+      // PR-130: Use VK_TEST_MODE for explicit mock mode
+      process.env.VK_TEST_MODE = "1";
     });
 
     it("includes last message content in demo response", async () => {
@@ -145,7 +148,8 @@ describe("AI Provider Integration", () => {
 
   describe("Usage Tracking", () => {
     beforeEach(() => {
-      process.env.PLAYWRIGHT = "1";
+      // PR-130: Use VK_TEST_MODE for explicit mock mode
+      process.env.VK_TEST_MODE = "1";
     });
 
     it("returns zero usage for demo mode", async () => {

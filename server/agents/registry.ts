@@ -5,6 +5,8 @@
  * Centralized registry for all available agents
  */
 
+import { isMockModeEnabled } from "@/lib/mock-mode";
+
 export type AgentRole = "backend" | "frontend" | "qa" | "architect";
 
 export interface AgentConfig {
@@ -17,11 +19,11 @@ export interface AgentConfig {
 
 /**
  * Get temperature based on environment
- * Test mode (PLAYWRIGHT=1) = 0 for determinism
+ * Mock mode = 0 for determinism
  * Production = configured value
  */
 function getTemperature(defaultTemp: number): number {
-  return process.env.PLAYWRIGHT === "1" ? 0 : defaultTemp;
+  return isMockModeEnabled() ? 0 : defaultTemp;
 }
 
 /**
