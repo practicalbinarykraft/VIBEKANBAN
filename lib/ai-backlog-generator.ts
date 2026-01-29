@@ -7,6 +7,7 @@
 
 import { getAICompletion, isAIConfigured } from "@/server/services/ai/ai-provider";
 import { generateCouncilBacklog } from "./council-backlog-generator";
+import { isMockModeEnabled } from "./mock-mode";
 
 export interface BacklogStep {
   title: string;
@@ -19,9 +20,7 @@ export interface BacklogResult {
   planSteps: string[];
 }
 
-function isTestMode(): boolean {
-  return process.env.PLAYWRIGHT === "1" || process.env.NODE_ENV === "test";
-}
+// isTestMode removed - use isMockModeEnabled() from ./mock-mode
 
 const SYSTEM_PROMPT = `You are a technical project planner. Generate a detailed implementation backlog for a software project.
 
@@ -86,7 +85,7 @@ export async function generateBacklog(
 
   // Use AI if configured and not in test mode
   const aiConfigured = await isAIConfigured();
-  if (aiConfigured && !isTestMode()) {
+  if (aiConfigured && !isMockModeEnabled()) {
     try {
       planSteps = await generateAIBacklog(ideaText, userAnswers);
     } catch (error) {

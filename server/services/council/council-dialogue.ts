@@ -12,6 +12,7 @@ import { councilThreads, councilThreadMessages, planArtifacts } from "@/server/d
 import { randomUUID } from "crypto";
 import { eq, and, desc } from "drizzle-orm";
 import { getCouncilAiResponse } from "./council-ai-router";
+import { isMockModeEnabled } from "@/lib/mock-mode";
 
 export type CouncilRole = "product" | "architect" | "backend" | "frontend" | "qa";
 export type MessageKind = "message" | "question" | "concern" | "proposal" | "consensus";
@@ -42,10 +43,7 @@ function detectLanguage(text: string): string {
   return cyrillicPattern.test(text) ? "ru" : "en";
 }
 
-// Test mode check
-function isTestMode(): boolean {
-  return process.env.PLAYWRIGHT === "1" || process.env.NODE_ENV === "test";
-}
+// isTestMode removed - use isMockModeEnabled() from @/lib/mock-mode
 
 // Role prompts for each council member
 const ROLE_PROMPTS: Record<CouncilRole, { name: string; focus: string }> = {

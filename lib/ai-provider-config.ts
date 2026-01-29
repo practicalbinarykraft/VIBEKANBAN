@@ -10,6 +10,7 @@
 import { db } from "@/server/db";
 import { settings } from "@/server/db/schema";
 import { eq } from "drizzle-orm";
+import { isMockModeEnabled, getMockModeReason } from "./mock-mode";
 
 export type AiMode = "demo" | "real" | "disabled";
 export type AiProvider = "anthropic" | "openai";
@@ -27,7 +28,7 @@ export interface AiProviderConfig {
 
 function isDemoMode(): boolean {
   return (
-    process.env.VIBE_DEMO_MODE === "1" || process.env.PLAYWRIGHT === "1"
+    process.env.VIBE_DEMO_MODE === "1" || isMockModeEnabled()
   );
 }
 
@@ -57,13 +58,13 @@ export function detectAiMode(): AiProviderConfig {
   if (isDemoMode()) {
     const reason = process.env.VIBE_DEMO_MODE === "1"
       ? "VIBE_DEMO_MODE=1"
-      : "PLAYWRIGHT=1";
+      : getMockModeReason() || "Mock mode";
     return {
       mode: "demo",
       primaryProvider: null,
       availableProviders: [],
       canRunAi: true,
-      bannerText: "Demo mode: responses are simulated",
+      bannerText: `Mock mode: ${reason}`,
       bannerVariant: "warning",
       reason,
     };
@@ -103,13 +104,13 @@ export async function detectAiModeAsync(): Promise<AiProviderConfig> {
   if (isDemoMode()) {
     const reason = process.env.VIBE_DEMO_MODE === "1"
       ? "VIBE_DEMO_MODE=1"
-      : "PLAYWRIGHT=1";
+      : getMockModeReason() || "Mock mode";
     return {
       mode: "demo",
       primaryProvider: null,
       availableProviders: [],
       canRunAi: true,
-      bannerText: "Demo mode: responses are simulated",
+      bannerText: `Mock mode: ${reason}`,
       bannerVariant: "warning",
       reason,
     };

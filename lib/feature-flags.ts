@@ -9,12 +9,17 @@
  * Environment Variables:
  * - FEATURE_* flags: Enable specific features
  * - VIBE_DEMO_MODE: Enable demo mode (simulated AI)
- * - PLAYWRIGHT: Enable test/mock mode
+ *
+ * Mock Mode (PR-130):
+ * - Use isMockModeEnabled() from '@/lib/mock-mode' for mock gating
+ * - DO NOT use PLAYWRIGHT=1 for mock mode checks
  *
  * Usage in code:
  *   import { FeatureFlags, isFeatureEnabled } from '@/lib/feature-flags'
  *   if (isFeatureEnabled('REAL_AI')) { ... }
  */
+
+import { isMockModeEnabled } from './mock-mode';
 
 // ============================================================================
 // Feature Flag Definitions
@@ -76,20 +81,21 @@ export function isFeatureEnabled(flag: FeatureFlagName): boolean {
 
 /**
  * Check if running in demo mode
- * Demo mode is enabled via VIBE_DEMO_MODE=1 or PLAYWRIGHT=1
+ * Demo mode is enabled via VIBE_DEMO_MODE=1 or mock mode
  */
 export function isDemoMode(): boolean {
   return (
     process.env.VIBE_DEMO_MODE === '1' ||
-    process.env.PLAYWRIGHT === '1'
+    isMockModeEnabled()
   );
 }
 
 /**
- * Check if running in test/E2E mode (Playwright)
+ * Check if running in test/mock mode
+ * @deprecated Use isMockModeEnabled() from '@/lib/mock-mode' instead
  */
 export function isTestMode(): boolean {
-  return process.env.PLAYWRIGHT === '1';
+  return isMockModeEnabled();
 }
 
 /**

@@ -19,6 +19,7 @@ import {
   buildCouncilContext,
   CouncilRole,
 } from "../ai/council-prompts";
+import { isMockModeEnabled } from "@/lib/mock-mode";
 
 export interface CouncilMessage {
   id: string;
@@ -45,12 +46,7 @@ export interface IterationPlan {
   }>;
 }
 
-/**
- * Check if running in test mode
- */
-function isTestMode(): boolean {
-  return process.env.PLAYWRIGHT === "1" || process.env.NODE_ENV === "test";
-}
+// isTestMode removed - use isMockModeEnabled() from @/lib/mock-mode
 
 /**
  * Generate mock council discussion based on keywords (demo/test mode)
@@ -241,7 +237,7 @@ export async function startCouncilDiscussion(
   let plan: IterationPlan;
   let errorMessage: string | undefined;
 
-  if (aiConfigured && !isTestMode()) {
+  if (aiConfigured && !isMockModeEnabled()) {
     try {
       // Use real AI
       discussion = await generateRealCouncilDiscussion(userMessage);

@@ -31,9 +31,11 @@ export default defineConfig({
     },
   ],
   webServer: {
+    // VK_TEST_MODE=1: enables mock mode for AI services (PR-130)
+    // PLAYWRIGHT=1: kept for test fixture route access (security)
     command: isCI
-      ? 'PLAYWRIGHT=1 FEATURE_AUTOPILOT_V2=1 npm start'
-      : 'PLAYWRIGHT=1 FEATURE_AUTOPILOT_V2=1 npm run dev',
+      ? 'VK_TEST_MODE=1 PLAYWRIGHT=1 FEATURE_AUTOPILOT_V2=1 npm start'
+      : 'VK_TEST_MODE=1 PLAYWRIGHT=1 FEATURE_AUTOPILOT_V2=1 npm run dev',
     url: 'http://localhost:8000',
     reuseExistingServer: !isCI,
     timeout: 120000,

@@ -17,6 +17,7 @@ import { callAnthropicWithRetry, callOpenAIWithRetry } from "./provider-adapter"
 import { shouldUseRealAi, getRealAiConfig } from "./real-ai-config";
 import { recordAiCostEvent, createCostEventFromCompletion } from "./ai-cost-events";
 import { checkProviderBudget } from "./ai-budget-guard";
+import { isMockModeEnabled } from "@/lib/mock-mode";
 
 export type AIProvider = "demo" | "anthropic" | "openai";
 
@@ -69,12 +70,7 @@ function isDemoModeEnabled(): boolean {
   return process.env.VIBE_DEMO_MODE === "1";
 }
 
-/**
- * Check if test mode is enabled
- */
-function isTestMode(): boolean {
-  return process.env.PLAYWRIGHT === "1" || process.env.NODE_ENV === "test";
-}
+// isTestMode removed - use isMockModeEnabled() from @/lib/mock-mode
 
 /**
  * Get current AI settings
@@ -125,7 +121,7 @@ export async function getAISettings(): Promise<AISettings> {
  */
 export async function isAIConfigured(): Promise<boolean> {
   // Test mode and demo mode always return "configured" for mock
-  if (isTestMode() || isDemoModeEnabled()) {
+  if (isMockModeEnabled() || isDemoModeEnabled()) {
     return true;
   }
 
@@ -149,7 +145,7 @@ export async function getAICompletion(
   params: AICompletionParams
 ): Promise<AICompletionResult> {
   // Test mode always uses mock
-  if (isTestMode()) {
+  if (isMockModeEnabled()) {
     return getDemoCompletion(params);
   }
 

@@ -15,6 +15,7 @@ import { cookies } from "next/headers";
 import { db } from "@/server/db";
 import { projects, tasks } from "@/server/db/schema";
 import { eq } from "drizzle-orm";
+import { isMockModeEnabled } from "@/lib/mock-mode";
 
 /**
  * Get current user ID from request
@@ -25,7 +26,7 @@ export async function getCurrentUserId(request?: NextRequest): Promise<string> {
   const cookieStore = await cookies();
 
   // Test mode: use test-user-id cookie
-  if (process.env.PLAYWRIGHT === '1' || process.env.NODE_ENV === 'test') {
+  if (isMockModeEnabled()) {
     const testUserId = cookieStore.get('test-user-id');
     return testUserId?.value || 'user-owner'; // Default to owner in tests
   }
