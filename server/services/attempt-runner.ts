@@ -14,8 +14,9 @@ import { ExecutionResult } from "@/types/execution-result";
 import { checkRepoPreconditions, getDiffSummary } from "./execution/repo-preconditions";
 import { createPullRequest } from "./execution/pr-creator";
 import { tryPublishAttemptPr } from "./execution/attempt-pr-publisher-deps";
+import { isMockModeEnabled } from "@/lib/mock-mode";
 
-const isTestMode = process.env.PLAYWRIGHT === "1";
+const isTestMode = isMockModeEnabled();
 
 interface RunAttemptOptions {
   attemptId: string;

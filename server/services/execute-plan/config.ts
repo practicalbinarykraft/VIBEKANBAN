@@ -1,8 +1,9 @@
 /**
- * Execute Plan Configuration
+ * Execute Plan Configuration (PR-130: Mock mode gating)
  */
 
 import type { ExecutionMode } from "./types";
+import { isMockModeEnabled } from "@/lib/mock-mode";
 
 /**
  * Determine execution mode from environment
@@ -10,8 +11,7 @@ import type { ExecutionMode } from "./types";
 export function getExecutionMode(): ExecutionMode {
   if (process.env.EXECUTION_MODE === "mock") return "mock";
   if (process.env.EXECUTION_MODE === "real") return "real";
-  if (process.env.PLAYWRIGHT === "1") return "mock";
-  if (process.env.NODE_ENV === "test") return "mock";
+  if (isMockModeEnabled()) return "mock";
   return "real";
 }
 

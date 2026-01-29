@@ -8,6 +8,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { getAICompletion, isAIConfigured } from "@/server/services/ai/ai-provider";
+import { isMockModeEnabled } from "@/lib/mock-mode";
 
 export interface FileChange {
   path: string;
@@ -21,9 +22,7 @@ export interface TaskChangeInput {
   repoPath: string;
 }
 
-function isTestMode(): boolean {
-  return process.env.PLAYWRIGHT === "1" || process.env.NODE_ENV === "test";
-}
+// isTestMode removed - use isMockModeEnabled() from @/lib/mock-mode
 
 const SYSTEM_PROMPT = `You are a senior software engineer. Given a task, generate the file changes needed to implement it.
 
@@ -216,7 +215,7 @@ export function taskUtil() {
 export async function generateTaskChanges(input: TaskChangeInput): Promise<FileChange[]> {
   const aiConfigured = await isAIConfigured();
 
-  if (aiConfigured && !isTestMode()) {
+  if (aiConfigured && !isMockModeEnabled()) {
     return generateAIChanges(input);
   }
 

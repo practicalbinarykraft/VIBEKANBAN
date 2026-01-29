@@ -11,6 +11,7 @@ import { randomUUID } from "crypto";
 import { eq, desc, and } from "drizzle-orm";
 import { getAICompletion, isAIConfigured } from "../ai/ai-provider";
 import { getCouncilDialogue } from "./council-dialogue";
+import { isMockModeEnabled } from "@/lib/mock-mode";
 
 export interface PlanTask {
   title: string;
@@ -32,9 +33,7 @@ export interface PlanArtifact {
   createdAt: Date;
 }
 
-function isTestMode(): boolean {
-  return process.env.PLAYWRIGHT === "1" || process.env.NODE_ENV === "test";
-}
+// isTestMode removed - use isMockModeEnabled() from @/lib/mock-mode
 
 /**
  * Calculate overall estimate from tasks
@@ -56,7 +55,7 @@ async function generatePlanTasks(
   const language = thread.language;
   const idea = thread.ideaText || "";
 
-  if (isTestMode() || !(await isAIConfigured())) {
+  if (isMockModeEnabled() || !(await isAIConfigured())) {
     return getMockPlan(idea, language);
   }
 

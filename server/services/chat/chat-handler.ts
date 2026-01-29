@@ -13,6 +13,7 @@ import { projectMessages, projects } from "@/server/db/schema";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { getAICompletion, isAIConfigured } from "../ai/ai-provider";
+import { isMockModeEnabled } from "@/lib/mock-mode";
 
 /**
  * Detect language from text (PR-127)
@@ -86,12 +87,7 @@ export interface ChatMessage {
   createdAt: Date;
 }
 
-/**
- * Check if running in test mode
- */
-function isTestMode(): boolean {
-  return process.env.PLAYWRIGHT === "1" || process.env.NODE_ENV === "test";
-}
+// isTestMode removed - use isMockModeEnabled() from @/lib/mock-mode
 
 /**
  * Generate test mode response based on keywords and language (PR-127)
@@ -123,10 +119,44 @@ function getTestModeResponse(userMessage: string, language: string): string {
 }
 
 /**
- * Generate AI chat response with guardrails (PR-127)
+ * Convert chat history to LLM message format (PR-131)
+ * - "user" stays "user"
+ * - "product" becomes "assistant"
+ * - "system" is filtered out (handled via systemPrompt)
  */
-async function generateAIChatResponse(userMessage: string, language: string): Promise<string> {
-  if (isTestMode()) {
+function convertToLLMMessages(
+  history: ChatMessage[],
+  currentMessage: string
+): Array<{ role: "user" | "assistant"; content: string }> {
+  // Take last 20 messages for context (token budget)
+  const recentHistory = history.slice(-20);
+
+  const messages: Array<{ role: "user" | "assistant"; content: string }> = [];
+
+  for (const msg of recentHistory) {
+    if (msg.role === "user") {
+      messages.push({ role: "user", content: msg.content });
+    } else if (msg.role === "product") {
+      messages.push({ role: "assistant", content: msg.content });
+    }
+    // Skip "system" messages - they're handled via systemPrompt
+  }
+
+  // Add current message
+  messages.push({ role: "user", content: currentMessage });
+
+  return messages;
+}
+
+/**
+ * Generate AI chat response with guardrails (PR-127, PR-131: multi-turn memory)
+ */
+async function generateAIChatResponse(
+  projectId: string,
+  userMessage: string,
+  language: string
+): Promise<string> {
+  if (isMockModeEnabled()) {
     return getTestModeResponse(userMessage, language);
   }
 
@@ -138,14 +168,25 @@ async function generateAIChatResponse(userMessage: string, language: string): Pr
   }
 
   try {
+    // PR-131: Fetch chat history and include in LLM call
+    const history = await getChatHistory(projectId);
+    const messages = convertToLLMMessages(history, userMessage);
+
+    // Debug log (no secrets)
+    console.log(`[Chat] projectId=${projectId}, messageCount=${messages.length}, provider=checking...`);
+
     const result = await getAICompletion({
       systemPrompt: getChatSystemPrompt(language),
-      messages: [{ role: "user", content: userMessage }],
+      messages,
       maxTokens: 150,
       temperature: 0.7,
     });
+
+    console.log(`[Chat] Response from ${result.provider}/${result.model}, tokens: ${result.usage?.outputTokens || 'N/A'}`);
+
     return result.content;
   } catch (error: any) {
+    console.error(`[Chat] Error: ${error.message}`);
     return `⚠️ ${error.message}`;
   }
 }
@@ -215,8 +256,8 @@ export async function handleUserMessage(
     await setProjectLanguage(projectId, language);
   }
 
-  // Generate conversational AI response (no council, no proposal)
-  const productResponse = await generateAIChatResponse(userMessage, language);
+  // Generate conversational AI response with full history (PR-131)
+  const productResponse = await generateAIChatResponse(projectId, userMessage, language);
   const productMsg = await saveMessage(projectId, "product", productResponse);
 
   return { userMsg, productMsg };

@@ -11,6 +11,7 @@ import { randomUUID } from "crypto";
 import { eq } from "drizzle-orm";
 import { getAICompletion, isAIConfigured } from "../ai/ai-provider";
 import { CouncilRole, CouncilMessage, MessageKind, getCouncilDialogue } from "./council-dialogue";
+import { isMockModeEnabled } from "@/lib/mock-mode";
 
 const ROLE_PROMPTS: Record<CouncilRole, { name: string; focus: string }> = {
   product: { name: "Product Manager", focus: "user needs, MVP scope, priorities" },
@@ -22,9 +23,7 @@ const ROLE_PROMPTS: Record<CouncilRole, { name: string; focus: string }> = {
 
 const DISCUSSION_ORDER: CouncilRole[] = ["architect", "backend", "frontend", "qa", "product"];
 
-function isTestMode(): boolean {
-  return process.env.PLAYWRIGHT === "1" || process.env.NODE_ENV === "test";
-}
+// isTestMode removed - use isMockModeEnabled() from @/lib/mock-mode
 
 /**
  * Generate follow-up messages based on user response
@@ -42,7 +41,7 @@ async function generateFollowUpMessages(
   const previousContext = thread.messages.map(m => `[${m.role}]: ${m.content}`).join("\n");
 
   for (const role of DISCUSSION_ORDER) {
-    if (isTestMode() || !(await isAIConfigured())) {
+    if (isMockModeEnabled() || !(await isAIConfigured())) {
       messages.push({
         role,
         kind: role === "product" ? "consensus" : "message",

@@ -10,6 +10,7 @@
 import { db } from '@/server/db';
 import { attempts, projects } from '@/server/db/schema';
 import { eq, and, isNull, isNotNull } from 'drizzle-orm';
+import { isMockModeEnabled } from './mock-mode';
 
 // Safety constants
 export const MAX_FILES_PER_TASK = 20;
@@ -86,8 +87,8 @@ export async function checkRepoReady(projectId: string): Promise<SafetyCheckResu
  * Run all safety checks before execution
  */
 export async function runSafetyChecks(projectId: string): Promise<SafetyCheckResult> {
-  // Skip safety checks in PLAYWRIGHT mode for E2E testing
-  if (process.env.PLAYWRIGHT === '1') {
+  // Skip safety checks in mock mode for E2E testing
+  if (isMockModeEnabled()) {
     return { ok: true };
   }
 

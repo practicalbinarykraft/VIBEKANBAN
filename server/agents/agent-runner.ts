@@ -8,6 +8,7 @@
 
 import { AgentConfig } from "./registry";
 import { TaskInfo } from "./agent-selector";
+import { isMockModeEnabled } from "@/lib/mock-mode";
 
 export interface AgentRunResult {
   success: boolean;
@@ -25,12 +26,7 @@ export interface ProjectContext {
   existingFiles?: string[];
 }
 
-/**
- * Check if running in test mode
- */
-function isTestMode(): boolean {
-  return process.env.PLAYWRIGHT === "1" || process.env.NODE_ENV === "test";
-}
+// isTestMode removed - use isMockModeEnabled() from @/lib/mock-mode
 
 /**
  * Generate deterministic hash from string (for test mode)
@@ -150,7 +146,7 @@ export async function runAgent(
   context: ProjectContext
 ): Promise<AgentRunResult> {
   try {
-    if (isTestMode()) {
+    if (isMockModeEnabled()) {
       // Test mode: deterministic mock output
       const generatedCode = generateMockCode(task, agent);
       const commitMessage = generateCommitMessage(task, agent);

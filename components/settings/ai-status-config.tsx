@@ -41,8 +41,8 @@ export const REASON_CONFIG: Record<AiStatusReason, ReasonConfig> = {
   },
   TEST_MODE_FORCED_MOCK: {
     icon: <FlaskConical className="h-5 w-5" />,
-    title: "Test mode active",
-    description: "AI is using mock responses because test mode is enabled.",
+    title: "Mock mode active",
+    description: "AI is using simulated responses. To enable real AI, remove the test mode flags below and restart the server.",
     severity: "info",
   },
   BUDGET_LIMIT_EXCEEDED: {
