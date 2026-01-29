@@ -1,3 +1,14 @@
+/**
+ * AI Provider Config Tests
+ *
+ * PR-130 NEW CONTRACT:
+ * - Mock mode (demo) is ONLY triggered by:
+ *   - VIBE_DEMO_MODE=1
+ *   - VK_TEST_MODE=1
+ *   - E2E_PROFILE=ci or E2E_PROFILE=local
+ * - PLAYWRIGHT=1 alone does NOT trigger demo mode
+ */
+
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   detectAiMode,
@@ -13,6 +24,8 @@ describe("ai-provider-config", () => {
     process.env = { ...originalEnv };
     delete process.env.VIBE_DEMO_MODE;
     delete process.env.PLAYWRIGHT;
+    delete process.env.VK_TEST_MODE;
+    delete process.env.E2E_PROFILE;
     delete process.env.ANTHROPIC_API_KEY;
     delete process.env.OPENAI_API_KEY;
   });
@@ -29,11 +42,28 @@ describe("ai-provider-config", () => {
       expect(result.reason).toContain("VIBE_DEMO_MODE");
     });
 
-    it("returns DEMO when PLAYWRIGHT=1", () => {
+    // PR-130: PLAYWRIGHT alone does NOT trigger demo mode
+    it("returns DISABLED when only PLAYWRIGHT=1 (not a mock trigger)", () => {
       process.env.PLAYWRIGHT = "1";
       const result = detectAiMode();
+      // PLAYWRIGHT alone doesn't trigger demo, and no keys = disabled
+      expect(result.mode).toBe<AiMode>("disabled");
+    });
+
+    // PR-130: VK_TEST_MODE is an explicit mock trigger
+    it("returns DEMO when VK_TEST_MODE=1", () => {
+      process.env.VK_TEST_MODE = "1";
+      const result = detectAiMode();
       expect(result.mode).toBe<AiMode>("demo");
-      expect(result.reason).toContain("PLAYWRIGHT");
+      expect(result.reason).toContain("VK_TEST_MODE");
+    });
+
+    // PR-130: E2E_PROFILE is an explicit mock trigger
+    it("returns DEMO when E2E_PROFILE=ci", () => {
+      process.env.E2E_PROFILE = "ci";
+      const result = detectAiMode();
+      expect(result.mode).toBe<AiMode>("demo");
+      expect(result.reason).toContain("E2E_PROFILE");
     });
 
     it("returns DISABLED when no keys and not demo", () => {
@@ -75,8 +105,18 @@ describe("ai-provider-config", () => {
       expect(result.mode).toBe<AiMode>("demo");
     });
 
-    it("PLAYWRIGHT=1 overrides even when keys exist", () => {
+    // PR-130: PLAYWRIGHT alone does NOT override real mode
+    it("PLAYWRIGHT=1 does NOT override when keys exist", () => {
       process.env.PLAYWRIGHT = "1";
+      process.env.ANTHROPIC_API_KEY = "sk-ant-test";
+      const result = detectAiMode();
+      // PLAYWRIGHT alone is not a mock trigger, so should be real
+      expect(result.mode).toBe<AiMode>("real");
+    });
+
+    // PR-130: VK_TEST_MODE overrides real mode
+    it("VK_TEST_MODE=1 overrides even when keys exist", () => {
+      process.env.VK_TEST_MODE = "1";
       process.env.ANTHROPIC_API_KEY = "sk-ant-test";
       const result = detectAiMode();
       expect(result.mode).toBe<AiMode>("demo");
@@ -84,10 +124,19 @@ describe("ai-provider-config", () => {
   });
 
   describe("display properties", () => {
-    it("DEMO mode has correct banner text", () => {
+    it("VIBE_DEMO_MODE has correct banner text", () => {
       process.env.VIBE_DEMO_MODE = "1";
       const result = detectAiMode();
-      expect(result.bannerText).toBe("Demo mode: responses are simulated");
+      expect(result.bannerText).toContain("Mock mode");
+      expect(result.bannerText).toContain("VIBE_DEMO_MODE");
+      expect(result.bannerVariant).toBe("warning");
+    });
+
+    it("VK_TEST_MODE has correct banner text", () => {
+      process.env.VK_TEST_MODE = "1";
+      const result = detectAiMode();
+      expect(result.bannerText).toContain("Mock mode");
+      expect(result.bannerText).toContain("VK_TEST_MODE");
       expect(result.bannerVariant).toBe("warning");
     });
 

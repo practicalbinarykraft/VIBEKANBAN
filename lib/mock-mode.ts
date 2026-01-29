@@ -2,29 +2,32 @@
  * Centralized Mock Mode Gating (PR-130)
  *
  * IMPORTANT: This is the ONLY place that controls mock mode.
- * DO NOT use process.env.PLAYWRIGHT for mock gating anywhere else.
  *
- * Mock mode is enabled ONLY when:
- * - CI=true (GitHub Actions, etc.)
+ * Mock mode is enabled ONLY by EXPLICIT FLAGS:
  * - VK_TEST_MODE=1 (explicit test mode flag)
- * - E2E_PROFILE=ci (E2E test profile)
+ * - E2E_PROFILE=ci (E2E CI test profile)
+ * - E2E_PROFILE=local (E2E local test profile)
  *
- * PLAYWRIGHT=1 is NOT a trigger for mock mode.
- * It's only used for test fixture route protection.
+ * NOT triggered by (so unit tests can validate real AI logic):
+ * - NODE_ENV=test
+ * - CI=true
+ * - PLAYWRIGHT=1 alone
  */
 
-export type MockModeTrigger = "CI" | "VK_TEST_MODE" | "E2E_PROFILE" | "NODE_ENV_TEST";
+export type MockModeTrigger = "VK_TEST_MODE" | "E2E_PROFILE";
 
 /**
  * Check if mock mode is enabled.
  * This is the SINGLE SOURCE OF TRUTH for mock mode.
+ *
+ * Only explicit flags activate mock mode, NOT environment detection.
+ * This allows unit tests to test both mock and real AI branches.
  */
 export function isMockModeEnabled(): boolean {
   return (
-    process.env.CI === "true" ||
     process.env.VK_TEST_MODE === "1" ||
     process.env.E2E_PROFILE === "ci" ||
-    process.env.NODE_ENV === "test"
+    process.env.E2E_PROFILE === "local"
   );
 }
 
@@ -35,10 +38,10 @@ export function isMockModeEnabled(): boolean {
 export function getMockModeTriggers(): MockModeTrigger[] {
   const triggers: MockModeTrigger[] = [];
 
-  if (process.env.CI === "true") triggers.push("CI");
   if (process.env.VK_TEST_MODE === "1") triggers.push("VK_TEST_MODE");
-  if (process.env.E2E_PROFILE === "ci") triggers.push("E2E_PROFILE");
-  if (process.env.NODE_ENV === "test") triggers.push("NODE_ENV_TEST");
+  if (process.env.E2E_PROFILE === "ci" || process.env.E2E_PROFILE === "local") {
+    triggers.push("E2E_PROFILE");
+  }
 
   return triggers;
 }
@@ -50,14 +53,19 @@ export function getMockModeReason(): string | null {
   const triggers = getMockModeTriggers();
   if (triggers.length === 0) return null;
 
-  const descriptions: Record<MockModeTrigger, string> = {
-    CI: "CI=true",
-    VK_TEST_MODE: "VK_TEST_MODE=1",
-    E2E_PROFILE: "E2E_PROFILE=ci",
-    NODE_ENV_TEST: "NODE_ENV=test",
-  };
+  const parts: string[] = [];
 
-  return triggers.map((t) => descriptions[t]).join(", ");
+  if (process.env.VK_TEST_MODE === "1") {
+    parts.push("VK_TEST_MODE=1");
+  }
+  if (process.env.E2E_PROFILE === "ci") {
+    parts.push("E2E_PROFILE=ci");
+  }
+  if (process.env.E2E_PROFILE === "local") {
+    parts.push("E2E_PROFILE=local");
+  }
+
+  return parts.join(", ");
 }
 
 /**

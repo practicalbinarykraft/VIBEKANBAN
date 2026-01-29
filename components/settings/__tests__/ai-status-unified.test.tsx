@@ -128,6 +128,7 @@ describe("AiStatusUnified", () => {
             provider: "mock",
             model: "mock",
             reason: "TEST_MODE_FORCED_MOCK",
+            testModeTriggers: ["VK_TEST_MODE=1"],
           }),
       })
     ) as any;
@@ -135,10 +136,12 @@ describe("AiStatusUnified", () => {
     render(<AiStatusUnified />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Test mode active/)).toBeInTheDocument();
+      // PR-130: The title is "Mock mode active" not "Test mode active"
+      expect(screen.getByText(/Mock mode active/)).toBeInTheDocument();
     });
 
     expect(screen.getByTestId("ai-status-unified")).toHaveTextContent("Current mode:");
+    expect(screen.getByTestId("ai-status-unified")).toHaveTextContent("VK_TEST_MODE=1");
   });
 
   it("shows error state on fetch failure", async () => {

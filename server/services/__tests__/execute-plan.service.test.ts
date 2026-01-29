@@ -1,6 +1,11 @@
 /**
  * Unit tests for execute-plan.service
  *
+ * PR-130 NEW CONTRACT:
+ * - Mock mode is ONLY triggered by explicit flags: VK_TEST_MODE=1, E2E_PROFILE
+ * - PLAYWRIGHT=1 alone does NOT trigger mock mode
+ * - NODE_ENV=test does NOT trigger mock mode
+ *
  * Tests:
  * - getExecutionMode returns correct mode for env combos
  * - isExecutePlanV2Enabled flag detection
@@ -86,20 +91,39 @@ describe("execute-plan.service", () => {
 
     it("returns real when EXECUTION_MODE=real", () => {
       process.env.EXECUTION_MODE = "real";
-      delete process.env.PLAYWRIGHT;
+      delete process.env.VK_TEST_MODE;
       expect(getExecutionMode()).toBe("real");
     });
 
-    it("returns mock when PLAYWRIGHT=1", () => {
+    // PR-130: PLAYWRIGHT alone does NOT trigger mock mode
+    it("returns real when only PLAYWRIGHT=1 (not a mock trigger)", () => {
       delete process.env.EXECUTION_MODE;
+      delete process.env.VK_TEST_MODE;
+      delete process.env.E2E_PROFILE;
       process.env.PLAYWRIGHT = "1";
+      expect(getExecutionMode()).toBe("real");
+    });
+
+    // PR-130: NODE_ENV=test does NOT trigger mock mode
+    it("returns real when NODE_ENV=test (not a mock trigger)", () => {
+      delete process.env.EXECUTION_MODE;
+      delete process.env.VK_TEST_MODE;
+      delete process.env.E2E_PROFILE;
+      (process.env as Record<string, string | undefined>).NODE_ENV = "test";
+      expect(getExecutionMode()).toBe("real");
+    });
+
+    // PR-130: VK_TEST_MODE is an explicit mock trigger
+    it("returns mock when VK_TEST_MODE=1", () => {
+      delete process.env.EXECUTION_MODE;
+      process.env.VK_TEST_MODE = "1";
       expect(getExecutionMode()).toBe("mock");
     });
 
-    it("returns mock when NODE_ENV=test", () => {
+    // PR-130: E2E_PROFILE is an explicit mock trigger
+    it("returns mock when E2E_PROFILE=ci", () => {
       delete process.env.EXECUTION_MODE;
-      delete process.env.PLAYWRIGHT;
-      (process.env as Record<string, string | undefined>).NODE_ENV = "test";
+      process.env.E2E_PROFILE = "ci";
       expect(getExecutionMode()).toBe("mock");
     });
   });

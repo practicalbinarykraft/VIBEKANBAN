@@ -1,8 +1,16 @@
 /**
  * Mock Mode Gating Tests (PR-130)
  *
- * Verifies that mock mode is ONLY enabled by explicit flags,
- * NOT by PLAYWRIGHT=1 alone.
+ * NEW CONTRACT (explicit flags only):
+ * - Mock mode is ONLY enabled by:
+ *   - VK_TEST_MODE=1
+ *   - E2E_PROFILE=ci
+ *   - E2E_PROFILE=local
+ *
+ * NOT triggered by:
+ * - NODE_ENV=test (unit tests must be able to test real AI branches)
+ * - CI=true (same reason)
+ * - PLAYWRIGHT=1 alone (was already excluded)
  */
 
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
@@ -30,7 +38,7 @@ describe("Mock Mode Gating (PR-130)", () => {
 
   describe("isMockModeEnabled()", () => {
     it("returns false in dev mode without any flags", () => {
-      // CRITICAL: This is the key test - dev mode should NOT be mock
+      // CRITICAL: dev mode should NOT be mock
       expect(isMockModeEnabled()).toBe(false);
     });
 
@@ -40,9 +48,20 @@ describe("Mock Mode Gating (PR-130)", () => {
       expect(isMockModeEnabled()).toBe(false);
     });
 
-    it("returns true when CI=true", () => {
+    // NEW: CI alone should NOT trigger mock mode
+    it("returns false when only CI=true is set", () => {
+      // CRITICAL: CI alone should NOT trigger mock mode
+      // Unit tests run in CI and must be able to test real AI branches
       process.env.CI = "true";
-      expect(isMockModeEnabled()).toBe(true);
+      expect(isMockModeEnabled()).toBe(false);
+    });
+
+    // NEW: NODE_ENV=test should NOT trigger mock mode
+    it("returns false when NODE_ENV=test (allows testing real AI branches)", () => {
+      // CRITICAL: NODE_ENV=test should NOT trigger mock mode
+      // Unit tests must be able to test both mock and real AI status logic
+      process.env.NODE_ENV = "test";
+      expect(isMockModeEnabled()).toBe(false);
     });
 
     it("returns true when VK_TEST_MODE=1", () => {
@@ -55,14 +74,19 @@ describe("Mock Mode Gating (PR-130)", () => {
       expect(isMockModeEnabled()).toBe(true);
     });
 
-    it("returns true when NODE_ENV=test", () => {
-      process.env.NODE_ENV = "test";
+    it("returns true when E2E_PROFILE=local", () => {
+      process.env.E2E_PROFILE = "local";
       expect(isMockModeEnabled()).toBe(true);
     });
 
-    it("returns true when multiple triggers are set", () => {
-      process.env.CI = "true";
+    it("returns false when E2E_PROFILE has unknown value", () => {
+      process.env.E2E_PROFILE = "production";
+      expect(isMockModeEnabled()).toBe(false);
+    });
+
+    it("returns true when multiple explicit triggers are set", () => {
       process.env.VK_TEST_MODE = "1";
+      process.env.E2E_PROFILE = "ci";
       expect(isMockModeEnabled()).toBe(true);
     });
   });
@@ -70,11 +94,6 @@ describe("Mock Mode Gating (PR-130)", () => {
   describe("getMockModeTriggers()", () => {
     it("returns empty array when no triggers", () => {
       expect(getMockModeTriggers()).toEqual([]);
-    });
-
-    it("returns CI when CI=true", () => {
-      process.env.CI = "true";
-      expect(getMockModeTriggers()).toContain("CI");
     });
 
     it("returns VK_TEST_MODE when VK_TEST_MODE=1", () => {
@@ -87,9 +106,21 @@ describe("Mock Mode Gating (PR-130)", () => {
       expect(getMockModeTriggers()).toContain("E2E_PROFILE");
     });
 
-    it("returns NODE_ENV_TEST when NODE_ENV=test", () => {
+    it("returns E2E_PROFILE when E2E_PROFILE=local", () => {
+      process.env.E2E_PROFILE = "local";
+      expect(getMockModeTriggers()).toContain("E2E_PROFILE");
+    });
+
+    // NEW: CI should NOT appear in triggers
+    it("does NOT include CI even when CI=true", () => {
+      process.env.CI = "true";
+      expect(getMockModeTriggers()).not.toContain("CI");
+    });
+
+    // NEW: NODE_ENV_TEST should NOT appear in triggers
+    it("does NOT include NODE_ENV_TEST even when NODE_ENV=test", () => {
       process.env.NODE_ENV = "test";
-      expect(getMockModeTriggers()).toContain("NODE_ENV_TEST");
+      expect(getMockModeTriggers()).not.toContain("NODE_ENV_TEST");
     });
 
     it("does NOT include PLAYWRIGHT", () => {
@@ -98,11 +129,11 @@ describe("Mock Mode Gating (PR-130)", () => {
     });
 
     it("returns multiple triggers when set", () => {
-      process.env.CI = "true";
       process.env.VK_TEST_MODE = "1";
+      process.env.E2E_PROFILE = "ci";
       const triggers = getMockModeTriggers();
-      expect(triggers).toContain("CI");
       expect(triggers).toContain("VK_TEST_MODE");
+      expect(triggers).toContain("E2E_PROFILE");
     });
   });
 
@@ -111,22 +142,33 @@ describe("Mock Mode Gating (PR-130)", () => {
       expect(getMockModeReason()).toBeNull();
     });
 
-    it("returns CI=true when CI is set", () => {
-      process.env.CI = "true";
-      expect(getMockModeReason()).toBe("CI=true");
-    });
-
     it("returns VK_TEST_MODE=1 when VK_TEST_MODE is set", () => {
       process.env.VK_TEST_MODE = "1";
       expect(getMockModeReason()).toBe("VK_TEST_MODE=1");
     });
 
-    it("returns combined reason when multiple triggers", () => {
+    it("returns E2E_PROFILE=ci when E2E_PROFILE=ci", () => {
+      process.env.E2E_PROFILE = "ci";
+      expect(getMockModeReason()).toBe("E2E_PROFILE=ci");
+    });
+
+    it("returns E2E_PROFILE=local when E2E_PROFILE=local", () => {
+      process.env.E2E_PROFILE = "local";
+      expect(getMockModeReason()).toBe("E2E_PROFILE=local");
+    });
+
+    // NEW: CI alone should return null (not a trigger)
+    it("returns null when only CI=true (not a trigger)", () => {
       process.env.CI = "true";
+      expect(getMockModeReason()).toBeNull();
+    });
+
+    it("returns combined reason when multiple triggers", () => {
       process.env.VK_TEST_MODE = "1";
+      process.env.E2E_PROFILE = "ci";
       const reason = getMockModeReason();
-      expect(reason).toContain("CI=true");
       expect(reason).toContain("VK_TEST_MODE=1");
+      expect(reason).toContain("E2E_PROFILE=ci");
     });
   });
 
@@ -138,10 +180,14 @@ describe("Mock Mode Gating (PR-130)", () => {
       expect(isMockModeEnabled()).toBe(true);
     });
 
-    it("mock mode is enabled in CI (CI + VK_TEST_MODE)", () => {
-      // Simulates GitHub Actions
-      process.env.CI = "true";
-      process.env.VK_TEST_MODE = "1";
+    it("mock mode is enabled in E2E with profile (E2E_PROFILE=ci)", () => {
+      // Alternative: use E2E_PROFILE instead of VK_TEST_MODE
+      process.env.E2E_PROFILE = "ci";
+      expect(isMockModeEnabled()).toBe(true);
+    });
+
+    it("mock mode is enabled for local E2E (E2E_PROFILE=local)", () => {
+      process.env.E2E_PROFILE = "local";
       expect(isMockModeEnabled()).toBe(true);
     });
   });
@@ -158,6 +204,42 @@ describe("Mock Mode Gating (PR-130)", () => {
       process.env.NODE_ENV = "development";
       process.env.PLAYWRIGHT = "1";
       expect(isMockModeEnabled()).toBe(false);
+    });
+  });
+
+  describe("Unit Test Scenario (NODE_ENV=test)", () => {
+    it("mock mode is disabled so tests can validate real AI logic", () => {
+      // CRITICAL: Unit tests must be able to test both mock and real AI paths
+      process.env.NODE_ENV = "test";
+      expect(isMockModeEnabled()).toBe(false);
+    });
+
+    it("mock mode can be enabled explicitly in unit tests via VK_TEST_MODE", () => {
+      // When a test WANTS mock mode, it sets VK_TEST_MODE=1 explicitly
+      process.env.NODE_ENV = "test";
+      process.env.VK_TEST_MODE = "1";
+      expect(isMockModeEnabled()).toBe(true);
+    });
+  });
+
+  describe("CI Scenario", () => {
+    it("mock mode is disabled in CI by default (allows testing real AI logic)", () => {
+      // CI runs unit tests - they need to test both paths
+      process.env.CI = "true";
+      expect(isMockModeEnabled()).toBe(false);
+    });
+
+    it("mock mode can be enabled in CI via VK_TEST_MODE", () => {
+      // E2E in CI sets VK_TEST_MODE explicitly
+      process.env.CI = "true";
+      process.env.VK_TEST_MODE = "1";
+      expect(isMockModeEnabled()).toBe(true);
+    });
+
+    it("mock mode can be enabled in CI via E2E_PROFILE", () => {
+      process.env.CI = "true";
+      process.env.E2E_PROFILE = "ci";
+      expect(isMockModeEnabled()).toBe(true);
     });
   });
 });
