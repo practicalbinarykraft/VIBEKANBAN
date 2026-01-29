@@ -35,6 +35,8 @@ interface PlanningTabProps {
   onPipelineComplete?: (createdTaskIds: string[]) => void;
   onAutopilotComplete?: () => void;
   onAutopilotSessionCreated?: (sessionId: string, taskIds: string[]) => void;
+  /** Callback when council active status changes (PR-130) */
+  onCouncilStatusChange?: (isActive: boolean) => void;
 }
 
 type Phase = "idle" | "kickoff" | "awaiting_response" | "plan_ready" | "approved" | "tasks_created";
@@ -42,7 +44,7 @@ type Phase = "idle" | "kickoff" | "awaiting_response" | "plan_ready" | "approved
 // E2E mode detection - debug markers only render in Playwright tests
 const isE2E = process.env.NEXT_PUBLIC_PLAYWRIGHT === "1";
 
-export function PlanningTab({ projectId, enableAutopilotV2 = false, compactMode = false, hasUserMessages = false, onApplyComplete, onAutopilotComplete, onAutopilotSessionCreated }: PlanningTabProps) {
+export function PlanningTab({ projectId, enableAutopilotV2 = false, compactMode = false, hasUserMessages = false, onApplyComplete, onAutopilotComplete, onAutopilotSessionCreated, onCouncilStatusChange }: PlanningTabProps) {
   const [idea, setIdea] = useState("");
   const [response, setResponse] = useState("");
   const [thread, setThread] = useState<CouncilThread | null>(null);
@@ -105,6 +107,12 @@ export function PlanningTab({ projectId, enableAutopilotV2 = false, compactMode 
   useEffect(() => {
     loadExistingCouncil();
   }, [projectId]);
+
+  // Notify parent when council status changes (PR-130)
+  useEffect(() => {
+    const isActive = thread !== null && thread.status !== "completed";
+    onCouncilStatusChange?.(isActive);
+  }, [thread, onCouncilStatusChange]);
 
   const loadExistingCouncil = async () => {
     try {

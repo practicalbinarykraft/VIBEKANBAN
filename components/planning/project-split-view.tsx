@@ -10,7 +10,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { ProjectChat } from "@/components/chat/project-chat";
 import { PlanningTab } from "./planning-tab";
 
@@ -31,6 +31,21 @@ export function ProjectSplitView({
 }: ProjectSplitViewProps) {
   // Track if chat has user messages (needed for Run Consilium button)
   const [hasUserMessages, setHasUserMessages] = useState(false);
+  // Track if council is active (to hide CTA in chat)
+  const [councilActive, setCouncilActive] = useState(false);
+  // Counter to force PlanningTab reload when council started from chat
+  const [councilReloadKey, setCouncilReloadKey] = useState(0);
+
+  // Callback when council started from chat
+  const handleCouncilStarted = useCallback(() => {
+    setCouncilActive(true);
+    setCouncilReloadKey(k => k + 1); // Force PlanningTab to reload
+  }, []);
+
+  // Callback when council status changes in PlanningTab
+  const handleCouncilStatusChange = useCallback((isActive: boolean) => {
+    setCouncilActive(isActive);
+  }, []);
 
   return (
     <div
@@ -45,6 +60,8 @@ export function ProjectSplitView({
         <ProjectChat
           projectId={projectId}
           onHasUserMessages={setHasUserMessages}
+          onCouncilStarted={handleCouncilStarted}
+          councilActive={councilActive}
         />
       </div>
 
@@ -54,6 +71,7 @@ export function ProjectSplitView({
         data-testid="split-right-panel"
       >
         <PlanningTab
+          key={councilReloadKey}
           projectId={projectId}
           compactMode
           hasUserMessages={hasUserMessages}
@@ -61,6 +79,7 @@ export function ProjectSplitView({
           onApplyComplete={onApplyComplete}
           onAutopilotComplete={onAutopilotComplete}
           onAutopilotSessionCreated={onAutopilotSessionCreated}
+          onCouncilStatusChange={handleCouncilStatusChange}
         />
       </div>
     </div>

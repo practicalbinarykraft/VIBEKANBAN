@@ -12,7 +12,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, MessageSquare } from "lucide-react";
+import { Send, MessageSquare, Users } from "lucide-react";
 import { AiModeBanner } from "@/components/ai/ai-mode-banner";
 import { TypingIndicator } from "./typing-indicator";
 
@@ -27,13 +27,22 @@ interface ProjectChatProps {
   projectId: string;
   onMessageSent?: (data: any) => void;
   onHasUserMessages?: (hasUserMessages: boolean) => void;
+  onCouncilStarted?: () => void;
+  councilActive?: boolean;
 }
 
-export function ProjectChat({ projectId, onMessageSent, onHasUserMessages }: ProjectChatProps) {
+export function ProjectChat({
+  projectId,
+  onMessageSent,
+  onHasUserMessages,
+  onCouncilStarted,
+  councilActive = false,
+}: ProjectChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isStartingCouncil, setIsStartingCouncil] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Load chat history on mount
@@ -139,6 +148,42 @@ export function ProjectChat({ projectId, onMessageSent, onHasUserMessages }: Pro
     }
   };
 
+  // Start council with chat context as idea
+  const startCouncil = async () => {
+    const userMessages = messages.filter(m => m.role === "user");
+    if (userMessages.length === 0) return;
+
+    // Build idea from last few user messages
+    const recentMessages = userMessages.slice(-5);
+    const idea = recentMessages.map(m => m.content).join("\n\n");
+
+    setIsStartingCouncil(true);
+    setError(null);
+
+    try {
+      const res = await fetch(`/api/projects/${projectId}/council/start`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idea, fromChat: true }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to start council");
+      }
+
+      onCouncilStarted?.();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsStartingCouncil(false);
+    }
+  };
+
+  // Check if should show council CTA
+  const hasUserMessages = messages.some(m => m.role === "user");
+  const showCouncilCTA = hasUserMessages && !councilActive && !isStartingCouncil;
+
   return (
     <div className="flex h-full flex-col" data-testid="project-chat">
       {/* Header */}
@@ -198,6 +243,21 @@ export function ProjectChat({ projectId, onMessageSent, onHasUserMessages }: Pro
       {error && (
         <div className="mx-4 mb-2 rounded-md bg-destructive/10 px-4 py-2 text-sm text-destructive" data-testid="chat-error">
           {error}
+        </div>
+      )}
+
+      {/* Council CTA - shows when chat has messages but council not started */}
+      {showCouncilCTA && (
+        <div className="mx-4 mb-2" data-testid="council-cta">
+          <Button
+            onClick={startCouncil}
+            variant="outline"
+            className="w-full gap-2 border-primary/50 hover:bg-primary/10"
+            disabled={isStartingCouncil}
+          >
+            <Users className="h-4 w-4" />
+            {isStartingCouncil ? "Запуск совета..." : "Запустить Совет ИИ"}
+          </Button>
         </div>
       )}
 
